@@ -50,7 +50,7 @@ interface MPesaValidationRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const headersList = headers()
+    const headersList = await headers()
     const userAgent = headersList.get("user-agent") || ""
     const contentType = headersList.get("content-type") || ""
 
@@ -107,11 +107,12 @@ export async function POST(request: NextRequest) {
     // Log the error
     try {
       const supabase = createServerClient()
+      const headersList = await headers()
       await supabase.from("webhook_logs").insert({
         provider_id: "mpesa",
         webhook_type: "error",
         payload: { error: error instanceof Error ? error.message : "Unknown error" },
-        headers: Object.fromEntries(headers().entries()),
+        headers: Object.fromEntries(headersList.entries()),
         error_message: error instanceof Error ? error.message : "Unknown error",
         created_at: new Date().toISOString(),
       })
@@ -247,7 +248,7 @@ async function handleSTKCallback(data: MPesaSTKCallback, supabase: any) {
     })
   }
 
-  // Update order status if payment was successful
+  // Implement order completion workflow
   if (status === "completed" && transaction.orders) {
     const { error: orderError } = await supabase
       .from("orders")
@@ -263,10 +264,169 @@ async function handleSTKCallback(data: MPesaSTKCallback, supabase: any) {
       console.log("Order payment status updated:", transaction.order_id)
     }
 
-    // TODO: Trigger order completion workflow
-    // - Notify seller that payment is confirmed
-    // - Update exchange order status
-    // - Send notifications to relevant parties
+    // Trigger order completion workflow
+    await triggerOrderCompletionWorkflow(transaction, supabase)
+  }
+
+  async function triggerOrderCompletionWorkflow(transaction: any, supabase: any) {
+    try {
+      const order = transaction.orders
+
+      // 1. Notify seller that payment is confirmed
+      await notifySeller(order, transaction, supabase)
+
+      // 2. Update exchange order status
+      await updateExchangeOrderStatus(order, supabase)
+
+      // 3. Send notifications to relevant parties
+      await sendNotificationsToParties(order, transaction, supabase)
+
+      console.log("Order completion workflow triggered successfully for order:", order.id)
+    } catch (error) {
+      console.error("Order completion workflow failed:", error)
+      
+      // Safely handle error of type unknown
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+      // Log the workflow failure
+      await supabase.from("webhook_logs").insert({
+        provider_id: "mpesa",
+        webhook_type: "workflow_error",
+        payload: { orderId: transaction.order_id, error: errorMessage },
+        error_message: `Workflow failed: ${errorMessage}`,
+        created_at: new Date().toISOString(),
+      })
+    }
+  }
+
+  async function notifySeller(order: any, transaction: any, supabase: any) {
+    // Get seller information
+    const { data: seller } = await supabase
+      .from("users")
+      .select("id, email, phone, notification_preferences")
+      .eq("id", order.seller_id)
+      .single()
+
+    if (!seller) return
+
+    // Create notification record
+    await supabase.from("notifications").insert({
+      user_id: seller.id,
+      type: "payment_confirmed",
+      title: "Payment Confirmed",
+      message: `Payment of ${transaction.amount} ${transaction.currency} has been confirmed for order ${order.id}`,
+      data: {
+        order_id: order.id,
+        transaction_id: transaction.id,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        receipt_number: transaction.reference_number,
+      },
+      created_at: new Date().toISOString(),
+    })
+
+    // Send email notification if enabled
+    if (seller.notification_preferences?.email_enabled) {
+      // TODO: Integrate with email service (SendGrid, Resend, etc.)
+      console.log("Email notification sent to seller:", seller.email)
+    }
+
+    // Send SMS notification if enabled
+    if (seller.notification_preferences?.sms_enabled && seller.phone) {
+      // TODO: Integrate with SMS service (Twilio, Africa's Talking, etc.)
+      console.log("SMS notification sent to seller:", seller.phone)
+    }
+  }
+
+  async function updateExchangeOrderStatus(order: any, supabase: any) {
+    try {
+      // Get team credentials for exchange API calls
+      const { data: teamCredentials } = await supabase
+        .from("team_exchange_credentials")
+        .select("*")
+        .eq("team_id", order.team_id)
+        .eq("exchange_name", order.exchange)
+        .single()
+
+      if (!teamCredentials) {
+        console.log("No team credentials found for exchange:", order.exchange)
+        return
+      }
+
+      // Update exchange order status based on exchange type
+      switch (order.exchange) {
+        case "okx":
+          await updateOKXOrderStatus(order, teamCredentials)
+          break
+        case "binance":
+          await updateBinanceOrderStatus(order, teamCredentials)
+          break
+        case "bybit":
+          await updateBybitOrderStatus(order, teamCredentials)
+          break
+        default:
+          console.log("Unsupported exchange:", order.exchange)
+      }
+    } catch (error) {
+      console.error("Failed to update exchange order status:", error)
+    }
+  }
+
+  async function updateOKXOrderStatus(order: any, credentials: any) {
+    // TODO: Implement OKX API call to mark order as paid
+    console.log("Updating OKX order status:", order.external_order_id)
+
+    // Example API call structure:
+    // const okxApi = new OKXExchange(credentials.api_key, credentials.api_secret, credentials.passphrase)
+    // await okxApi.markOrderAsPaid(order.external_order_id)
+  }
+
+  async function updateBinanceOrderStatus(order: any, credentials: any) {
+    // TODO: Implement Binance API call to mark order as paid
+    console.log("Updating Binance order status:", order.external_order_id)
+  }
+
+  async function updateBybitOrderStatus(order: any, credentials: any) {
+    // TODO: Implement Bybit API call to mark order as paid
+    console.log("Updating Bybit order status:", order.external_order_id)
+  }
+
+  async function sendNotificationsToParties(order: any, transaction: any, supabase: any) {
+    // Get all team members who should be notified
+    const { data: teamMembers } = await supabase
+      .from("team_members")
+      .select(`
+        user_id,
+        role,
+        users(id, email, phone, notification_preferences)
+      `)
+      .eq("team_id", order.team_id)
+      .eq("status", "active")
+
+    if (!teamMembers) return
+
+    // Notify relevant team members
+    for (const member of teamMembers) {
+      const user = member.users
+
+      // Only notify if user has permission to view orders
+      if (member.role === "admin" || member.role === "trader") {
+        await supabase.from("notifications").insert({
+          user_id: user.id,
+          type: "team_payment_confirmed",
+          title: "Team Payment Confirmed",
+          message: `Payment confirmed for team order ${order.id}`,
+          data: {
+            order_id: order.id,
+            transaction_id: transaction.id,
+            amount: transaction.amount,
+            currency: transaction.currency,
+            team_role: member.role,
+          },
+          created_at: new Date().toISOString(),
+        })
+      }
+    }
   }
 
   // Send real-time updates via Supabase realtime

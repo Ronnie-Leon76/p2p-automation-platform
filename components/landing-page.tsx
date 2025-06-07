@@ -9,6 +9,7 @@ import { ArrowRight, Bot, Shield, TrendingUp, Users, Zap, Globe, CheckCircle, Me
 
 export function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const currentYear = new Date().getFullYear()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -128,18 +129,28 @@ export function LandingPage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white/30 text-white hover:bg-white/20 hover:text-white"
+              >
                 Watch Demo
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Floating cards animation */}
+        {/* Exchange logos floating animation */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-64 h-32 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg backdrop-blur-sm animate-pulse" />
-          <div className="absolute top-1/3 right-1/4 w-48 h-24 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-lg backdrop-blur-sm animate-pulse delay-1000" />
-          <div className="absolute bottom-1/4 left-1/3 w-56 h-28 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-lg backdrop-blur-sm animate-pulse delay-2000" />
+          <div className="absolute top-1/4 left-1/4 w-64 h-32 bg-white/10 rounded-lg backdrop-blur-sm animate-pulse flex items-center justify-center">
+            <img src="https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/okx-logo_udbnjv.png" alt="OKX" className="h-12 w-auto opacity-70" />
+          </div>
+          <div className="absolute top-1/3 right-1/4 w-48 h-24 bg-white/10 rounded-lg backdrop-blur-sm animate-pulse delay-1000 flex items-center justify-center">
+            <img src="https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/binance-logo_weqahc.png" alt="Binance" className="h-10 w-auto opacity-70" />
+          </div>
+          <div className="absolute bottom-1/4 left-1/3 w-56 h-28 bg-white/10 rounded-lg backdrop-blur-sm animate-pulse delay-2000 flex items-center justify-center">
+            <img src="https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/bybit-logo_famhwh.png" alt="Bybit" className="h-8 w-auto opacity-70" />
+          </div>
         </div>
       </section>
 
@@ -289,7 +300,7 @@ export function LandingPage() {
                   <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
                   Email support
                 </div>
-                <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600">
+                <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white">
                   Get Started
                 </Button>
               </CardContent>
@@ -364,7 +375,10 @@ export function LandingPage() {
                   <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
                   SLA guarantee
                 </div>
-                <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10">
+                <Button
+                  variant="outline"
+                  className="w-full border-white/30 text-white hover:bg-white/20 hover:text-white hover:border-white/50"
+                >
                   Contact Sales
                 </Button>
               </CardContent>
@@ -390,7 +404,11 @@ export function LandingPage() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-white/30 text-white hover:bg-white/20 hover:text-white hover:border-white/50"
+            >
               Schedule Demo
             </Button>
           </div>
@@ -487,7 +505,7 @@ export function LandingPage() {
             </div>
           </div>
           <div className="border-t border-white/10 mt-8 pt-8 text-center text-gray-300">
-            <p>&copy; 2024 P2P Automation. All rights reserved.</p>
+            <p>&copy; {currentYear} P2P Automation. All rights reserved.</p>
           </div>
         </div>
       </footer>

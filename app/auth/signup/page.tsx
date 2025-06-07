@@ -7,3 +7,8 @@ export default function SignupPage() {
     </div>
   )
 }
+
+export const metadata = {
+  title: "Get Started - P2P Automation Platform",
+  description: "Connect your exchange account to start automating your P2P trading operations",
+}
