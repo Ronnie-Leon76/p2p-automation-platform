@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Handle OKX wallet authentication differently
     if (exchange === "okx") {
       // Redirect to OKX wallet connection page
-      const walletAuthUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/okx/wallet`
+      const walletAuthUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/okx/setup`
       return NextResponse.redirect(walletAuthUrl)
     }
 
