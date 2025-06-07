@@ -1,9 +1,9 @@
 import { TeamCredentialsSetup } from "@/components/team-credentials-setup"
-import { createClient } from "@/lib/supabase/server"
+import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
 export default async function TeamCredentialsPage() {
-  const supabase = createClient()
+  const supabase = createServerClient()
 
   const {
     data: { user },
@@ -28,7 +28,7 @@ export default async function TeamCredentialsPage() {
     redirect("/dashboard")
   }
 
-  const isOwner = teamMember.teams.owner_id === user.id
+  const isOwner = teamMember.teams[0]?.owner_id === user.id
 
   return (
     <div className="space-y-6">
