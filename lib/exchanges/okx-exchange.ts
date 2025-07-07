@@ -1,37 +1,37 @@
 import type {
-  P2PExchange,
+  AddPaymentMethodParams,
+  AddPaymentMethodResponse,
+  BalanceResponse,
+  CancelAdResponse,
+  CancelOrderResponse,
   CreateAdParams,
   CreateAdResponse,
-  UpdateAdParams,
-  UpdateAdResponse,
-  CancelAdResponse,
-  GetAdResponse,
-  GetActiveAdsParams,
-  GetActiveAdsResponse,
-  GetMarketplaceAdsParams,
-  GetMarketplaceAdsResponse,
-  UpdateAdStatusResponse,
   CreateOrderParams,
   CreateOrderResponse,
+  DeletePaymentMethodResponse,
+  EstimatedPriceParams,
+  EstimatedPriceResponse,
+  GetActiveAdsParams,
+  GetActiveAdsResponse,
+  GetAdResponse,
+  GetMarketplaceAdsParams,
+  GetMarketplaceAdsResponse,
   GetOrderResponse,
   GetOrdersParams,
   GetOrdersResponse,
-  CancelOrderResponse,
   MarkAsPaidParams,
   MarkAsPaidResponse,
+  OptimalPriceResponse,
+  P2PExchange,
+  PaymentMethodsResponse,
   ReleaseCryptoParams,
   ReleaseCryptoResponse,
-  OptimalPriceResponse,
-  EstimatedPriceParams,
-  EstimatedPriceResponse,
-  UserInfoResponse,
-  BalanceResponse,
-  PaymentMethodsResponse,
-  AddPaymentMethodParams,
-  AddPaymentMethodResponse,
+  UpdateAdParams,
+  UpdateAdResponse,
+  UpdateAdStatusResponse,
   UpdatePaymentMethodParams,
   UpdatePaymentMethodResponse,
-  DeletePaymentMethodResponse,
+  UserInfoResponse,
 } from "./base-exchange"
 
 export class OKXExchange implements P2PExchange {
@@ -50,15 +50,30 @@ export class OKXExchange implements P2PExchange {
   }
 
   private async makeRequest(endpoint: string, method: "GET" | "POST" = "GET", data?: any) {
+    const crypto = require('crypto')
     const url = `${this.baseUrl}${endpoint}`
+    
+    // Create ISO timestamp
+    const timestamp = new Date().toISOString()
+    
+    // Create request body
+    const body = data ? JSON.stringify(data) : ""
+    
+    // Create signature string: timestamp + method + endpoint + body
+    const signatureString = timestamp + method + endpoint + body
+    
+    // Create HMAC SHA256 signature
+    const signature = crypto
+      .createHmac('sha256', this.apiSecret)
+      .update(signatureString)
+      .digest('base64')
 
-    // In a real implementation, you would add proper authentication headers
-    // including timestamp, signature, etc. as per OKX API documentation
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "OK-ACCESS-KEY": this.apiKey,
+      "OK-ACCESS-SIGN": signature,
+      "OK-ACCESS-TIMESTAMP": timestamp,
       "OK-ACCESS-PASSPHRASE": this.passphrase,
-      // Add other required headers like timestamp, signature, etc.
     }
 
     try {
@@ -69,7 +84,9 @@ export class OKXExchange implements P2PExchange {
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorText = await response.text()
+        console.error("OKX API Error:", response.status, errorText)
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
       }
 
       return await response.json()
@@ -157,7 +174,12 @@ export class OKXExchange implements P2PExchange {
   }
 
   async getActiveAds(params: GetActiveAdsParams): Promise<GetActiveAdsResponse> {
-    const queryParams = new URLSearchParams(params).toString()
+    // required params: side:String, cryptoCurrency:String, fiatCurrency:String
+    const { side, cryptoCurrency, fiatCurrency } = params
+    if (!side || !cryptoCurrency || !fiatCurrency) {
+      throw new Error("Missing required parameters")
+    }
+    const queryParams = new URLSearchParams(params as any).toString()
     const response = await this.makeRequest(`/api/v5/p2p/ad/active-list?${queryParams}`)
 
     const ads = (response.data || []).map((ad: any) => ({
@@ -441,8 +463,8 @@ export class OKXExchange implements P2PExchange {
   async updatePaymentMethod(id: string, params: UpdatePaymentMethodParams): Promise<UpdatePaymentMethodResponse> {
     try {
       const response = await this.makeRequest("/api/v5/p2p/payment-method/update", "POST", {
-        paymentMethodId: id,
         ...params,
+        paymentMethodId: id,
       })
       return {
         paymentMethodId: response.data?.paymentMethodId || id,
