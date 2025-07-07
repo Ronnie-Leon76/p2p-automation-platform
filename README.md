@@ -1,4 +1,4 @@
-# P2P Automation Platform
+# P2P Automation Web Platform
 
 A comprehensive cryptocurrency P2P trading automation platform with team delegation, multi-exchange integration, and seamless payment processing.
 
