@@ -1,15 +1,32 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ArrowRight, Bot, Shield, TrendingUp, Users, Zap, Globe, CheckCircle, Menu, X } from "lucide-react"
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ArrowRight,
+  Bot,
+  CheckCircle,
+  Globe,
+  Menu,
+  Shield,
+  TrendingUp,
+  Users,
+  X,
+  Zap,
+} from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 
 export function LandingPage() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const currentYear = new Date().getFullYear()
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const currentYear = new Date().getFullYear();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -22,19 +39,30 @@ export function LandingPage() {
                 <div className="h-8 w-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
                   <Bot className="h-5 w-5 text-black" />
                 </div>
-                <span className="ml-2 text-xl font-bold text-white">P2P Automation</span>
+                <span className="ml-2 text-xl font-bold text-white">
+                  P2P Automation
+                </span>
               </div>
             </div>
 
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
-                <a href="#features" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                <a
+                  href="#features"
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
                   Features
                 </a>
-                <a href="#pricing" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                <a
+                  href="#pricing"
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
                   Pricing
                 </a>
-                <a href="#about" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                <a
+                  href="#about"
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
                   About
                 </a>
               </div>
@@ -42,20 +70,32 @@ export function LandingPage() {
 
             <div className="hidden md:flex items-center space-x-4">
               <Link href="/auth/login">
-                <Button variant="ghost" className="text-white hover:bg-white/10">
+                <Button
+                  variant="ghost"
+                  className="text-white hover:bg-purple-600/20 hover:text-purple-200 border border-transparent hover:border-purple-500/30 transition-all duration-200"
+                >
                   Sign In
                 </Button>
               </Link>
               <Link href="/auth/signup">
-                <Button className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black hover:from-yellow-500 hover:to-orange-600">
+                <Button className="bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 border border-purple-500/50 shadow-lg shadow-purple-500/25 transition-all duration-200">
                   Get Started
                 </Button>
               </Link>
             </div>
 
             <div className="md:hidden">
-              <Button variant="ghost" size="sm" onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white">
-                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="text-white"
+              >
+                {isMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
               </Button>
             </div>
           </div>
@@ -86,12 +126,15 @@ export function LandingPage() {
               <div className="pt-4 pb-3 border-t border-gray-700">
                 <div className="flex items-center px-3 space-x-3">
                   <Link href="/auth/login">
-                    <Button variant="ghost" className="text-white hover:bg-white/10 w-full">
+                    <Button
+                      variant="ghost"
+                      className="text-white hover:bg-white/10 w-full"
+                    >
                       Sign In
                     </Button>
                   </Link>
                   <Link href="/auth/signup">
-                    <Button className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black hover:from-yellow-500 hover:to-orange-600 w-full">
+                    <Button className="bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 border border-purple-500/50 shadow-lg shadow-purple-500/25 transition-all duration-200 w-full">
                       Get Started
                     </Button>
                   </Link>
@@ -104,7 +147,17 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+        {/* Subtle floating particles - background layer */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="absolute top-1/4 left-1/6 w-2 h-2 bg-yellow-400/20 rounded-full animate-pulse"></div>
+          <div className="absolute top-1/3 right-1/5 w-3 h-3 bg-orange-500/20 rounded-full animate-pulse delay-1000"></div>
+          <div className="absolute bottom-1/4 left-1/4 w-1 h-1 bg-purple-400/30 rounded-full animate-pulse delay-2000"></div>
+          <div className="absolute top-1/2 right-1/3 w-2 h-2 bg-blue-400/20 rounded-full animate-pulse delay-3000"></div>
+          <div className="absolute bottom-1/3 right-1/6 w-1 h-1 bg-yellow-300/20 rounded-full animate-pulse delay-4000"></div>
+        </div>
+
+        {/* Hero content - foreground layer */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-20">
           <div className="text-center">
             <Badge className="mb-4 bg-gradient-to-r from-yellow-400/20 to-orange-500/20 text-yellow-400 border-yellow-400/30">
               🚀 Now Supporting OKX, Binance & Bybit
@@ -116,10 +169,11 @@ export function LandingPage() {
               </span>
             </h1>
             <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              The most advanced P2P automation platform for crypto traders. Manage ads, monitor orders, and optimize
-              pricing across multiple exchanges with your team.
+              The most advanced P2P automation platform for crypto traders.
+              Manage ads, monitor orders, and optimize pricing across multiple
+              exchanges with your team.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Link href="/auth/signup">
                 <Button
                   size="lg"
@@ -132,24 +186,41 @@ export function LandingPage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white/30 text-white hover:bg-white/20 hover:text-white"
+                className="bg-white/10 border-white/30 text-yellow-400 hover:bg-white/20 hover:text-orange-500 hover:border-yellow-400/50 backdrop-blur-sm transition-all duration-200"
               >
                 Watch Demo
               </Button>
             </div>
-          </div>
-        </div>
 
-        {/* Exchange logos floating animation */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-64 h-32 bg-white/10 rounded-lg backdrop-blur-sm animate-pulse flex items-center justify-center">
-            <img src="https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/okx-logo_udbnjv.png" alt="OKX" className="h-12 w-auto opacity-70" />
-          </div>
-          <div className="absolute top-1/3 right-1/4 w-48 h-24 bg-white/10 rounded-lg backdrop-blur-sm animate-pulse delay-1000 flex items-center justify-center">
-            <img src="https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/binance-logo_weqahc.png" alt="Binance" className="h-10 w-auto opacity-70" />
-          </div>
-          <div className="absolute bottom-1/4 left-1/3 w-56 h-28 bg-white/10 rounded-lg backdrop-blur-sm animate-pulse delay-2000 flex items-center justify-center">
-            <img src="https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/bybit-logo_famhwh.png" alt="Bybit" className="h-8 w-auto opacity-70" />
+            {/* Exchange logos - clean and professional */}
+            <div className="mt-16">
+              <p className="text-sm text-gray-400 mb-6 uppercase tracking-wider">
+                Trusted by traders on
+              </p>
+              <div className="flex items-center justify-center gap-8 md:gap-12 opacity-60 hover:opacity-80 transition-opacity duration-300">
+                <div className="flex items-center justify-center h-16 w-24 grayscale hover:grayscale-0 transition-all duration-300">
+                  <img
+                    src="https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/okx-logo_udbnjv.png"
+                    alt="OKX"
+                    className="h-10 w-auto filter brightness-0 invert"
+                  />
+                </div>
+                <div className="flex items-center justify-center h-16 w-24 grayscale hover:grayscale-0 transition-all duration-300">
+                  <img
+                    src="https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/binance-logo_weqahc.png"
+                    alt="Binance"
+                    className="h-8 w-auto filter brightness-0 invert"
+                  />
+                </div>
+                <div className="flex items-center justify-center h-16 w-24 grayscale hover:grayscale-0 transition-all duration-300">
+                  <img
+                    src="https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/bybit-logo_famhwh.png"
+                    alt="Bybit"
+                    className="h-6 w-auto filter brightness-0 invert"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -158,9 +229,12 @@ export function LandingPage() {
       <section id="features" className="py-20 bg-black/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Powerful Features for P2P Traders</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              Powerful Features for P2P Traders
+            </h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Everything you need to automate and scale your P2P trading operations
+              Everything you need to automate and scale your P2P trading
+              operations
             </p>
           </div>
 
@@ -172,7 +246,8 @@ export function LandingPage() {
                 </div>
                 <CardTitle className="text-white">Smart Automation</CardTitle>
                 <CardDescription className="text-gray-300">
-                  Automated ad management, pricing optimization, and order monitoring
+                  Automated ad management, pricing optimization, and order
+                  monitoring
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -182,7 +257,9 @@ export function LandingPage() {
                 <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center mb-4">
                   <Globe className="h-6 w-6 text-white" />
                 </div>
-                <CardTitle className="text-white">Multi-Exchange Support</CardTitle>
+                <CardTitle className="text-white">
+                  Multi-Exchange Support
+                </CardTitle>
                 <CardDescription className="text-gray-300">
                   Seamlessly manage P2P trading across OKX, Binance, and Bybit
                 </CardDescription>
@@ -206,7 +283,9 @@ export function LandingPage() {
                 <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-4">
                   <TrendingUp className="h-6 w-6 text-white" />
                 </div>
-                <CardTitle className="text-white">Real-time Analytics</CardTitle>
+                <CardTitle className="text-white">
+                  Real-time Analytics
+                </CardTitle>
                 <CardDescription className="text-gray-300">
                   Track performance, monitor profits, and optimize strategies
                 </CardDescription>
@@ -232,7 +311,8 @@ export function LandingPage() {
                 </div>
                 <CardTitle className="text-white">Lightning Fast</CardTitle>
                 <CardDescription className="text-gray-300">
-                  Optimized for speed with real-time updates and instant notifications
+                  Optimized for speed with real-time updates and instant
+                  notifications
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -268,7 +348,9 @@ export function LandingPage() {
       <section id="pricing" className="py-20 bg-black/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Simple, Transparent Pricing</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              Simple, Transparent Pricing
+            </h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto">
               Choose the plan that fits your trading volume and team size
             </p>
@@ -279,9 +361,14 @@ export function LandingPage() {
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-white">Starter</CardTitle>
-                <CardDescription className="text-gray-300">Perfect for individual traders</CardDescription>
+                <CardDescription className="text-gray-300">
+                  Perfect for individual traders
+                </CardDescription>
                 <div className="text-3xl font-bold text-white mt-4">
-                  $29<span className="text-lg font-normal text-gray-300">/month</span>
+                  $29
+                  <span className="text-lg font-normal text-gray-300">
+                    /month
+                  </span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -290,7 +377,8 @@ export function LandingPage() {
                   Up to 10 active ads
                 </div>
                 <div className="flex items-center text-gray-300">
-                  <CheckCircle className="h-5 w-5 text-green-400 mr-3" />1 exchange connection
+                  <CheckCircle className="h-5 w-5 text-green-400 mr-3" />1
+                  exchange connection
                 </div>
                 <div className="flex items-center text-gray-300">
                   <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
@@ -298,9 +386,13 @@ export function LandingPage() {
                 </div>
                 <div className="flex items-center text-gray-300">
                   <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
+                  Basic analytics
+                </div>
+                <div className="flex items-center text-gray-300">
+                  <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
                   Email support
                 </div>
-                <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white">
+                <Button className="w-full bg-white/10 border border-white/30 text-yellow-400 hover:bg-white/20 hover:text-orange-500 hover:border-yellow-400/50 backdrop-blur-sm transition-all duration-200">
                   Get Started
                 </Button>
               </CardContent>
@@ -309,13 +401,20 @@ export function LandingPage() {
             {/* Pro Plan */}
             <Card className="bg-white/5 border-yellow-400/50 backdrop-blur-sm relative">
               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black">Most Popular</Badge>
+                <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black">
+                  Most Popular
+                </Badge>
               </div>
               <CardHeader>
                 <CardTitle className="text-white">Professional</CardTitle>
-                <CardDescription className="text-gray-300">For serious traders and small teams</CardDescription>
+                <CardDescription className="text-gray-300">
+                  For serious traders and small teams
+                </CardDescription>
                 <div className="text-3xl font-bold text-white mt-4">
-                  $99<span className="text-lg font-normal text-gray-300">/month</span>
+                  $99
+                  <span className="text-lg font-normal text-gray-300">
+                    /month
+                  </span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -349,9 +448,15 @@ export function LandingPage() {
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-white">Enterprise</CardTitle>
-                <CardDescription className="text-gray-300">For large trading operations</CardDescription>
+                <CardDescription className="text-gray-300">
+                  For large trading operations
+                </CardDescription>
                 <div className="text-3xl font-bold text-white mt-4">
-                  Custom<span className="text-lg font-normal text-gray-300"> pricing</span>
+                  Custom
+                  <span className="text-lg font-normal text-gray-300">
+                    {" "}
+                    pricing
+                  </span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -377,7 +482,7 @@ export function LandingPage() {
                 </div>
                 <Button
                   variant="outline"
-                  className="w-full border-white/30 text-white hover:bg-white/20 hover:text-white hover:border-white/50"
+                  className="w-full bg-white/10 border-white/30 text-yellow-400 hover:bg-white/20 hover:text-orange-500 hover:border-yellow-400/50 backdrop-blur-sm transition-all duration-200"
                 >
                   Contact Sales
                 </Button>
@@ -390,9 +495,12 @@ export function LandingPage() {
       {/* CTA Section */}
       <section className="py-20">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Ready to Automate Your P2P Trading?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Ready to Automate Your P2P Trading?
+          </h2>
           <p className="text-xl text-gray-300 mb-8">
-            Join thousands of traders who have already automated their P2P operations
+            Join thousands of traders who have already automated their P2P
+            operations
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/auth/signup">
@@ -407,7 +515,7 @@ export function LandingPage() {
             <Button
               size="lg"
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/20 hover:text-white hover:border-white/50"
+              className="bg-white/10 border-white/30 text-yellow-400 hover:bg-white/20 hover:text-orange-500 hover:border-yellow-400/50 backdrop-blur-sm transition-all duration-200"
             >
               Schedule Demo
             </Button>
@@ -424,9 +532,14 @@ export function LandingPage() {
                 <div className="h-8 w-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
                   <Bot className="h-5 w-5 text-black" />
                 </div>
-                <span className="ml-2 text-xl font-bold text-white">P2P Automation</span>
+                <span className="ml-2 text-xl font-bold text-white">
+                  P2P Automation
+                </span>
               </div>
-              <p className="text-gray-300">The most advanced P2P trading automation platform for crypto traders.</p>
+              <p className="text-gray-300">
+                The most advanced P2P trading automation platform for crypto
+                traders.
+              </p>
             </div>
             <div>
               <h3 className="text-white font-semibold mb-4">Product</h3>
@@ -510,5 +623,5 @@ export function LandingPage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }
