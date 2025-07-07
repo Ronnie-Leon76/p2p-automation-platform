@@ -1,21 +1,35 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Bot, AlertCircle, Loader2, ExternalLink, Shield, TrendingUp, Users } from "lucide-react"
-import { ExchangeOAuthService } from "@/lib/auth/exchange-oauth"
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ExchangeOAuthService } from "@/lib/auth/exchange-oauth";
+import {
+  AlertCircle,
+  Bot,
+  ExternalLink,
+  Loader2,
+  Shield,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface ExchangeProvider {
-  id: string
-  name: string
-  description: string
-  icon: string
-  color: string
-  features: string[]
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  features: string[];
 }
 
 const exchanges: ExchangeProvider[] = [
@@ -25,7 +39,12 @@ const exchanges: ExchangeProvider[] = [
     description: "Connect with your OKX P2P trading account",
     icon: "🟡",
     color: "from-blue-500 to-blue-600",
-    features: ["P2P Trading", "Team Management", "Advanced Analytics", "API Access"],
+    features: [
+      "P2P Trading",
+      "Team Management",
+      "Advanced Analytics",
+      "API Access",
+    ],
   },
   {
     id: "binance",
@@ -33,7 +52,12 @@ const exchanges: ExchangeProvider[] = [
     description: "Connect with your Binance P2P trading account",
     icon: "🟨",
     color: "from-yellow-500 to-yellow-600",
-    features: ["P2P Trading", "High Volume", "Global Markets", "Advanced Tools"],
+    features: [
+      "P2P Trading",
+      "High Volume",
+      "Global Markets",
+      "Advanced Tools",
+    ],
   },
   {
     id: "bybit",
@@ -43,35 +67,37 @@ const exchanges: ExchangeProvider[] = [
     color: "from-purple-500 to-purple-600",
     features: ["P2P Trading", "Derivatives", "Copy Trading", "Institutional"],
   },
-]
+];
 
 export function ExchangeAuth() {
-  const [loading, setLoading] = useState<string | null>(null)
-  const [error, setError] = useState("")
-  const router = useRouter()
-  const oauthService = new ExchangeOAuthService()
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const router = useRouter();
+  const oauthService = new ExchangeOAuthService();
 
   const handleExchangeLogin = async (exchangeId: string) => {
-    setLoading(exchangeId)
-    setError("")
+    setLoading(exchangeId);
+    setError("");
 
     try {
-      const config = await oauthService.getOAuthConfig(exchangeId)
+      const config = await oauthService.getOAuthConfig(exchangeId);
       if (!config) {
-        throw new Error(`${exchangeId.toUpperCase()} OAuth is not configured`)
+        throw new Error(`${exchangeId.toUpperCase()} OAuth is not configured`);
       }
 
-      const state = crypto.randomUUID()
-      sessionStorage.setItem("oauth_state", state)
-      sessionStorage.setItem("oauth_exchange", exchangeId)
+      const state = crypto.randomUUID();
+      sessionStorage.setItem("oauth_state", state);
+      sessionStorage.setItem("oauth_exchange", exchangeId);
 
-      const authUrl = oauthService.generateAuthUrl(exchangeId, config, state)
-      window.location.href = authUrl
+      const authUrl = oauthService.generateAuthUrl(exchangeId, config, state);
+      window.location.href = authUrl;
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to initiate OAuth")
-      setLoading(null)
+      setError(
+        error instanceof Error ? error.message : "Failed to initiate OAuth"
+      );
+      setLoading(null);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
@@ -90,15 +116,17 @@ export function ExchangeAuth() {
             </span>
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Securely connect your P2P trading account to access advanced automation features and team collaboration
-            tools.
+            Securely connect your P2P trading account to access advanced
+            automation features and team collaboration tools.
           </p>
         </div>
 
         {error && (
           <Alert className="bg-red-500/10 border-red-500/20 max-w-2xl mx-auto">
             <AlertCircle className="h-4 w-4 text-red-400" />
-            <AlertDescription className="text-red-400">{error}</AlertDescription>
+            <AlertDescription className="text-red-400">
+              {error}
+            </AlertDescription>
           </Alert>
         )}
 
@@ -111,13 +139,20 @@ export function ExchangeAuth() {
             >
               <CardHeader className="text-center">
                 <div className="text-4xl mb-4">{exchange.icon}</div>
-                <CardTitle className="text-white text-xl">{exchange.name}</CardTitle>
-                <CardDescription className="text-gray-300">{exchange.description}</CardDescription>
+                <CardTitle className="text-white text-xl">
+                  {exchange.name}
+                </CardTitle>
+                <CardDescription className="text-gray-300">
+                  {exchange.description}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   {exchange.features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm text-gray-300">
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 text-sm text-gray-300"
+                    >
                       <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full" />
                       {feature}
                     </div>
@@ -152,21 +187,34 @@ export function ExchangeAuth() {
             <div className="flex items-start gap-4">
               <Shield className="h-6 w-6 text-yellow-400 mt-1" />
               <div className="space-y-2">
-                <h3 className="text-white font-semibold">Secure OAuth Connection</h3>
+                <h3 className="text-white font-semibold">
+                  Secure OAuth Connection
+                </h3>
                 <p className="text-gray-300 text-sm">
-                  We use industry-standard OAuth 2.0 to securely connect to your exchange account. We never store your
-                  exchange passwords and only request the minimum permissions needed for P2P automation.
+                  We use industry-standard OAuth 2.0 to securely connect to your
+                  exchange account. We never store your exchange passwords and
+                  only request the minimum permissions needed for P2P
+                  automation.
                 </p>
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <Badge variant="outline" className="text-yellow-400 border-yellow-400/30 bg-white/5">
+                  <Badge
+                    variant="outline"
+                    className="text-yellow-400 border-yellow-400/30 bg-white/5"
+                  >
                     <Shield className="mr-1 h-3 w-3" />
                     OAuth 2.0
                   </Badge>
-                  <Badge variant="outline" className="text-orange-400 border-orange-400/30 bg-white/5">
+                  <Badge
+                    variant="outline"
+                    className="text-orange-400 border-orange-400/30 bg-white/5"
+                  >
                     <TrendingUp className="mr-1 h-3 w-3" />
                     P2P Access
                   </Badge>
-                  <Badge variant="outline" className="text-purple-400 border-purple-400/30 bg-white/5">
+                  <Badge
+                    variant="outline"
+                    className="text-purple-400 border-purple-400/30 bg-white/5"
+                  >
                     <Users className="mr-1 h-3 w-3" />
                     Team Data
                   </Badge>
@@ -184,7 +232,8 @@ export function ExchangeAuth() {
             </div>
             <h3 className="text-white font-semibold">Real Trader Data</h3>
             <p className="text-gray-400 text-sm">
-              Access your actual completion rates, order history, and performance metrics
+              Access your actual completion rates, order history, and
+              performance metrics
             </p>
           </div>
           <div className="text-center space-y-2">
@@ -192,17 +241,22 @@ export function ExchangeAuth() {
               <Users className="h-6 w-6 text-orange-400" />
             </div>
             <h3 className="text-white font-semibold">Team Integration</h3>
-            <p className="text-gray-400 text-sm">Automatically sync your exchange teams and member permissions</p>
+            <p className="text-gray-400 text-sm">
+              Automatically sync your exchange teams and member permissions
+            </p>
           </div>
           <div className="text-center space-y-2">
             <div className="w-12 h-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mx-auto shadow-lg">
               <Bot className="h-6 w-6 text-yellow-400" />
             </div>
             <h3 className="text-white font-semibold">Smart Automation</h3>
-            <p className="text-gray-400 text-sm">Leverage your trading history for intelligent automation strategies</p>
+            <p className="text-gray-400 text-sm">
+              Leverage your trading history for intelligent automation
+              strategies
+            </p>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

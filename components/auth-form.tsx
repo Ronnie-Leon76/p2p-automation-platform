@@ -1,38 +1,44 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Bot, AlertCircle, Loader2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertCircle, Bot, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface AuthFormProps {
-  mode: "login" | "signup"
+  mode: "login" | "signup";
 }
 
 export function AuthForm({ mode }: AuthFormProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [selectedExchange, setSelectedExchange] = useState<string | null>(null)
-  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [selectedExchange, setSelectedExchange] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleExchangeAuth = async (exchange: string) => {
-    setIsLoading(true)
-    setSelectedExchange(exchange)
-    setError("")
+    setIsLoading(true);
+    setSelectedExchange(exchange);
+    setError("");
 
     try {
       // Redirect to exchange OAuth
-      const authUrl = `/api/auth/${exchange}/authorize`
-      window.location.href = authUrl
+      const authUrl = `/api/auth/${exchange}/authorize`;
+      window.location.href = authUrl;
     } catch (error: any) {
-      setError(error.message)
-      setIsLoading(false)
-      setSelectedExchange(null)
+      setError(error.message);
+      setIsLoading(false);
+      setSelectedExchange(null);
     }
-  }
+  };
 
   const exchanges = [
     {
@@ -56,7 +62,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       logo: "https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/bybit-logo_famhwh.png",
       color: "from-orange-500 to-orange-600",
     },
-  ]
+  ];
 
   return (
     <Card className="w-full max-w-md bg-white/5 border-white/10 backdrop-blur-lg shadow-2xl">
@@ -79,12 +85,16 @@ export function AuthForm({ mode }: AuthFormProps) {
         {error && (
           <Alert className="bg-red-500/10 border-red-500/20">
             <AlertCircle className="h-4 w-4 text-red-400" />
-            <AlertDescription className="text-red-400">{error}</AlertDescription>
+            <AlertDescription className="text-red-400">
+              {error}
+            </AlertDescription>
           </Alert>
         )}
 
         <div className="space-y-3">
-          <p className="text-sm text-gray-400 text-center mb-4">Choose your exchange to continue</p>
+          <p className="text-sm text-gray-400 text-center mb-4">
+            Choose your exchange to continue
+          </p>
 
           {exchanges.map((exchange) => (
             <Button
@@ -104,15 +114,20 @@ export function AuthForm({ mode }: AuthFormProps) {
                     className="h-6 w-6 object-contain"
                     onError={(e) => {
                       // Fallback to text if image fails to load
-                      e.currentTarget.style.display = "none"
-                      e.currentTarget.nextElementSibling!.textContent = exchange.name.charAt(0)
+                      e.currentTarget.style.display = "none";
+                      e.currentTarget.nextElementSibling!.textContent =
+                        exchange.name.charAt(0);
                     }}
                   />
                   <span className="text-white font-bold text-sm hidden"></span>
                 </div>
                 <div className="text-left flex-1">
-                  <div className="font-semibold text-white">{exchange.name}</div>
-                  <div className="text-sm text-gray-400">{exchange.description}</div>
+                  <div className="font-semibold text-white">
+                    {exchange.name}
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {exchange.description}
+                  </div>
                 </div>
               </div>
               {isLoading && selectedExchange === exchange.id && (
@@ -124,7 +139,9 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         <div className="text-center text-sm pt-4">
           <span className="text-gray-400">
-            {mode === "login" ? "New to P2P Automation?" : "Already have an account?"}
+            {mode === "login"
+              ? "New to P2P Automation?"
+              : "Already have an account?"}
           </span>{" "}
           <Link
             href={mode === "login" ? "/auth/signup" : "/auth/login"}
@@ -137,16 +154,22 @@ export function AuthForm({ mode }: AuthFormProps) {
         <div className="text-center text-xs text-gray-500 pt-2">
           <p>
             By continuing, you agree to our{" "}
-            <Link href="/terms" className="text-yellow-400 hover:text-yellow-300">
+            <Link
+              href="/terms"
+              className="text-yellow-400 hover:text-yellow-300"
+            >
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="/privacy" className="text-yellow-400 hover:text-yellow-300">
+            <Link
+              href="/privacy"
+              className="text-yellow-400 hover:text-yellow-300"
+            >
               Privacy Policy
             </Link>
           </p>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
