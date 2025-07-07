@@ -5,6 +5,7 @@ A comprehensive cryptocurrency P2P trading automation platform with team delegat
 ## 🚀 Features
 
 ### Core Trading Capabilities
+
 - **Multi-Exchange Support** - OKX, Binance, and Bybit integration
 - **Automated Ad Management** - Create, update, and cancel advertisements
 - **Order Processing** - End-to-end order lifecycle management
@@ -12,18 +13,21 @@ A comprehensive cryptocurrency P2P trading automation platform with team delegat
 - **Risk Management** - Built-in safety controls and limits
 
 ### Team Collaboration
+
 - **Team Delegation System** - Centralized trading with individual authentication
 - **Role-Based Access Control** - Granular permission management
 - **Performance Tracking** - Individual and team analytics
 - **Audit Trail** - Complete operation logging
 
 ### Payment Integration
+
 - **Mobile Money** - M-Pesa support
 - **Banking Integration** - I&M Bank, Equity Bank, KCB
 - **Automated Verification** - Real-time payment confirmation
 - **Receipt Management** - Cloudinary-powered file storage
 
 ### Security & Compliance
+
 - **OAuth Authentication** - Exchange-native security
 - **Data Encryption** - End-to-end encryption
 - **Compliance Tools** - Built-in reporting and audit features
@@ -122,27 +126,263 @@ npm run dev
 
 Visit `http://localhost:3000` to see the application.
 
+## 🧪 API Testing
+
+### OKX Exchange Integration Testing
+
+We provide a comprehensive test suite to verify that all OKX API endpoints are working correctly. This is essential for partners to validate their API credentials and understand the platform capabilities.
+
+#### Prerequisites for Testing
+
+1. **Valid OKX API Credentials**
+
+   - API Key with P2P trading permissions
+   - API Secret
+   - Passphrase
+   - Ensure API key has the following permissions:
+     - Read account information
+     - P2P trading
+     - Order management
+
+2. **Environment Setup**
+   ```bash
+   # Ensure your .env.local file contains:
+   OKX_API_KEY=your_actual_okx_api_key
+   OKX_API_SECRET=your_actual_okx_api_secret
+   OKX_API_PASSPHRASE=your_actual_okx_passphrase
+   ```
+
+#### Running the Comprehensive Test Suite
+
+```bash
+# Install dependencies first
+npm install
+
+# Run the complete OKX API test suite
+npx tsx test/okx-test-runner.ts
+```
+
+#### Test Categories
+
+The test suite covers all major API endpoints:
+
+1. **👤 User Information**
+
+   - `getUserInfo()` - Fetch account details
+   - Validates: User ID, nickname, completion rate, KYC level
+
+2. **💰 Balance Management**
+
+   - `getBalance(currency)` - Check balances for USDT, BTC, ETH, KES
+   - Validates: Available amount, on-hold amount, currency symbol
+
+3. **💳 Payment Methods**
+
+   - `getPaymentMethods()` - Retrieve configured payment methods
+   - Validates: Payment method types, currencies, status
+
+4. **💹 Price Information**
+
+   - `getOptimalPrice(crypto, fiat)` - Get best buy/sell prices
+   - `getEstimatedPrice(params)` - Calculate estimated prices
+   - Validates: Current highest buy price, lowest sell price
+
+5. **📈 Advertisement Management (Read-Only)**
+
+   - `getActiveAds(params)` - Fetch active advertisements
+   - `getMarketplaceAds(params)` - Browse marketplace ads
+   - Tests multiple currency pairs: USDT/KES, USDT/USD, BTC/USD
+   - Validates: Ad details, creator info, payment methods
+
+6. **📋 Order Management (Read-Only)**
+   - `getOrders(params)` - Retrieve order history
+   - Validates: Order details, status, counterparty information
+
+#### Safe Testing Configuration
+
+By default, the test suite runs in **read-only mode** to prevent accidental:
+
+- Ad creation
+- Order placement
+- Payment method creation
+
+To enable write operations (⚠️ **Use with caution**):
+
+```typescript
+// In test/okx-test-runner.ts, update these flags:
+const ENABLE_AD_CREATION_TESTS = true; // Creates real ads!
+const ENABLE_PAYMENT_METHOD_TESTS = true; // Creates real payment methods!
+const ENABLE_ORDER_TESTS = true; // Creates real orders!
+```
+
+#### Understanding Test Results
+
+**✅ Successful Test Output:**
+
+```
+✅ Get User Info
+   Data: {
+     "userId": "user123",
+     "nickName": "YourNickname",
+     "completionRate": "98.5",
+     "kycLevel": "2"
+   }
+
+✅ Get Balance - USDT
+   Data: {
+     "availableAmount": "1000.50",
+     "onHoldAmount": "50.00",
+     "currencySymbol": "USDT"
+   }
+```
+
+**❌ Failed Test Output:**
+
+```
+❌ Get Active Ads - buy USDT/KES
+   Error: HTTP error! status: 401
+```
+
+#### Common Issues and Solutions
+
+1. **401 Authentication Error**
+
+   ```
+   ❌ Error: HTTP error! status: 401
+   ```
+
+   **Solution:**
+
+   - Verify API credentials in `.env.local`
+   - Check API key permissions in OKX account
+   - Ensure API key is not expired
+
+2. **403 Forbidden Error**
+
+   ```
+   ❌ Error: HTTP error! status: 403
+   ```
+
+   **Solution:**
+
+   - Enable P2P trading permissions for your API key
+   - Check IP restrictions (if any)
+
+3. **Empty Results**
+   ```
+   ✅ Get Active Ads - buy USDT/KES
+      Array Length: 0
+   ```
+   **Note:** This is normal if no ads exist for the specified pair
+
+#### Partner Testing Checklist
+
+**Before Integration:**
+
+- [ ] Clone the repository
+- [ ] Install dependencies (`npm install`)
+- [ ] Configure `.env.local` with your OKX credentials
+- [ ] Run the test suite: `npx tsx test/okx-test-runner.ts`
+- [ ] Verify >80% test success rate
+- [ ] Test with your specific trading pairs (USDT/KES, etc.)
+
+**Required Successful Tests:**
+
+- [ ] ✅ User Info - Confirms API authentication
+- [ ] ✅ Get Balance (USDT) - Confirms account access
+- [ ] ✅ Get Payment Methods - Confirms P2P access
+- [ ] ✅ Get Active Ads - Confirms P2P data access
+- [ ] ✅ Get Optimal Price - Confirms market data access
+
+**Optional Advanced Tests (Enable only if needed):**
+
+- [ ] Ad Creation/Update/Cancel (creates real ads)
+- [ ] Payment Method Management (creates real payment methods)
+- [ ] Order Management (creates real orders)
+
+#### Test Results Interpretation
+
+```
+📊 COMPREHENSIVE TEST SUMMARY
+==================================================
+Total Tests: 45
+Successful: 42
+Failed: 3
+Success Rate: 93.3%
+
+📋 Category Breakdown:
+  User Info: 1/1 (100.0%)
+  Balance: 4/4 (100.0%)
+  Payment Methods: 1/1 (100.0%)
+  Price Info: 8/8 (100.0%)
+  Ad Management: 26/28 (92.9%)
+  Order Management: 1/1 (100.0%)
+  Ad Creation: 1/2 (50.0%)
+```
+
+**Interpretation:**
+
+- **90%+ Success Rate:** Excellent - Ready for production
+- **70-89% Success Rate:** Good - Some features may be limited
+- **50-69% Success Rate:** Fair - Check permissions and account setup
+- **<50% Success Rate:** Poor - Verify credentials and account status
+
+#### Custom Testing for Your Currency Pairs
+
+Add your specific trading pairs to the test:
+
+```typescript
+// In test/okx-test-runner.ts, update the test pairs:
+const pricePairs = [
+  { crypto: "USDT", fiat: "KES" }, // Your primary pair
+  { crypto: "USDT", fiat: "USD" },
+  { crypto: "BTC", fiat: "USD" },
+  { crypto: "ETH", fiat: "USD" },
+  // Add your specific pairs here
+];
+```
+
+#### Continuous Integration Testing
+
+For automated testing in CI/CD pipelines:
+
+```bash
+# GitHub Actions example
+- name: Test OKX Integration
+  run: npx tsx test/okx-test-runner.ts
+  env:
+    OKX_API_KEY: ${{ secrets.OKX_API_KEY }}
+    OKX_API_SECRET: ${{ secrets.OKX_API_SECRET }}
+    OKX_API_PASSPHRASE: ${{ secrets.OKX_API_PASSPHRASE }}
+```
+
+This comprehensive testing ensures that your integration with OKX is working correctly and gives you confidence in the platform's capabilities before moving to production.
+
 ## 📦 Installation
 
 ### Development Setup
 
 1. **Clone Repository**
+
 ```bash
 git clone https://github.com/yourusername/p2p-automation-platform.git
 cd p2p-automation-platform
 ```
 
 2. **Install Dependencies**
+
 ```bash
 npm install
 ```
 
 3. **Setup Database**
+
    - Create a Supabase project
    - Run the SQL migration scripts in order
    - Configure Row Level Security policies
 
 4. **Configure OAuth Applications**
+
    - Register OAuth apps with each exchange
    - Update the `exchange_oauth_apps` table with your credentials
 
@@ -162,6 +402,7 @@ vercel --prod
 #### Environment Variables
 
 Set all required environment variables in your deployment platform:
+
 - Database credentials
 - Exchange API keys
 - Payment provider credentials
@@ -181,6 +422,7 @@ npm run db:migrate:prod
 #### OKX Setup
 
 1. **API Credentials**
+
 ```env
 OKX_API_KEY=your_api_key
 OKX_API_SECRET=your_api_secret
@@ -188,11 +430,13 @@ OKX_PASSPHRASE=your_passphrase
 ```
 
 2. **Required Permissions**
+
    - Read account information
    - P2P trading
    - Order management
 
 3. **OAuth Application**
+
 ```sql
 INSERT INTO exchange_oauth_apps (exchange_name, client_id, client_secret_encrypted, redirect_uri, scopes)
 VALUES ('okx', 'your_client_id', 'encrypted_secret', 'https://yourapp.com/auth/okx/callback',
@@ -244,6 +488,7 @@ CLOUDINARY_UPLOAD_PRESET=your_upload_preset
 ### Supported Operations
 
 #### Ad Management
+
 - **Create Ads** - Post buy/sell advertisements
 - **Update Ads** - Modify pricing, limits, payment methods
 - **Cancel Ads** - Remove advertisements from marketplace
@@ -251,6 +496,7 @@ CLOUDINARY_UPLOAD_PRESET=your_upload_preset
 - **Get Marketplace Ads** - Browse available ads from other traders
 
 #### Order Management
+
 - **Create Orders** - Initiate trades with other users
 - **Get Orders** - Retrieve order history and status
 - **Cancel Orders** - Cancel pending orders
@@ -258,6 +504,7 @@ CLOUDINARY_UPLOAD_PRESET=your_upload_preset
 - **Release Crypto** - Release cryptocurrency to buyer
 
 #### Pricing & Analytics
+
 - **Optimal Pricing** - Get best buy/sell prices
 - **Price Estimation** - Calculate estimated prices
 - **Market Data** - Real-time market information
@@ -267,43 +514,43 @@ CLOUDINARY_UPLOAD_PRESET=your_upload_preset
 #### Creating an Ad
 
 ```typescript
-import { OKXExchange } from '@/lib/exchanges/okx-exchange'
+import { OKXExchange } from "@/lib/exchanges/okx-exchange";
 
-const okx = new OKXExchange(apiKey, apiSecret, passphrase)
+const okx = new OKXExchange(apiKey, apiSecret, passphrase);
 
 const adParams = {
-  side: 'sell',
-  cryptoCurrency: 'USDT',
-  fiatCurrency: 'KES',
-  cryptoAmount: '1000',
-  minOrderLimit: '100',
-  maxOrderLimit: '10000',
-  type: 'floating_market',
-  priceMargin: '0.02', // 2% above market
-  paymentMethods: ['MPESA', 'BANK_TRANSFER']
-}
+  side: "sell",
+  cryptoCurrency: "USDT",
+  fiatCurrency: "KES",
+  cryptoAmount: "1000",
+  minOrderLimit: "100",
+  maxOrderLimit: "10000",
+  type: "floating_market",
+  priceMargin: "0.02", // 2% above market
+  paymentMethods: ["MPESA", "BANK_TRANSFER"],
+};
 
-const result = await okx.createAd(adParams)
-console.log('Ad created:', result.adId)
+const result = await okx.createAd(adParams);
+console.log("Ad created:", result.adId);
 ```
 
 #### Processing an Order
 
 ```typescript
-import { PaymentService } from '@/lib/payments/payment-service'
+import { PaymentService } from "@/lib/payments/payment-service";
 
-const paymentService = new PaymentService()
+const paymentService = new PaymentService();
 
 // Initiate M-Pesa payment
 const payment = await paymentService.initiatePayment({
-  orderId: 'order_123',
+  orderId: "order_123",
   amount: 5000,
-  currency: 'KES',
-  provider: 'mpesa',
-  payerPhone: '+254700000000'
-})
+  currency: "KES",
+  provider: "mpesa",
+  payerPhone: "+254700000000",
+});
 
-console.log('Payment initiated:', payment.transactionId)
+console.log("Payment initiated:", payment.transactionId);
 ```
 
 ## 👥 Team Management
@@ -320,37 +567,41 @@ The platform supports a unique team delegation model where:
 ### Setting Up Team Credentials
 
 1. **Create Team**
+
 ```typescript
 const team = await createTeam({
-  name: 'GressHut Trading Team',
-  description: 'High-volume P2P trading operations'
-})
+  name: "GressHut Trading Team",
+  description: "High-volume P2P trading operations",
+});
 ```
 
 2. **Connect Exchange Account**
+
 ```typescript
 await setupTeamCredentials(
   team.id,
   ownerUserId,
-  'okx',
+  "okx",
   accessToken,
   refreshToken
-)
+);
 ```
 
 3. **Add Team Members**
+
 ```typescript
 await inviteTeamMember({
   teamId: team.id,
-  email: 'trader@example.com',
-  role: 'trader',
-  permissions: ['create_ads', 'manage_orders']
-})
+  email: "trader@example.com",
+  role: "trader",
+  permissions: ["create_ads", "manage_orders"],
+});
 ```
 
 ### Permission System
 
 Available permissions:
+
 - `create_ads` - Create new advertisements
 - `update_ads` - Modify existing ads
 - `cancel_ads` - Cancel advertisements
@@ -363,6 +614,7 @@ Available permissions:
 ### Team Performance Tracking
 
 Track team performance with detailed metrics:
+
 - Individual member contributions
 - Order completion rates
 - Trading volume per member
@@ -374,11 +626,13 @@ Track team performance with detailed metrics:
 ### Supported Payment Methods
 
 #### Mobile Money
+
 - **M-Pesa** (Kenya, Tanzania)
 - **Airtel Money** (Kenya)
 - **MTN Mobile Money** (Uganda, Ghana)
 
 #### Banking
+
 - **I&M Bank C2B** (Kenya)
 - **Equity Bank** (Kenya)
 - **KCB Bank** (Kenya)
@@ -398,13 +652,13 @@ All payment providers send real-time updates via webhooks:
 
 ```typescript
 // M-Pesa webhook endpoint
-POST /api/webhooks/mpesa
+POST / api / webhooks / mpesa;
 
-// I&M Bank webhook endpoint  
-POST /api/webhooks/im-bank
+// I&M Bank webhook endpoint
+POST / api / webhooks / im - bank;
 
 // Airtel Money webhook endpoint
-POST /api/webhooks/airtel
+POST / api / webhooks / airtel;
 ```
 
 ### Payment Provider Setup
@@ -412,23 +666,23 @@ POST /api/webhooks/airtel
 #### M-Pesa Integration
 
 ```typescript
-import { MPesaProvider } from '@/lib/payments/mpesa'
+import { MPesaProvider } from "@/lib/payments/mpesa";
 
 const mpesa = new MPesaProvider({
   consumerKey: process.env.MPESA_CONSUMER_KEY,
   consumerSecret: process.env.MPESA_CONSUMER_SECRET,
   shortcode: process.env.MPESA_SHORTCODE,
   passkey: process.env.MPESA_PASSKEY,
-  environment: 'production'
-})
+  environment: "production",
+});
 
 // Initiate STK Push
 const payment = await mpesa.initiateSTKPush({
-  phoneNumber: '254700000000',
+  phoneNumber: "254700000000",
   amount: 1000,
-  accountReference: 'ORDER_123',
-  transactionDesc: 'P2P Trading Payment'
-})
+  accountReference: "ORDER_123",
+  transactionDesc: "P2P Trading Payment",
+});
 ```
 
 ## 📚 API Documentation
@@ -578,21 +832,25 @@ We welcome contributions from the community! Here's how to get started:
 ### Development Setup
 
 1. **Fork the Repository**
+
 ```bash
 git fork https://github.com/yourusername/p2p-automation-platform.git
 ```
 
 2. **Create Feature Branch**
+
 ```bash
 git checkout -b feature/your-feature-name
 ```
 
 3. **Install Dependencies**
+
 ```bash
 npm install
 ```
 
 4. **Setup Development Environment**
+
 ```bash
 cp .env.example .env.local
 # Configure your environment variables
@@ -653,30 +911,35 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### Commercial Support
 
 For enterprise support and custom development:
+
 - **Email** - enterprise@yourapp.com
 - **Website** - [yourapp.com/enterprise](https://yourapp.com/enterprise)
 
 ## 🎯 Roadmap
 
 ### Q1 2025
+
 - [ ] Advanced analytics dashboard
 - [ ] Mobile app (React Native)
 - [ ] Additional exchange integrations
 - [ ] Advanced risk management
 
 ### Q2 2025
+
 - [ ] AI-powered pricing optimization
 - [ ] Multi-language support
 - [ ] Advanced team collaboration features
 - [ ] Institutional trading features
 
 ### Q3 2025
+
 - [ ] DeFi protocol integrations
 - [ ] Cross-chain trading support
 - [ ] Advanced reporting and analytics
 - [ ] Compliance automation
 
 ### Q4 2025
+
 - [ ] Machine learning trading bots
 - [ ] Advanced risk management
 - [ ] Multi-region deployment
