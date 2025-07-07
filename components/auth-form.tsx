@@ -59,11 +59,11 @@ export function AuthForm({ mode }: AuthFormProps) {
   ]
 
   return (
-    <Card className="w-full max-w-md bg-white/5 border-white/10 backdrop-blur-lg">
+    <Card className="w-full max-w-md bg-white/5 border-white/10 backdrop-blur-lg shadow-2xl">
       <CardHeader className="space-y-1 text-center">
         <div className="flex justify-center mb-4">
-          <div className="h-12 w-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
-            <Bot className="h-7 w-7 text-black" />
+          <div className="h-12 w-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center shadow-lg">
+            <Bot className="h-7 w-7 text-yellow-400" />
           </div>
         </div>
         <CardTitle className="text-2xl font-bold text-white">
@@ -90,13 +90,13 @@ export function AuthForm({ mode }: AuthFormProps) {
             <Button
               key={exchange.id}
               variant="outline"
-              className="w-full h-16 border-white/20 text-white hover:bg-white/10 hover:border-white/30 flex items-center justify-start gap-4 p-4"
+              className="w-full h-16 bg-white/5 backdrop-blur-sm border border-white/20 text-white hover:bg-white/10 hover:border-yellow-400/50 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300 flex items-center justify-start gap-4 p-4"
               onClick={() => handleExchangeAuth(exchange.id)}
               disabled={isLoading}
             >
               <div className="flex items-center gap-4 flex-1">
                 <div
-                  className={`h-10 w-10 bg-gradient-to-r ${exchange.color} rounded-lg flex items-center justify-center flex-shrink-0`}
+                  className={`h-10 w-10 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg`}
                 >
                   <img
                     src={exchange.logo || "/placeholder.svg"}
@@ -116,7 +116,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 </div>
               </div>
               {isLoading && selectedExchange === exchange.id && (
-                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                <Loader2 className="h-4 w-4 animate-spin text-yellow-400" />
               )}
             </Button>
           ))}

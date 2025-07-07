@@ -157,62 +157,62 @@ export function OrderManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Order Management</h2>
-          <p className="text-muted-foreground">Monitor and manage your P2P trading orders</p>
+          <h2 className="text-2xl font-bold tracking-tight text-white">Order Management</h2>
+          <p className="text-gray-400">Monitor and manage your P2P trading orders</p>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Orders</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Active Orders</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{orders.filter((o) => o.orderStatus === "new").length}</div>
-            <p className="text-xs text-muted-foreground">Currently processing</p>
+            <div className="text-2xl font-bold text-white">{orders.filter((o) => o.orderStatus === "new").length}</div>
+            <p className="text-xs text-gray-400">Currently processing</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Completed Today</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{orders.filter((o) => o.orderStatus === "completed").length}</div>
-            <p className="text-xs text-muted-foreground">+2 from yesterday</p>
+            <div className="text-2xl font-bold text-white">{orders.filter((o) => o.orderStatus === "completed").length}</div>
+            <p className="text-xs text-gray-400">+2 from yesterday</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Total Volume</CardTitle>
+            <AlertCircle className="h-4 w-4 text-orange-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$17.9K</div>
-            <p className="text-xs text-muted-foreground">Today's trading volume</p>
+            <div className="text-2xl font-bold text-white">$17.9K</div>
+            <p className="text-xs text-gray-400">Today's trading volume</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Success Rate</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">96.8%</div>
-            <p className="text-xs text-muted-foreground">Order completion rate</p>
+            <div className="text-2xl font-bold text-white">96.8%</div>
+            <p className="text-xs text-gray-400">Order completion rate</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters and Orders Table */}
-      <Card>
+      <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Orders</CardTitle>
-              <CardDescription>View and manage your trading orders</CardDescription>
+              <CardTitle className="text-white">Orders</CardTitle>
+              <CardDescription className="text-gray-400">View and manage your trading orders</CardDescription>
             </div>
             <div className="flex gap-2">
               <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -303,21 +303,21 @@ export function OrderManagement() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleViewOrder(order)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleViewOrder(order)} className="text-yellow-400 hover:text-orange-400 hover:bg-white/10">
                         <Eye className="h-4 w-4" />
                       </Button>
                       {order.orderStatus === "new" && order.paymentStatus === "unpaid" && order.side === "buy" && (
-                        <Button variant="ghost" size="sm" onClick={() => handleMarkAsPaid(order.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleMarkAsPaid(order.id)} className="text-yellow-400 hover:text-orange-400 hover:bg-white/10">
                           Mark Paid
                         </Button>
                       )}
                       {order.orderStatus === "new" && order.paymentStatus === "paid" && order.side === "sell" && (
-                        <Button variant="ghost" size="sm" onClick={() => handleReleaseCrypto(order.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleReleaseCrypto(order.id)} className="text-green-400 hover:text-green-300 hover:bg-white/10">
                           Release
                         </Button>
                       )}
                       {order.orderStatus === "new" && (
-                        <Button variant="ghost" size="sm" onClick={() => handleCancelOrder(order.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleCancelOrder(order.id)} className="text-red-400 hover:text-red-300 hover:bg-white/10">
                           Cancel
                         </Button>
                       )}
@@ -469,11 +469,11 @@ function OrderDetailsView({
 
       {/* Actions */}
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} className="bg-white/5 backdrop-blur-sm border border-white/20 text-gray-300 hover:bg-white/10 hover:border-white/30">
           Close
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" className="bg-white/5 backdrop-blur-sm border border-white/20 text-yellow-400 hover:bg-white/10 hover:border-yellow-400/50 hover:text-orange-400">
             <MessageSquare className="mr-2 h-4 w-4" />
             Chat
           </Button>
@@ -483,6 +483,7 @@ function OrderDetailsView({
                 onMarkAsPaid(order.id)
                 onClose()
               }}
+              className="bg-white/10 backdrop-blur-sm border border-white/20 text-yellow-400 hover:bg-white/20 hover:border-yellow-400/50 hover:text-orange-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300"
             >
               Mark as Paid
             </Button>
@@ -493,6 +494,7 @@ function OrderDetailsView({
                 onReleaseCrypto(order.id)
                 onClose()
               }}
+              className="bg-white/10 backdrop-blur-sm border border-white/20 text-green-400 hover:bg-white/20 hover:border-green-400/50 hover:text-green-300 hover:shadow-lg hover:shadow-green-400/20 transition-all duration-300"
             >
               Release Crypto
             </Button>
@@ -504,6 +506,7 @@ function OrderDetailsView({
                 onCancelOrder(order.id)
                 onClose()
               }}
+              className="bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 hover:border-red-500/50 hover:text-red-300"
             >
               Cancel Order
             </Button>

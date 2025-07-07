@@ -147,9 +147,9 @@ export function TraderProfile() {
 
   if (!profile) {
     return (
-      <Card>
+      <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
         <CardContent className="text-center py-8">
-          <p className="text-muted-foreground">No trader profile found</p>
+          <p className="text-gray-400">No trader profile found</p>
         </CardContent>
       </Card>
     )
@@ -158,23 +158,23 @@ export function TraderProfile() {
   return (
     <div className="space-y-6">
       {/* Profile Header */}
-      <Card>
+      <Card className="bg-white/5 border-white/10 backdrop-blur-lg shadow-lg">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16">
+              <Avatar className="h-16 w-16 border-2 border-white/20">
                 <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${profile.full_name}`} />
-                <AvatarFallback>{profile.full_name?.charAt(0) || "T"}</AvatarFallback>
+                <AvatarFallback className="bg-white/10 text-white">{profile.full_name?.charAt(0) || "T"}</AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-2xl font-bold">{profile.full_name}</h2>
-                <p className="text-muted-foreground">
+                <h2 className="text-2xl font-bold text-white">{profile.full_name}</h2>
+                <p className="text-gray-400">
                   {getExchangeIcon(profile.exchange_provider)} {profile.exchange_provider.toUpperCase()} Trader
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   {getKYCBadge(profile.kyc_level)}
                   {profile.is_verified_trader && (
-                    <Badge className="bg-blue-500">
+                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-400/30">
                       <Shield className="mr-1 h-3 w-3" />
                       Verified
                     </Badge>
@@ -182,7 +182,7 @@ export function TraderProfile() {
                 </div>
               </div>
             </div>
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild className="bg-white/5 backdrop-blur-sm border border-white/20 text-yellow-400 hover:bg-white/10 hover:border-yellow-400/50 hover:text-orange-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300">
               <a
                 href={`https://${profile.exchange_provider}.com`}
                 target="_blank"
@@ -208,10 +208,10 @@ export function TraderProfile() {
         <TabsContent value="overview" className="space-y-6">
           {/* Key Stats */}
           <div className="grid gap-4 md:grid-cols-4">
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-white">Completion Rate</CardTitle>
+                <TrendingUp className="h-4 w-4 text-yellow-400" />
               </CardHeader>
               <CardContent>
                 <div className={`text-2xl font-bold ${getCompletionRateColor(profile.completion_rate)}`}>
@@ -221,24 +221,24 @@ export function TraderProfile() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed Orders</CardTitle>
-                <Award className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-white">Completed Orders</CardTitle>
+                <Award className="h-4 w-4 text-orange-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{profile.completed_orders.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Total successful trades</p>
+                <div className="text-2xl font-bold text-white">{profile.completed_orders.toLocaleString()}</div>
+                <p className="text-xs text-gray-400">Total successful trades</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Rating</CardTitle>
-                <Star className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-white">Rating</CardTitle>
+                <Star className="h-4 w-4 text-yellow-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-bold text-white">
                   {latestMetrics?.rating ? latestMetrics.rating.toFixed(1) : "N/A"}
                 </div>
                 <div className="flex items-center gap-1 mt-1">
@@ -254,50 +254,50 @@ export function TraderProfile() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-white">Total Volume</CardTitle>
+                <DollarSign className="h-4 w-4 text-orange-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-bold text-white">
                   ${latestMetrics?.total_volume ? latestMetrics.total_volume.toLocaleString() : "0"}
                 </div>
-                <p className="text-xs text-muted-foreground">Lifetime trading volume</p>
+                <p className="text-xs text-gray-400">Lifetime trading volume</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Recent Performance */}
           {latestMetrics && (
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
               <CardHeader>
-                <CardTitle>Recent Performance</CardTitle>
-                <CardDescription>Latest trading metrics from {latestMetrics.metric_date}</CardDescription>
+                <CardTitle className="text-white">Recent Performance</CardTitle>
+                <CardDescription className="text-gray-400">Latest trading metrics from {latestMetrics.metric_date}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Orders This Period</p>
+                    <p className="text-sm text-gray-400">Orders This Period</p>
                     <div className="flex items-center gap-2">
-                      <div className="text-2xl font-bold">{latestMetrics.total_orders}</div>
-                      <Badge variant="outline">{latestMetrics.completed_orders} completed</Badge>
+                      <div className="text-2xl font-bold text-white">{latestMetrics.total_orders}</div>
+                      <Badge variant="outline" className="bg-white/5 text-yellow-400 border-yellow-400/30">{latestMetrics.completed_orders} completed</Badge>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Average Completion Time</p>
+                    <p className="text-sm text-gray-400">Average Completion Time</p>
                     <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-lg font-semibold">
+                      <Clock className="h-4 w-4 text-yellow-400" />
+                      <span className="text-lg font-semibold text-white">
                         {latestMetrics.average_completion_time ? `${latestMetrics.average_completion_time} min` : "N/A"}
                       </span>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Feedback Score</p>
+                    <p className="text-sm text-gray-400">Feedback Score</p>
                     <div className="flex items-center gap-2">
-                      <span className="text-green-500">+{latestMetrics.positive_feedback}</span>
-                      <span className="text-red-500">-{latestMetrics.negative_feedback}</span>
+                      <span className="text-green-400">+{latestMetrics.positive_feedback}</span>
+                      <span className="text-red-400">-{latestMetrics.negative_feedback}</span>
                     </div>
                   </div>
                 </div>

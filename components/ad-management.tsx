@@ -99,12 +99,12 @@ export function AdManagement() {
       {/* Header with Actions */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Ad Management</h2>
-          <p className="text-muted-foreground">Create and manage your P2P trading advertisements</p>
+          <h2 className="text-2xl font-bold tracking-tight text-white">Ad Management</h2>
+          <p className="text-gray-400">Create and manage your P2P trading advertisements</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-white/10 backdrop-blur-sm border border-white/20 text-yellow-400 hover:bg-white/20 hover:border-yellow-400/50 hover:text-orange-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300">
               <Plus className="mr-2 h-4 w-4" />
               Create Ad
             </Button>
@@ -121,53 +121,53 @@ export function AdManagement() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Ads</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Total Ads</CardTitle>
+            <TrendingUp className="h-4 w-4 text-yellow-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{ads.length}</div>
-            <p className="text-xs text-muted-foreground">{ads.filter((ad) => ad.status === "active").length} active</p>
+            <div className="text-2xl font-bold text-white">{ads.length}</div>
+            <p className="text-xs text-gray-400">{ads.filter((ad) => ad.status === "active").length} active</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Total Volume</CardTitle>
+            <TrendingUp className="h-4 w-4 text-orange-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$165K</div>
-            <p className="text-xs text-muted-foreground">+12% from last month</p>
+            <div className="text-2xl font-bold text-white">$165K</div>
+            <p className="text-xs text-gray-400">+12% from last month</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Orders</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Completed Orders</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">65</div>
-            <p className="text-xs text-muted-foreground">+8% from last week</p>
+            <div className="text-2xl font-bold text-white">65</div>
+            <p className="text-xs text-gray-400">+8% from last week</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Completion Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Avg. Completion Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-purple-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">94.2%</div>
-            <p className="text-xs text-muted-foreground">+2.1% from last month</p>
+            <div className="text-2xl font-bold text-white">94.2%</div>
+            <p className="text-xs text-gray-400">+2.1% from last month</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Ads Table */}
-      <Card>
+      <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
         <CardHeader>
-          <CardTitle>Your Advertisements</CardTitle>
-          <CardDescription>Manage your active and paused P2P trading ads</CardDescription>
+          <CardTitle className="text-white">Your Advertisements</CardTitle>
+          <CardDescription className="text-gray-400">Manage your active and paused P2P trading ads</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -208,13 +208,13 @@ export function AdManagement() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleToggleAdStatus(ad.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleToggleAdStatus(ad.id)} className="text-yellow-400 hover:text-orange-400 hover:bg-white/10">
                         {ad.isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleEditAd(ad)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleEditAd(ad)} className="text-blue-400 hover:text-blue-300 hover:bg-white/10">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteAd(ad.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteAd(ad.id)} className="text-red-400 hover:text-red-300 hover:bg-white/10">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -371,10 +371,10 @@ function CreateAdForm({ onClose }: { onClose: () => void }) {
       </Tabs>
 
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} className="bg-white/5 backdrop-blur-sm border border-white/20 text-gray-300 hover:bg-white/10 hover:border-white/30">
           Cancel
         </Button>
-        <Button onClick={onClose}>Create Ad</Button>
+        <Button onClick={onClose} className="bg-white/10 backdrop-blur-sm border border-white/20 text-yellow-400 hover:bg-white/20 hover:border-yellow-400/50 hover:text-orange-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300">Create Ad</Button>
       </DialogFooter>
     </div>
   )
@@ -406,10 +406,10 @@ function EditAdForm({ ad, onClose }: { ad: any; onClose: () => void }) {
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} className="bg-white/5 backdrop-blur-sm border border-white/20 text-gray-300 hover:bg-white/10 hover:border-white/30">
           Cancel
         </Button>
-        <Button onClick={onClose}>Update Ad</Button>
+        <Button onClick={onClose} className="bg-white/10 backdrop-blur-sm border border-white/20 text-yellow-400 hover:bg-white/20 hover:border-yellow-400/50 hover:text-orange-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300">Update Ad</Button>
       </DialogFooter>
     </div>
   )

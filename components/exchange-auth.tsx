@@ -79,8 +79,8 @@ export function ExchangeAuth() {
         {/* Header */}
         <div className="text-center space-y-4">
           <div className="flex justify-center mb-6">
-            <div className="h-16 w-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center">
-              <Bot className="h-10 w-10 text-black" />
+            <div className="h-16 w-16 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
+              <Bot className="h-10 w-10 text-yellow-400" />
             </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-white">
@@ -107,7 +107,7 @@ export function ExchangeAuth() {
           {exchanges.map((exchange) => (
             <Card
               key={exchange.id}
-              className="bg-white/5 border-white/10 backdrop-blur-lg hover:bg-white/10 transition-all"
+              className="bg-white/5 border-white/10 backdrop-blur-lg hover:bg-white/10 hover:border-yellow-400/30 hover:shadow-lg hover:shadow-yellow-400/10 transition-all duration-300"
             >
               <CardHeader className="text-center">
                 <div className="text-4xl mb-4">{exchange.icon}</div>
@@ -118,7 +118,7 @@ export function ExchangeAuth() {
                 <div className="space-y-2">
                   {exchange.features.map((feature, index) => (
                     <div key={index} className="flex items-center gap-2 text-sm text-gray-300">
-                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+                      <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full" />
                       {feature}
                     </div>
                   ))}
@@ -127,7 +127,7 @@ export function ExchangeAuth() {
                 <Button
                   onClick={() => handleExchangeLogin(exchange.id)}
                   disabled={loading !== null}
-                  className={`w-full bg-gradient-to-r ${exchange.color} hover:opacity-90 text-white`}
+                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 text-yellow-400 hover:bg-white/20 hover:border-yellow-400/50 hover:text-orange-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300"
                 >
                   {loading === exchange.id ? (
                     <>
@@ -147,10 +147,10 @@ export function ExchangeAuth() {
         </div>
 
         {/* Security Notice */}
-        <Card className="bg-white/5 border-white/10 backdrop-blur-lg max-w-3xl mx-auto">
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg max-w-3xl mx-auto shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
-              <Shield className="h-6 w-6 text-green-400 mt-1" />
+              <Shield className="h-6 w-6 text-yellow-400 mt-1" />
               <div className="space-y-2">
                 <h3 className="text-white font-semibold">Secure OAuth Connection</h3>
                 <p className="text-gray-300 text-sm">
@@ -158,15 +158,15 @@ export function ExchangeAuth() {
                   exchange passwords and only request the minimum permissions needed for P2P automation.
                 </p>
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <Badge variant="outline" className="text-green-400 border-green-400/30">
+                  <Badge variant="outline" className="text-yellow-400 border-yellow-400/30 bg-white/5">
                     <Shield className="mr-1 h-3 w-3" />
                     OAuth 2.0
                   </Badge>
-                  <Badge variant="outline" className="text-blue-400 border-blue-400/30">
+                  <Badge variant="outline" className="text-orange-400 border-orange-400/30 bg-white/5">
                     <TrendingUp className="mr-1 h-3 w-3" />
                     P2P Access
                   </Badge>
-                  <Badge variant="outline" className="text-purple-400 border-purple-400/30">
+                  <Badge variant="outline" className="text-purple-400 border-purple-400/30 bg-white/5">
                     <Users className="mr-1 h-3 w-3" />
                     Team Data
                   </Badge>
@@ -179,8 +179,8 @@ export function ExchangeAuth() {
         {/* Features Preview */}
         <div className="grid gap-4 md:grid-cols-3 max-w-4xl mx-auto">
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mx-auto">
-              <TrendingUp className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mx-auto shadow-lg">
+              <TrendingUp className="h-6 w-6 text-yellow-400" />
             </div>
             <h3 className="text-white font-semibold">Real Trader Data</h3>
             <p className="text-gray-400 text-sm">
@@ -188,15 +188,15 @@ export function ExchangeAuth() {
             </p>
           </div>
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center mx-auto">
-              <Users className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mx-auto shadow-lg">
+              <Users className="h-6 w-6 text-orange-400" />
             </div>
             <h3 className="text-white font-semibold">Team Integration</h3>
             <p className="text-gray-400 text-sm">Automatically sync your exchange teams and member permissions</p>
           </div>
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mx-auto">
-              <Bot className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg flex items-center justify-center mx-auto shadow-lg">
+              <Bot className="h-6 w-6 text-yellow-400" />
             </div>
             <h3 className="text-white font-semibold">Smart Automation</h3>
             <p className="text-gray-400 text-sm">Leverage your trading history for intelligent automation strategies</p>
