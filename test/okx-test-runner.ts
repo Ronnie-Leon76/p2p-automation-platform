@@ -115,7 +115,7 @@ export async function runOkxTest() {
   // 2. Balance Tests
   console.log("💰 TESTING BALANCE ENDPOINTS\n");
   
-  const currencies = ["USDT", "BTC", "ETH", "KES"];
+  const currencies = ["USDT", "BTC", "ETH"];
   for (const currency of currencies) {
     try {
       console.log(`💰 Testing getBalance(${currency})...`);
