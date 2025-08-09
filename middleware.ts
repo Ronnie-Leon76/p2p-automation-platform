@@ -1,9 +1,16 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
+  
+  // Skip middleware in development mode to allow mock authentication
+  if (process.env.NODE_ENV === "development") {
+    console.log(`🚦 Middleware: Development mode - skipping auth checks for ${req.nextUrl.pathname}`);
+    return res;
+  }
+
   const supabase = createMiddlewareClient({ req, res })
 
   const {

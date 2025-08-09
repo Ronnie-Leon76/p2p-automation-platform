@@ -12,20 +12,43 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({
   children,
-  redirectTo = "/auth/login",
+  redirectTo = "/auth",
 }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useMockAuth();
+  const { isAuthenticated, isLoading, user } = useMockAuth();
   const router = useRouter();
 
   useEffect(() => {
+    console.log(
+      `🛡️  ProtectedRoute check: isLoading=${isLoading}, isAuthenticated=${isAuthenticated}, user=${
+        user?.full_name || "none"
+      }`
+    );
+
     // In development mode, check mock auth
     if (MockAuthService.isDevelopment()) {
-      if (!isLoading && !isAuthenticated) {
-        router.push(redirectTo);
+      // Wait for loading to complete before making decisions
+      if (isLoading) {
+        console.log(`⏳ Still loading, waiting...`);
+        return;
+      }
+
+      if (!isAuthenticated) {
+        console.log(`🔄 Redirecting to ${redirectTo} - not authenticated`);
+        // Only redirect if we're not already on the auth page
+        if (window.location.pathname !== "/auth") {
+          router.push(redirectTo);
+        }
+        return;
+      }
+
+      if (isAuthenticated) {
+        console.log(
+          `✅ User is authenticated (${user?.full_name}), showing protected content`
+        );
       }
     }
     // TODO: In production, check real Supabase auth
-  }, [isAuthenticated, isLoading, router, redirectTo]);
+  }, [isAuthenticated, isLoading, user, router, redirectTo]);
 
   // Show loading state
   if (isLoading) {

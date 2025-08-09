@@ -1,6 +1,7 @@
 # 🚀 P2P Automation Platform - Setup Guide
 
 ## Quick Start for Team Me```typescript
+
 // Activity Logs (auto-optimized)
 import { activityLogsService } from '@/lib/database/activity-logs';
 
@@ -8,7 +9,8 @@ import { activityLogsService } from '@/lib/database/activity-logs';
 import { TeamDelegationService } from '@/lib/team/delegation-service';
 
 // No manual SQL needed!
-```### 1. 📋 **Initial Setup (One-time)**
+
+````### 1. 📋 **Initial Setup (One-time)**
 
 ```bash
 # Clone and install
@@ -19,7 +21,7 @@ npm install
 # Set up environment
 cp .env.example .env.local
 # Add your Supabase credentials to .env.local
-```
+````
 
 ### 2. ⚡ **Database Optimization (One-time)**
 

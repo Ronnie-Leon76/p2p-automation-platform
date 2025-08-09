@@ -36,16 +36,32 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  // Listen for localStorage changes (when auth state changes in another tab/component)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const currentUser = mockAuth.getCurrentMockUser();
+      setUser(currentUser);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   const login = async (
     exchange: "okx" | "binance" | "bybit",
     userIndex: number = 0
   ) => {
     setIsLoading(true);
     try {
+      console.log(`🔑 MockAuth context: Starting login for ${exchange}`);
       const loggedInUser = await mockAuth.mockLogin(exchange, userIndex);
+      console.log(`👤 MockAuth context: Setting user state:`, loggedInUser);
       setUser(loggedInUser);
+      // Force a small delay to ensure state is committed
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      console.log(`✅ MockAuth context: Login completed, user set`);
     } catch (error) {
-      console.error("Mock login failed:", error);
+      console.error("❌ MockAuth context: Login failed:", error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -59,10 +75,17 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     setIsLoading(true);
     try {
+      console.log(
+        `📝 MockAuth context: Starting signup for ${email} on ${exchange}`
+      );
       const newUser = await mockAuth.mockSignup(email, fullName, exchange);
+      console.log(`👤 MockAuth context: Setting new user state:`, newUser);
       setUser(newUser);
+      // Force a small delay to ensure state is committed
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      console.log(`✅ MockAuth context: Signup completed, user set`);
     } catch (error) {
-      console.error("Mock signup failed:", error);
+      console.error("❌ MockAuth context: Signup failed:", error);
       throw error;
     } finally {
       setIsLoading(false);

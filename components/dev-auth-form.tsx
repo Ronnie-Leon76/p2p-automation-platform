@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MockAuthService } from "@/lib/auth/mock-auth";
+import { useMockAuth } from "@/hooks/use-mock-auth";
 import { AlertCircle, Bot, Code2, Loader2, Settings } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface DevAuthFormProps {
   mode: "login" | "signup";
@@ -27,8 +27,28 @@ export function DevAuthForm({ mode }: DevAuthFormProps) {
   const [selectedExchange, setSelectedExchange] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [waitingForAuth, setWaitingForAuth] = useState(false);
   const router = useRouter();
-  const mockAuth = MockAuthService.getInstance();
+  const { login, signup, isAuthenticated, user } = useMockAuth();
+
+  // Monitor authentication state changes and redirect when authenticated
+  useEffect(() => {
+    console.log(
+      `🔍 DevAuthForm: Auth state - isAuthenticated=${isAuthenticated}, user=${
+        user?.full_name || "none"
+      }, waitingForAuth=${waitingForAuth}`
+    );
+
+    if (waitingForAuth && isAuthenticated && user) {
+      console.log(
+        `✅ DevAuthForm: Authentication confirmed, redirecting to dashboard...`
+      );
+      setWaitingForAuth(false);
+      setIsLoading(false);
+      setSelectedExchange(null);
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, user, waitingForAuth, router]);
 
   const handleMockAuth = async (
     exchange: "okx" | "binance" | "bybit",
@@ -39,29 +59,33 @@ export function DevAuthForm({ mode }: DevAuthFormProps) {
     setError("");
 
     try {
-      let user;
+      console.log(`🎭 Starting mock ${mode} for ${exchange}...`);
 
       if (mode === "signup") {
         if (!email || !fullName) {
           throw new Error("Email and full name are required for signup");
         }
-        user = await mockAuth.mockSignup(email, fullName, exchange);
+        console.log(`📝 Signing up: ${email} - ${fullName}`);
+        await signup(email, fullName, exchange);
       } else {
-        user = await mockAuth.mockLogin(exchange, userIndex);
+        console.log(`🔑 Logging in with ${exchange} (user ${userIndex})`);
+        await login(exchange, userIndex);
       }
 
-      console.log(`🎭 Mock ${mode} successful:`, user);
+      console.log(
+        `✅ Mock ${mode} successful, waiting for auth state update...`
+      );
 
-      // Small delay to simulate real auth
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // Set flag to wait for authentication state to be confirmed
+      setWaitingForAuth(true);
     } catch (error: any) {
+      console.error(`❌ Mock ${mode} failed:`, error);
       setError(error.message);
       setIsLoading(false);
       setSelectedExchange(null);
     }
+    // Note: We don't set isLoading(false) here immediately -
+    // it will be set in the useEffect when auth is confirmed
   };
 
   const exchanges = [
