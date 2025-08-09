@@ -239,6 +239,7 @@ export interface BalanceResponse {
 }
 
 export interface PaymentMethodsResponse {
+  length: any
   paymentMethods: Array<{
     paymentMethodId: string
     type: string
