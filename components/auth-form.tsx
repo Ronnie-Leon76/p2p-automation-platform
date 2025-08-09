@@ -1,5 +1,6 @@
 "use client";
 
+import { DevAuthForm } from "@/components/dev-auth-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +20,12 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ mode }: AuthFormProps) {
+  // Show development auth form in development mode
+  if (process.env.NODE_ENV === "development") {
+    return <DevAuthForm mode={mode} />;
+  }
+
+  // Production auth form (original implementation)
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedExchange, setSelectedExchange] = useState<string | null>(null);

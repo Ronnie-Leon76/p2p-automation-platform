@@ -440,7 +440,7 @@ export class OKXExchange implements P2PExchange {
       paymentMethodName: pm.paymentMethodName,
     }))
 
-    return { paymentMethods }
+    return { paymentMethods, length: paymentMethods.length }
   }
 
   async addPaymentMethod(params: AddPaymentMethodParams): Promise<AddPaymentMethodResponse> {

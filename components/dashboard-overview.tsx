@@ -10,18 +10,47 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useMockAuth } from "@/hooks/use-mock-auth";
 import {
   Activity,
   AlertCircle,
   BarChart3,
   DollarSign,
   TrendingUp,
+  User,
   Users,
 } from "lucide-react";
 
 export function DashboardOverview() {
+  const { user, isAuthenticated } = useMockAuth();
+
   return (
     <div className="space-y-6">
+      {/* User Info Card */}
+      {isAuthenticated && user && (
+        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
+          <CardHeader>
+            <CardTitle className="text-lg font-medium text-white flex items-center gap-2">
+              <User className="h-5 w-5 text-blue-400" />
+              Welcome back, {user.full_name}
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Exchange:{" "}
+              {user.exchange_credentials?.exchange || "Not configured"} |{" "}
+              {user.provider === "mock" ? "Mock API" : "Real API"} Mode
+              {process.env.NODE_ENV === "development" && (
+                <Badge
+                  variant="outline"
+                  className="ml-2 text-yellow-400 border-yellow-400"
+                >
+                  Development
+                </Badge>
+              )}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
@@ -88,27 +117,45 @@ export function DashboardOverview() {
               <span className="text-sm text-gray-300">OKX</span>
               <Badge
                 variant="default"
-                className="bg-green-500/20 text-green-400 border-green-400/30"
+                className={
+                  user?.exchange_credentials?.exchange === "OKX"
+                    ? "bg-green-500/20 text-green-400 border-green-400/30"
+                    : "bg-gray-500/20 text-gray-400 border-gray-400/30"
+                }
               >
-                Connected
+                {user?.exchange_credentials?.exchange === "OKX"
+                  ? "Connected"
+                  : "Disconnected"}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-300">Binance</span>
               <Badge
                 variant="secondary"
-                className="bg-gray-500/20 text-gray-400 border-gray-400/30"
+                className={
+                  user?.exchange_credentials?.exchange === "Binance"
+                    ? "bg-green-500/20 text-green-400 border-green-400/30"
+                    : "bg-gray-500/20 text-gray-400 border-gray-400/30"
+                }
               >
-                Disconnected
+                {user?.exchange_credentials?.exchange === "Binance"
+                  ? "Connected"
+                  : "Disconnected"}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-300">Bybit</span>
               <Badge
                 variant="secondary"
-                className="bg-gray-500/20 text-gray-400 border-gray-400/30"
+                className={
+                  user?.exchange_credentials?.exchange === "Bybit"
+                    ? "bg-green-500/20 text-green-400 border-green-400/30"
+                    : "bg-gray-500/20 text-gray-400 border-gray-400/30"
+                }
               >
-                Disconnected
+                {user?.exchange_credentials?.exchange === "Bybit"
+                  ? "Connected"
+                  : "Disconnected"}
               </Badge>
             </div>
           </CardContent>
