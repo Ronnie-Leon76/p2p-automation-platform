@@ -1,12 +1,9 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -14,98 +11,114 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  CreditCard,
-  Smartphone,
-  Upload,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTeam } from "@/lib/hooks/use-team";
+import { createClient } from "@/lib/supabase/client";
+import {
+  AlertCircle,
+  ArrowUpRight,
   CheckCircle,
   Clock,
-  XCircle,
-  AlertCircle,
-  Loader2,
-  FileText,
+  CreditCard,
+  DollarSign,
+  Download,
   Eye,
-} from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
-import { useTeam } from "@/lib/hooks/use-team"
+  FileText,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Smartphone,
+  Upload,
+  XCircle,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface PaymentProvider {
-  id: string
-  name: string
-  type: string
-  currency: string
-  is_active: boolean
+  id: string;
+  name: string;
+  type: string;
+  currency: string;
+  is_active: boolean;
 }
 
 interface PaymentTransaction {
-  id: string
-  external_transaction_id?: string
-  amount: number
-  currency: string
-  status: string
-  payer_phone?: string
-  payer_name?: string
-  reference_number?: string
-  created_at: string
-  expires_at?: string
+  id: string;
+  external_transaction_id?: string;
+  amount: number;
+  currency: string;
+  status: string;
+  payer_phone?: string;
+  payer_name?: string;
+  reference_number?: string;
+  created_at: string;
+  expires_at?: string;
 }
 
 interface PaymentProof {
-  id: string
-  file_url: string
-  file_type: string
-  verification_status: string
-  created_at: string
+  id: string;
+  file_url: string;
+  file_type: string;
+  verification_status: string;
+  created_at: string;
 }
 
 export function PaymentIntegration({ orderId }: { orderId: string }) {
-  const [providers, setProviders] = useState<PaymentProvider[]>([])
-  const [transactions, setTransactions] = useState<PaymentTransaction[]>([])
-  const [proofs, setProofs] = useState<PaymentProof[]>([])
-  const [selectedProvider, setSelectedProvider] = useState("")
-  const [amount, setAmount] = useState("")
-  const [payerPhone, setPayerPhone] = useState("")
-  const [payerName, setPayerName] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState("")
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
-  const [isProofDialogOpen, setIsProofDialogOpen] = useState(false)
-  const { currentTeam } = useTeam()
-  const supabase = createClient()
+  const [providers, setProviders] = useState<PaymentProvider[]>([]);
+  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
+  const [proofs, setProofs] = useState<PaymentProof[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState("");
+  const [amount, setAmount] = useState("");
+  const [payerPhone, setPayerPhone] = useState("");
+  const [payerName, setPayerName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isProofDialogOpen, setIsProofDialogOpen] = useState(false);
+  const { currentTeam } = useTeam();
+  const supabase = createClient();
 
   useEffect(() => {
     if (currentTeam) {
-      fetchProviders()
-      fetchTransactions()
-      fetchProofs()
+      fetchProviders();
+      fetchTransactions();
+      fetchProofs();
     }
-  }, [currentTeam])
+  }, [currentTeam]);
 
   const fetchProviders = async () => {
     try {
       const { data, error } = await supabase
         .from("payment_providers")
-        .select(`
+        .select(
+          `
           *,
           team_payment_configs!inner(
             team_id,
             is_active
           )
-        `)
+        `
+        )
         .eq("team_payment_configs.team_id", currentTeam?.id)
         .eq("team_payment_configs.is_active", true)
-        .eq("is_active", true)
+        .eq("is_active", true);
 
-      if (error) throw error
-      setProviders(data || [])
+      if (error) throw error;
+      setProviders(data || []);
     } catch (error) {
-      console.error("Error fetching providers:", error)
+      console.error("Error fetching providers:", error);
     }
-  }
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -113,14 +126,14 @@ export function PaymentIntegration({ orderId }: { orderId: string }) {
         .from("payment_transactions")
         .select("*")
         .eq("order_id", orderId)
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: false });
 
-      if (error) throw error
-      setTransactions(data || [])
+      if (error) throw error;
+      setTransactions(data || []);
     } catch (error) {
-      console.error("Error fetching transactions:", error)
+      console.error("Error fetching transactions:", error);
     }
-  }
+  };
 
   const fetchProofs = async () => {
     try {
@@ -128,23 +141,23 @@ export function PaymentIntegration({ orderId }: { orderId: string }) {
         .from("payment_proofs")
         .select("*")
         .eq("order_id", orderId)
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: false });
 
-      if (error) throw error
-      setProofs(data || [])
+      if (error) throw error;
+      setProofs(data || []);
     } catch (error) {
-      console.error("Error fetching proofs:", error)
+      console.error("Error fetching proofs:", error);
     }
-  }
+  };
 
   const initiatePayment = async () => {
     if (!selectedProvider || !amount || !payerPhone) {
-      setError("Please fill in all required fields")
-      return
+      setError("Please fill in all required fields");
+      return;
     }
 
-    setLoading(true)
-    setError("")
+    setLoading(true);
+    setError("");
 
     try {
       const response = await fetch("/api/payments/initiate", {
@@ -160,368 +173,622 @@ export function PaymentIntegration({ orderId }: { orderId: string }) {
           payer_name: payerName,
           description: `Payment for order ${orderId}`,
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to initiate payment")
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to initiate payment");
       }
 
-      const transaction = await response.json()
-      setTransactions((prev) => [transaction, ...prev])
-      setIsPaymentDialogOpen(false)
+      const transaction = await response.json();
+      setTransactions((prev) => [transaction, ...prev]);
+      setIsPaymentDialogOpen(false);
 
       // Reset form
-      setSelectedProvider("")
-      setAmount("")
-      setPayerPhone("")
-      setPayerName("")
+      setSelectedProvider("");
+      setAmount("");
+      setPayerPhone("");
+      setPayerName("");
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to initiate payment")
+      setError(
+        error instanceof Error ? error.message : "Failed to initiate payment"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const checkPaymentStatus = async (transactionId: string) => {
     try {
-      const response = await fetch(`/api/payments/status/${transactionId}`)
-      if (!response.ok) throw new Error("Failed to check status")
+      const response = await fetch(`/api/payments/status/${transactionId}`);
+      if (!response.ok) throw new Error("Failed to check status");
 
-      const status = await response.json()
+      const status = await response.json();
 
       // Update transaction in state
-      setTransactions((prev) => prev.map((t) => (t.id === transactionId ? { ...t, status: status.status } : t)))
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.id === transactionId ? { ...t, status: status.status } : t
+        )
+      );
     } catch (error) {
-      console.error("Error checking payment status:", error)
+      console.error("Error checking payment status:", error);
     }
-  }
+  };
 
   const uploadPaymentProof = async (transactionId: string, file: File) => {
-    setUploading(true)
-    setError("")
+    setUploading(true);
+    setError("");
 
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("transaction_id", transactionId)
-      formData.append("order_id", orderId)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("transaction_id", transactionId);
+      formData.append("order_id", orderId);
 
       const response = await fetch("/api/payments/upload-proof", {
         method: "POST",
         body: formData,
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to upload proof")
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to upload proof");
       }
 
-      await fetchProofs()
-      setIsProofDialogOpen(false)
+      await fetchProofs();
+      setIsProofDialogOpen(false);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to upload proof")
+      setError(
+        error instanceof Error ? error.message : "Failed to upload proof"
+      );
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
       case "processing":
-        return <Clock className="h-4 w-4 text-yellow-500" />
+        return <Clock className="h-4 w-4 text-yellow-500" />;
       case "failed":
-        return <XCircle className="h-4 w-4 text-red-500" />
+        return <XCircle className="h-4 w-4 text-red-500" />;
       default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />
+        return <AlertCircle className="h-4 w-4 text-gray-500" />;
     }
-  }
+  };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    const variants: Record<
+      string,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
       completed: "default",
       processing: "secondary",
       failed: "destructive",
       pending: "outline",
-    }
-    return <Badge variant={variants[status] || "outline"}>{status}</Badge>
-  }
+    };
+    return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
+  };
 
   const getProviderIcon = (type: string) => {
     switch (type) {
       case "mobile_money":
-        return <Smartphone className="h-4 w-4" />
+        return <Smartphone className="h-4 w-4" />;
       case "bank":
-        return <CreditCard className="h-4 w-4" />
+        return <CreditCard className="h-4 w-4" />;
       default:
-        return <CreditCard className="h-4 w-4" />
+        return <CreditCard className="h-4 w-4" />;
     }
-  }
+  };
 
   return (
-    <div className="space-y-6">
-      {error && (
-        <Alert className="bg-red-500/10 border-red-500/20">
-          <AlertCircle className="h-4 w-4 text-red-400" />
-          <AlertDescription className="text-red-400">{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <Tabs defaultValue="payments" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="proofs">Payment Proofs</TabsTrigger>
-          <TabsTrigger value="providers">Providers</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="payments" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Payment Transactions</h3>
-            <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Initiate Payment
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Initiate Payment</DialogTitle>
-                  <DialogDescription>Start a new payment transaction for this order</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="provider">Payment Provider</Label>
-                    <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select provider" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {providers.map((provider) => (
-                          <SelectItem key={provider.id} value={provider.id}>
-                            <div className="flex items-center gap-2">
-                              {getProviderIcon(provider.type)}
-                              {provider.name} ({provider.currency})
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="amount">Amount</Label>
-                      <Input
-                        id="amount"
-                        type="number"
-                        placeholder="0.00"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Payer Phone</Label>
-                      <Input
-                        id="phone"
-                        placeholder="+254700000000"
-                        value={payerPhone}
-                        onChange={(e) => setPayerPhone(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Payer Name (Optional)</Label>
-                    <Input
-                      id="name"
-                      placeholder="John Doe"
-                      value={payerName}
-                      onChange={(e) => setPayerName(e.target.value)}
-                    />
-                  </div>
-
-                  <Button onClick={initiatePayment} disabled={loading} className="w-full">
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Initiate Payment
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+    <div className="min-h-screen bg-gray-50/50">
+      <div className="space-y-6 p-6">
+        {/* Header Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Payment Integration
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage payments and transaction proofs for order #{orderId}
+            </p>
           </div>
-
-          <div className="grid gap-4">
-            {transactions.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <p className="text-muted-foreground">No payment transactions found</p>
-                </CardContent>
-              </Card>
-            ) : (
-              transactions.map((transaction) => (
-                <Card key={transaction.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(transaction.status)}
-                          <span className="font-medium">
-                            {transaction.currency} {transaction.amount}
-                          </span>
-                          {getStatusBadge(transaction.status)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {transaction.payer_phone} • {new Date(transaction.created_at).toLocaleString()}
-                        </p>
-                        {transaction.reference_number && (
-                          <p className="text-sm font-mono">Ref: {transaction.reference_number}</p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => checkPaymentStatus(transaction.id)}>
-                          Check Status
-                        </Button>
-                        {transaction.status === "processing" && transaction.expires_at && (
-                          <div className="text-sm text-muted-foreground">
-                            Expires: {new Date(transaction.expires_at).toLocaleTimeString()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="proofs" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Payment Proofs</h3>
-            <Dialog open={isProofDialogOpen} onOpenChange={setIsProofDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Proof
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Upload Payment Proof</DialogTitle>
-                  <DialogDescription>Upload a receipt or screenshot as proof of payment</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction">Transaction</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select transaction" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {transactions.map((transaction) => (
-                          <SelectItem key={transaction.id} value={transaction.id}>
-                            {transaction.currency} {transaction.amount} - {transaction.status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+        {error && (
+          <Alert className="border-red-200 bg-red-50">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-700">
+              {error}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Tabs defaultValue="payments" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-white border border-gray-200">
+            <TabsTrigger
+              value="payments"
+              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
+            >
+              Payments
+            </TabsTrigger>
+            <TabsTrigger
+              value="proofs"
+              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
+            >
+              Payment Proofs
+            </TabsTrigger>
+            <TabsTrigger
+              value="providers"
+              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
+            >
+              Providers
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="payments" className="space-y-6 mt-6">
+            <Card className="border-0 shadow-sm bg-white">
+              <CardHeader className="border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Payment Transactions
+                    </CardTitle>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Track and manage payment transactions
+                    </p>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="file">File</Label>
-                    <Input
-                      id="file"
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file && transactions.length > 0) {
-                          uploadPaymentProof(transactions[0].id, file)
-                        }
-                      }}
-                    />
-                    <p className="text-sm text-muted-foreground">Supported formats: JPG, PNG, PDF (max 10MB)</p>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="grid gap-4">
-            {proofs.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <p className="text-muted-foreground">No payment proofs uploaded</p>
-                </CardContent>
-              </Card>
-            ) : (
-              proofs.map((proof) => (
-                <Card key={proof.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-8 w-8 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{proof.file_type.toUpperCase()} File</p>
-                          <p className="text-sm text-muted-foreground">
-                            Uploaded {new Date(proof.created_at).toLocaleString()}
-                          </p>
-                          {getStatusBadge(proof.verification_status)}
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={proof.file_url} target="_blank" rel="noopener noreferrer">
-                          <Eye className="mr-2 h-4 w-4" />
-                          View
-                        </a>
+                  <Dialog
+                    open={isPaymentDialogOpen}
+                    onOpenChange={setIsPaymentDialogOpen}
+                  >
+                    <DialogTrigger asChild>
+                      <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+                        <Plus className="h-4 w-4" />
+                        Initiate Payment
                       </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </TabsContent>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="text-gray-900">
+                          Initiate Payment
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-600">
+                          Start a new payment transaction for this order
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="provider"
+                            className="text-sm font-medium text-gray-700"
+                          >
+                            Payment Provider
+                          </Label>
+                          <Select
+                            value={selectedProvider}
+                            onValueChange={setSelectedProvider}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Select provider" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {providers.map((provider) => (
+                                <SelectItem
+                                  key={provider.id}
+                                  value={provider.id}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {getProviderIcon(provider.type)}
+                                    <span>{provider.name}</span>
+                                    <Badge
+                                      variant="secondary"
+                                      className="ml-auto text-xs"
+                                    >
+                                      {provider.currency}
+                                    </Badge>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-        <TabsContent value="providers" className="space-y-4">
-          <h3 className="text-lg font-semibold">Available Payment Providers</h3>
-          <div className="grid gap-4">
-            {providers.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <p className="text-muted-foreground">No payment providers configured</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Contact your team admin to set up payment providers
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              providers.map((provider) => (
-                <Card key={provider.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {getProviderIcon(provider.type)}
-                        <div>
-                          <p className="font-medium">{provider.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {provider.type.replace("_", " ")} • {provider.currency}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="amount"
+                              className="text-sm font-medium text-gray-700"
+                            >
+                              Amount
+                            </Label>
+                            <Input
+                              id="amount"
+                              type="number"
+                              placeholder="0.00"
+                              value={amount}
+                              onChange={(e) => setAmount(e.target.value)}
+                              className="h-10"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="phone"
+                              className="text-sm font-medium text-gray-700"
+                            >
+                              Payer Phone
+                            </Label>
+                            <Input
+                              id="phone"
+                              placeholder="+254700000000"
+                              value={payerPhone}
+                              onChange={(e) => setPayerPhone(e.target.value)}
+                              className="h-10"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="name"
+                            className="text-sm font-medium text-gray-700"
+                          >
+                            Payer Name (Optional)
+                          </Label>
+                          <Input
+                            id="name"
+                            placeholder="John Doe"
+                            value={payerName}
+                            onChange={(e) => setPayerName(e.target.value)}
+                            className="h-10"
+                          />
+                        </div>
+
+                        <Button
+                          onClick={initiatePayment}
+                          disabled={loading}
+                          className="w-full h-10 bg-blue-600 hover:bg-blue-700"
+                        >
+                          {loading && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
+                          Initiate Payment
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                {transactions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="mx-auto h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center mb-4">
+                      <DollarSign className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">
+                      No transactions yet
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Start by initiating your first payment transaction
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {transactions.map((transaction) => (
+                      <div
+                        key={transaction.id}
+                        className="flex items-center justify-between p-4 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                            {getStatusIcon(transaction.status)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold text-gray-900">
+                                {transaction.currency}{" "}
+                                {transaction.amount.toLocaleString()}
+                              </span>
+                              {getStatusBadge(transaction.status)}
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                              <span>{transaction.payer_phone}</span>
+                              <span>•</span>
+                              <span>
+                                {new Date(
+                                  transaction.created_at
+                                ).toLocaleString()}
+                              </span>
+                            </div>
+                            {transaction.reference_number && (
+                              <p className="text-xs font-mono text-gray-500 mt-1">
+                                Ref: {transaction.reference_number}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => checkPaymentStatus(transaction.id)}
+                            className="gap-2"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            Check Status
+                          </Button>
+                          {transaction.status === "processing" &&
+                            transaction.expires_at && (
+                              <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-md">
+                                Expires:{" "}
+                                {new Date(
+                                  transaction.expires_at
+                                ).toLocaleTimeString()}
+                              </div>
+                            )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="proofs" className="space-y-6 mt-6">
+            <Card className="border-0 shadow-sm bg-white">
+              <CardHeader className="border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">
+                      Payment Proofs
+                    </CardTitle>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Upload and manage payment verification documents
+                    </p>
+                  </div>
+                  <Dialog
+                    open={isProofDialogOpen}
+                    onOpenChange={setIsProofDialogOpen}
+                  >
+                    <DialogTrigger asChild>
+                      <Button className="bg-green-600 hover:bg-green-700 gap-2">
+                        <Upload className="h-4 w-4" />
+                        Upload Proof
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="text-gray-900">
+                          Upload Payment Proof
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-600">
+                          Upload a receipt or screenshot as proof of payment
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="transaction"
+                            className="text-sm font-medium text-gray-700"
+                          >
+                            Transaction
+                          </Label>
+                          <Select>
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Select transaction" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {transactions.map((transaction) => (
+                                <SelectItem
+                                  key={transaction.id}
+                                  value={transaction.id}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span>
+                                      {transaction.currency}{" "}
+                                      {transaction.amount}
+                                    </span>
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
+                                      {transaction.status}
+                                    </Badge>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="file"
+                            className="text-sm font-medium text-gray-700"
+                          >
+                            File
+                          </Label>
+                          <Input
+                            id="file"
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file && transactions.length > 0) {
+                                uploadPaymentProof(transactions[0].id, file);
+                              }
+                            }}
+                            className="h-10"
+                          />
+                          <p className="text-xs text-gray-500">
+                            Supported: JPG, PNG, PDF (max 10MB)
                           </p>
                         </div>
                       </div>
-                      <Badge variant={provider.is_active ? "default" : "secondary"}>
-                        {provider.is_active ? "Active" : "Inactive"}
-                      </Badge>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                {proofs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="mx-auto h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center mb-4">
+                      <FileText className="h-6 w-6 text-gray-400" />
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">
+                      No payment proofs
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Upload receipts and documents to verify payments
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {proofs.map((proof) => (
+                      <div
+                        key={proof.id}
+                        className="flex items-center justify-between p-4 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                            <FileText className="h-5 w-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium text-gray-900">
+                                {proof.file_type.toUpperCase()} Document
+                              </span>
+                              {getStatusBadge(proof.verification_status)}
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Uploaded{" "}
+                              {new Date(proof.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          className="gap-2"
+                        >
+                          <a
+                            href={proof.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Eye className="h-3 w-3" />
+                            View
+                            <ArrowUpRight className="h-3 w-3" />
+                          </a>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="providers" className="space-y-6 mt-6">
+            <Card className="border-0 shadow-sm bg-white">
+              <CardHeader className="border-b border-gray-100">
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    Payment Providers
+                  </CardTitle>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Available payment methods and integrations
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                {providers.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="mx-auto h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center mb-4">
+                      <CreditCard className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">
+                      No providers configured
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Contact your team admin to set up payment providers
+                    </p>
+                    <Button variant="outline" size="sm">
+                      Contact Admin
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {providers.map((provider) => (
+                      <div
+                        key={provider.id}
+                        className="flex items-center justify-between p-4 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
+                            {getProviderIcon(provider.type)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium text-gray-900">
+                                {provider.name}
+                              </span>
+                              <Badge
+                                variant={
+                                  provider.is_active ? "default" : "secondary"
+                                }
+                                className="text-xs"
+                              >
+                                {provider.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {provider.type
+                                .replace("_", " ")
+                                .charAt(0)
+                                .toUpperCase() +
+                                provider.type.replace("_", " ").slice(1)}{" "}
+                              • {provider.currency}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`h-2 w-2 rounded-full ${
+                              provider.is_active
+                                ? "bg-green-500"
+                                : "bg-gray-300"
+                            }`}
+                          />
+                          <span className="text-xs text-gray-500">
+                            {provider.is_active ? "Online" : "Offline"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
-  )
+  );
 }

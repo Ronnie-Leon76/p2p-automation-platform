@@ -1,5 +1,21 @@
-import { BarChart3, Bot, CreditCard, DollarSign, Home, Settings, TrendingUp, Users, Wallet } from "lucide-react"
-import Link from "next/link"
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import { useMockAuth } from "@/hooks/use-mock-auth";
+import {
+  BarChart3,
+  Bot,
+  CreditCard,
+  DollarSign,
+  Home,
+  Settings,
+  Signal,
+  TrendingUp,
+  User,
+  Users,
+  Wallet,
+} from "lucide-react";
+import Link from "next/link";
 
 import {
   Sidebar,
@@ -7,96 +23,117 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
-const menuItems = [
+const mainMenuItems = [
   {
     title: "Dashboard",
     url: "/dashboard",
     icon: Home,
   },
   {
-    title: "Trader Profile",
+    title: "Profile",
     url: "/dashboard/profile",
-    icon: Users,
+    icon: User,
   },
   {
-    title: "Ad Management",
+    title: "Ads",
     url: "/dashboard/ads",
     icon: TrendingUp,
+    badge: "24",
   },
   {
-    title: "Order Management",
+    title: "Orders",
     url: "/orders",
     icon: DollarSign,
+    badge: "12",
   },
   {
-    title: "Pricing Engine",
-    url: "/pricing",
+    title: "Analytics",
+    url: "/analytics",
     icon: BarChart3,
   },
   {
-    title: "Payment Methods",
-    url: "/payments",
-    icon: CreditCard,
-  },
-  {
-    title: "Automation Bots",
+    title: "Automation",
     url: "/bots",
     icon: Bot,
+    badge: "3",
   },
-  {
-    title: "User Management",
-    url: "/users",
-    icon: Users,
-  },
-]
+];
 
 const exchangeItems = [
   {
     title: "OKX",
-    url: "/exchanges/okx",
+    url: "/dashboard/exchanges/okx",
     icon: Wallet,
   },
   {
     title: "Binance",
-    url: "/exchanges/binance",
+    url: "/dashboard/exchanges/binance",
     icon: Wallet,
   },
   {
     title: "Bybit",
-    url: "/exchanges/bybit",
+    url: "/dashboard/exchanges/bybit",
     icon: Wallet,
   },
-]
+];
+
+const systemItems = [
+  {
+    title: "Payments",
+    url: "/payments",
+    icon: CreditCard,
+  },
+  {
+    title: "Users",
+    url: "/users",
+    icon: Users,
+  },
+];
 
 export function AppSidebar() {
+  const { user, isAuthenticated } = useMockAuth();
+
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-4 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Bot className="h-4 w-4" />
+    <Sidebar className="border-r border-gray-200/50 bg-white">
+      <SidebarHeader className="border-b border-gray-100 bg-white px-6 py-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 shadow-sm">
+            <Bot className="h-4 w-4 text-white" />
           </div>
-          <span className="font-semibold">P2P Automation</span>
+          <div>
+            <div className="font-semibold text-gray-900">P2P Automation</div>
+            <div className="text-xs text-gray-500">Trading Platform</div>
+          </div>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+
+      <SidebarContent className="bg-white px-4 py-6">
         <SidebarGroup>
-          <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
+            <SidebarMenu className="space-y-1">
+              {mainMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
+                  <SidebarMenuButton
+                    asChild
+                    className="group h-10 px-3 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors duration-200"
+                  >
+                    <Link href={item.url} className="flex items-center gap-3">
+                      <item.icon className="h-4 w-4 text-gray-600 group-hover:text-blue-600" />
+                      <span className="font-medium text-sm">{item.title}</span>
+                      {item.badge && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-auto bg-gray-100 text-gray-600 text-xs h-5 px-2"
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -104,16 +141,61 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <div className="my-6 border-t border-gray-100" />
+
         <SidebarGroup>
-          <SidebarGroupLabel>Exchanges</SidebarGroupLabel>
+          <div className="px-3 pb-2">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Exchanges
+            </h4>
+          </div>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {exchangeItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
+                  <SidebarMenuButton
+                    asChild
+                    className="group h-10 px-3 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors duration-200"
+                  >
+                    <Link href={item.url} className="flex items-center gap-3">
+                      <item.icon className="h-4 w-4 text-gray-600 group-hover:text-indigo-600" />
+                      <span className="font-medium text-sm">{item.title}</span>
+                      <div
+                        className={`ml-auto h-2 w-2 rounded-full ${
+                          user?.exchange_credentials?.exchange ===
+                          item.title.toLowerCase()
+                            ? "bg-green-500"
+                            : "bg-gray-300"
+                        }`}
+                      />
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <div className="my-6 border-t border-gray-100" />
+
+        <SidebarGroup>
+          <div className="px-3 pb-2">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              System
+            </h4>
+          </div>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {systemItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    className="group h-10 px-3 hover:bg-gray-50 hover:text-gray-700 rounded-lg transition-colors duration-200"
+                  >
+                    <Link href={item.url} className="flex items-center gap-3">
+                      <item.icon className="h-4 w-4 text-gray-600 group-hover:text-gray-700" />
+                      <span className="font-medium text-sm">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -122,18 +204,41 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+
+      <SidebarFooter className="border-t border-gray-100 bg-white p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/settings">
-                <Settings />
-                <span>Settings</span>
+            <SidebarMenuButton
+              asChild
+              className="h-10 px-3 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+            >
+              <Link href="/settings" className="flex items-center gap-3">
+                <Settings className="h-4 w-4 text-gray-600" />
+                <span className="font-medium text-sm">Settings</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+
+        {/* Minimal Status Indicator */}
+        {isAuthenticated && user && (
+          <div className="mt-4 px-3 py-2 rounded-lg bg-green-50 border border-green-100">
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+              <span className="text-xs font-medium text-green-700">
+                {user.full_name}
+              </span>
+              <Badge
+                variant="secondary"
+                className="ml-auto bg-green-100 text-green-700 text-xs h-4 px-1.5"
+              >
+                <Signal className="w-2.5 h-2.5 mr-1" />
+                {user.provider === "mock" ? "Demo" : "Live"}
+              </Badge>
+            </div>
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }
