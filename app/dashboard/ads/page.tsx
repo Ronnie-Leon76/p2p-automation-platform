@@ -1,5 +1,5 @@
+import { AdManagement } from "@/components/ad-management";
 import { AppSidebar } from "@/components/app-sidebar";
-import { ProtectedAdManagement } from "@/components/protected-ad-management";
 import {
   SidebarInset,
   SidebarProvider,
@@ -33,7 +33,7 @@ export default async function AdsPage() {
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
-          <ProtectedAdManagement />
+          <AdManagement />
         </div>
       </SidebarInset>
     </SidebarProvider>

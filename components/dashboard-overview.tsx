@@ -34,9 +34,31 @@ import {
   Wallet,
   Zap,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function DashboardOverview() {
   const { user, isAuthenticated } = useMockAuth();
+  const [isDevelopment, setIsDevelopment] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    setIsDevelopment(process.env.NODE_ENV === "development");
+  }, []);
+
+  // Don't render until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-50/50">
+        <div className="space-y-8 p-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -91,7 +113,7 @@ export function DashboardOverview() {
                     <Signal className="w-3 h-3 mr-1.5" />
                     {user.provider === "mock" ? "Demo Mode" : "Live Trading"}
                   </Badge>
-                  {process.env.NODE_ENV === "development" && (
+                  {isDevelopment && (
                     <Badge
                       variant="secondary"
                       className="bg-yellow-50 text-yellow-700 border-yellow-200"

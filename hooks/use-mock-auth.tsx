@@ -26,18 +26,28 @@ const MockAuthContext = createContext<MockAuthContextType | null>(null);
 export function MockAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<MockUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const mockAuth = MockAuthService.getInstance();
 
-  // Check for existing session on mount
+  // Ensure we're on the client before accessing localStorage
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Check for existing session on mount, but only on client
+  useEffect(() => {
+    if (!isClient) return;
+
     const currentUser = mockAuth.getCurrentMockUser();
     setUser(currentUser);
     setIsLoading(false);
-  }, []);
+  }, [isClient]);
 
   // Listen for localStorage changes (when auth state changes in another tab/component)
   useEffect(() => {
+    if (!isClient) return;
+
     const handleStorageChange = () => {
       const currentUser = mockAuth.getCurrentMockUser();
       setUser(currentUser);
@@ -45,7 +55,7 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+  }, [isClient]);
 
   const login = async (
     exchange: "okx" | "binance" | "bybit",

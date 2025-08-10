@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -23,127 +27,677 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AlertCircle,
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle,
   Clock,
+  DollarSign,
   Eye,
-  MessageSquare,
+  HelpCircle,
+  Search,
+  Send,
+  TrendingUp,
   XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-// Mock data for demonstration
-const mockOrders = [
+// Types
+interface Order {
+  id: string;
+  side: "buy" | "sell";
+  cryptocurrency: string;
+  cryptoAmount: string;
+  currency: string;
+  fiatAmount: string;
+  unitPrice: string;
+  orderStatus: "pending" | "paid" | "completed" | "disputed" | "cancelled";
+  paymentStatus: "unpaid" | "paid" | "confirmed" | "disputed" | "refunded";
+  paymentMethod: string;
+  paymentReference?: string;
+  timeRemaining?: number;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  disputeReason?: string;
+  counterparty: {
+    userId: string;
+    nickName: string;
+    avatar: string;
+    completionRate: number;
+    completedOrders: number;
+  };
+  chatMessages: ChatMessage[];
+}
+
+interface ChatMessage {
+  id: string;
+  sender: "user" | "counterparty" | "system";
+  message: string;
+  timestamp: string;
+  type: "text" | "payment_confirmation" | "dispute" | "system_notification";
+}
+
+// Mock data with comprehensive real-time scenarios
+const mockOrders: Order[] = [
   {
-    id: "order_001",
-    adId: "ad_001",
-    side: "sell",
-    cryptoCurrency: "USDT",
-    fiatCurrency: "CNY",
-    cryptoAmount: "1000",
-    fiatAmount: "7250",
-    unitPrice: "7.25",
-    orderStatus: "new",
-    paymentStatus: "unpaid",
-    createdAt: "2024-01-15T14:30:00Z",
-    counterparty: {
-      userId: "user_123",
-      nickName: "TradePro",
-      completionRate: "98.5%",
-    },
-    timeRemaining: 900, // 15 minutes in seconds
-  },
-  {
-    id: "order_002",
-    adId: "ad_002",
+    id: "ORD-001",
     side: "buy",
-    cryptoCurrency: "BTC",
-    fiatCurrency: "USD",
-    cryptoAmount: "0.05",
-    fiatAmount: "2162.50",
-    unitPrice: "43250.00",
-    orderStatus: "completed",
-    paymentStatus: "confirmed",
-    createdAt: "2024-01-15T12:15:00Z",
-    completedAt: "2024-01-15T12:45:00Z",
+    cryptocurrency: "USDT",
+    cryptoAmount: "1,000.00",
+    currency: "KES",
+    fiatAmount: "150,000",
+    unitPrice: "150.00",
+    orderStatus: "pending",
+    paymentStatus: "unpaid",
+    paymentMethod: "M-Pesa",
+    paymentReference: "MPESA-REF-001",
+    timeRemaining: 895,
+    createdAt: "2024-01-15T10:30:00Z",
+    updatedAt: "2024-01-15T10:30:00Z",
     counterparty: {
       userId: "user_456",
-      nickName: "CryptoKing",
-      completionRate: "95.2%",
+      nickName: "CryptoTrader_KE",
+      avatar: "/placeholder-user.jpg",
+      completionRate: 98.5,
+      completedOrders: 234,
     },
+    chatMessages: [
+      {
+        id: "msg_1",
+        sender: "system",
+        message: "Order created. Please complete payment within 15 minutes.",
+        timestamp: "2024-01-15T10:30:00Z",
+        type: "system_notification",
+      },
+      {
+        id: "msg_2",
+        sender: "counterparty",
+        message:
+          "Hello! Please send payment to M-Pesa number 0712345678. Reference: MPESA-REF-001",
+        timestamp: "2024-01-15T10:32:00Z",
+        type: "text",
+      },
+    ],
   },
   {
-    id: "order_003",
-    adId: "ad_003",
+    id: "ORD-002",
     side: "sell",
-    cryptoCurrency: "ETH",
-    fiatCurrency: "EUR",
-    cryptoAmount: "2.0",
-    fiatAmount: "4901.00",
-    unitPrice: "2450.50",
-    orderStatus: "cancelled",
-    paymentStatus: "unreceived",
-    createdAt: "2024-01-15T10:20:00Z",
-    cancelledAt: "2024-01-15T11:00:00Z",
+    cryptocurrency: "USDT",
+    cryptoAmount: "500.00",
+    currency: "KES",
+    fiatAmount: "75,000",
+    unitPrice: "150.00",
+    orderStatus: "paid",
+    paymentStatus: "paid",
+    paymentMethod: "Bank Transfer",
+    paymentReference: "BNK-TXN-789",
+    createdAt: "2024-01-15T09:15:00Z",
+    updatedAt: "2024-01-15T10:45:00Z",
     counterparty: {
       userId: "user_789",
-      nickName: "EuroTrader",
-      completionRate: "92.1%",
+      nickName: "QuickBuyer",
+      avatar: "/placeholder-user.jpg",
+      completionRate: 95.2,
+      completedOrders: 89,
     },
+    chatMessages: [
+      {
+        id: "msg_3",
+        sender: "system",
+        message: "Order created. Buyer should send payment details.",
+        timestamp: "2024-01-15T09:15:00Z",
+        type: "system_notification",
+      },
+      {
+        id: "msg_4",
+        sender: "user",
+        message:
+          "Payment sent! Bank reference: BNK-TXN-789. Please confirm and release USDT.",
+        timestamp: "2024-01-15T10:40:00Z",
+        type: "payment_confirmation",
+      },
+      {
+        id: "msg_5",
+        sender: "system",
+        message: "Payment confirmed. Seller can now release cryptocurrency.",
+        timestamp: "2024-01-15T10:45:00Z",
+        type: "payment_confirmation",
+      },
+    ],
   },
   {
-    id: "order_004",
-    adId: "ad_001",
-    side: "sell",
-    cryptoCurrency: "USDT",
-    fiatCurrency: "CNY",
-    cryptoAmount: "500",
-    fiatAmount: "3625",
-    unitPrice: "7.25",
-    orderStatus: "new",
-    paymentStatus: "paid",
-    createdAt: "2024-01-15T13:45:00Z",
+    id: "ORD-003",
+    side: "buy",
+    cryptocurrency: "BTC",
+    cryptoAmount: "0.001",
+    currency: "USD",
+    fiatAmount: "42.50",
+    unitPrice: "42,500.00",
+    orderStatus: "completed",
+    paymentStatus: "confirmed",
+    paymentMethod: "PayPal",
+    paymentReference: "PP-45X7Y2Z1",
+    createdAt: "2024-01-14T15:20:00Z",
+    updatedAt: "2024-01-14T16:05:00Z",
+    completedAt: "2024-01-14T16:05:00Z",
     counterparty: {
       userId: "user_321",
-      nickName: "FastPay",
-      completionRate: "99.1%",
+      nickName: "BTCMaster",
+      avatar: "/placeholder-user.jpg",
+      completionRate: 99.1,
+      completedOrders: 567,
     },
-    timeRemaining: 1200, // 20 minutes in seconds
+    chatMessages: [
+      {
+        id: "msg_6",
+        sender: "system",
+        message: "Order created successfully.",
+        timestamp: "2024-01-14T15:20:00Z",
+        type: "system_notification",
+      },
+      {
+        id: "msg_7",
+        sender: "counterparty",
+        message: "Payment received! Releasing BTC now.",
+        timestamp: "2024-01-14T16:00:00Z",
+        type: "text",
+      },
+      {
+        id: "msg_8",
+        sender: "system",
+        message: "Cryptocurrency released. Order completed successfully!",
+        timestamp: "2024-01-14T16:05:00Z",
+        type: "system_notification",
+      },
+    ],
+  },
+  {
+    id: "ORD-004",
+    side: "sell",
+    cryptocurrency: "ETH",
+    cryptoAmount: "0.25",
+    currency: "EUR",
+    fiatAmount: "425.00",
+    unitPrice: "1,700.00",
+    orderStatus: "disputed",
+    paymentStatus: "disputed",
+    paymentMethod: "SEPA Transfer",
+    paymentReference: "SEPA-REF-123",
+    disputeReason: "Payment not received after 2 hours",
+    createdAt: "2024-01-13T11:00:00Z",
+    updatedAt: "2024-01-13T14:30:00Z",
+    counterparty: {
+      userId: "user_654",
+      nickName: "EuroTrader",
+      avatar: "/placeholder-user.jpg",
+      completionRate: 87.3,
+      completedOrders: 45,
+    },
+    chatMessages: [
+      {
+        id: "msg_9",
+        sender: "system",
+        message: "Order created. Awaiting payment confirmation.",
+        timestamp: "2024-01-13T11:00:00Z",
+        type: "system_notification",
+      },
+      {
+        id: "msg_10",
+        sender: "user",
+        message:
+          "I've sent the SEPA transfer. Reference: SEPA-REF-123. It should arrive within 2 hours.",
+        timestamp: "2024-01-13T11:30:00Z",
+        type: "text",
+      },
+      {
+        id: "msg_11",
+        sender: "counterparty",
+        message:
+          "I haven't received the payment yet. Can you double-check the reference?",
+        timestamp: "2024-01-13T14:00:00Z",
+        type: "text",
+      },
+      {
+        id: "msg_12",
+        sender: "user",
+        message:
+          "Opening dispute - payment was sent but not received by counterparty.",
+        timestamp: "2024-01-13T14:30:00Z",
+        type: "dispute",
+      },
+      {
+        id: "msg_13",
+        sender: "system",
+        message:
+          "Dispute opened. Support team has been notified and will investigate within 24 hours.",
+        timestamp: "2024-01-13T14:30:00Z",
+        type: "system_notification",
+      },
+    ],
+  },
+  {
+    id: "ORD-005",
+    side: "buy",
+    cryptocurrency: "USDT",
+    cryptoAmount: "200.00",
+    currency: "KES",
+    fiatAmount: "30,000",
+    unitPrice: "150.00",
+    orderStatus: "cancelled",
+    paymentStatus: "refunded",
+    paymentMethod: "M-Pesa",
+    createdAt: "2024-01-12T08:45:00Z",
+    updatedAt: "2024-01-12T09:15:00Z",
+    counterparty: {
+      userId: "user_987",
+      nickName: "FastTrader",
+      avatar: "/placeholder-user.jpg",
+      completionRate: 92.8,
+      completedOrders: 156,
+    },
+    chatMessages: [
+      {
+        id: "msg_14",
+        sender: "system",
+        message: "Order created.",
+        timestamp: "2024-01-12T08:45:00Z",
+        type: "system_notification",
+      },
+      {
+        id: "msg_15",
+        sender: "user",
+        message:
+          "Sorry, I need to cancel this order due to insufficient funds.",
+        timestamp: "2024-01-12T09:10:00Z",
+        type: "text",
+      },
+      {
+        id: "msg_16",
+        sender: "system",
+        message: "Order cancelled by buyer. No payment was made.",
+        timestamp: "2024-01-12T09:15:00Z",
+        type: "system_notification",
+      },
+    ],
   },
 ];
 
+// Order Detail Dialog Component
+function OrderDetailDialog({
+  order,
+  onClose,
+  onConfirmPayment,
+  onReleaseCrypto,
+  onOpenDispute,
+  onCancelOrder,
+}: {
+  order: Order;
+  onClose: () => void;
+  onConfirmPayment: (orderId: string) => void;
+  onReleaseCrypto: (orderId: string) => void;
+  onOpenDispute: (orderId: string, reason: string) => void;
+  onCancelOrder: (orderId: string) => void;
+}) {
+  const [newMessage, setNewMessage] = useState("");
+  const [disputeReason, setDisputeReason] = useState("");
+  const [isDisputing, setIsDisputing] = useState(false);
+
+  const handleSendMessage = () => {
+    if (newMessage.trim()) {
+      // In a real app, this would send the message to the backend
+      console.log("Sending message:", newMessage);
+      setNewMessage("");
+    }
+  };
+
+  const handleDispute = () => {
+    if (disputeReason.trim()) {
+      onOpenDispute(order.id, disputeReason);
+      setIsDisputing(false);
+      setDisputeReason("");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <div
+            className={`h-8 w-8 rounded-full flex items-center justify-center ${
+              order.side === "buy"
+                ? "bg-green-50 text-green-600"
+                : "bg-red-50 text-red-600"
+            }`}
+          >
+            {order.side === "buy" ? (
+              <ArrowUp className="h-4 w-4" />
+            ) : (
+              <ArrowDown className="h-4 w-4" />
+            )}
+          </div>
+          {order.side.toUpperCase()} {order.cryptocurrency} - {order.id}
+        </DialogTitle>
+        <DialogDescription>Order details and communication</DialogDescription>
+      </DialogHeader>
+
+      <Tabs defaultValue="details" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="details">Order Details</TabsTrigger>
+          <TabsTrigger value="chat">
+            Chat ({order.chatMessages.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="details" className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Order Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Amount:</span>
+                  <span className="font-medium">
+                    {order.cryptoAmount} {order.cryptocurrency}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="font-medium">
+                    {order.fiatAmount} {order.currency}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Unit Price:</span>
+                  <span className="font-medium">
+                    {order.unitPrice} {order.currency}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Payment Method:</span>
+                  <span className="font-medium">{order.paymentMethod}</span>
+                </div>
+                {order.paymentReference && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Reference:</span>
+                    <span className="font-mono text-sm">
+                      {order.paymentReference}
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Status & Timeline</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Order Status:</span>
+                  <Badge
+                    variant="secondary"
+                    className={
+                      order.orderStatus === "completed"
+                        ? "bg-green-50 text-green-700"
+                        : order.orderStatus === "disputed"
+                        ? "bg-red-50 text-red-700"
+                        : order.orderStatus === "cancelled"
+                        ? "bg-gray-50 text-gray-600"
+                        : order.orderStatus === "paid"
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-yellow-50 text-yellow-700"
+                    }
+                  >
+                    {order.orderStatus.charAt(0).toUpperCase() +
+                      order.orderStatus.slice(1)}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Payment Status:</span>
+                  <Badge variant="outline">
+                    {order.paymentStatus.charAt(0).toUpperCase() +
+                      order.paymentStatus.slice(1)}
+                  </Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Created:</span>
+                  <span className="text-sm">
+                    {new Date(order.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                {order.completedAt && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Completed:</span>
+                    <span className="text-sm">
+                      {new Date(order.completedAt).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {order.timeRemaining && order.orderStatus === "pending" && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Time Remaining:</span>
+                    <span className="font-mono text-yellow-600">
+                      {Math.floor(order.timeRemaining / 60)}:
+                      {(order.timeRemaining % 60).toString().padStart(2, "0")}
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Counterparty</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={order.counterparty.avatar} />
+                  <AvatarFallback>
+                    {order.counterparty.nickName.slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <p className="font-medium">{order.counterparty.nickName}</p>
+                  <p className="text-sm text-gray-600">
+                    {order.counterparty.completionRate}% completion rate •{" "}
+                    {order.counterparty.completedOrders} orders
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-4">
+            {order.orderStatus === "pending" && (
+              <>
+                <Button
+                  onClick={() => onConfirmPayment(order.id)}
+                  className="flex-1"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Confirm Payment
+                </Button>
+                <Button variant="outline" onClick={() => setIsDisputing(true)}>
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Dispute
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => onCancelOrder(order.id)}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+              </>
+            )}
+
+            {order.orderStatus === "paid" && (
+              <Button
+                onClick={() => onReleaseCrypto(order.id)}
+                className="flex-1"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Release Cryptocurrency
+              </Button>
+            )}
+          </div>
+
+          {/* Dispute Form */}
+          {isDisputing && (
+            <Card className="border-red-200 bg-red-50">
+              <CardHeader>
+                <CardTitle className="text-base text-red-800">
+                  Open Dispute
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="dispute-reason">Reason for dispute</Label>
+                  <Textarea
+                    id="dispute-reason"
+                    placeholder="Please describe the issue in detail..."
+                    value={disputeReason}
+                    onChange={(e) => setDisputeReason(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="destructive" onClick={handleDispute}>
+                    Submit Dispute
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDisputing(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="chat" className="space-y-4">
+          <ScrollArea className="h-64 w-full border rounded-md p-4">
+            <div className="space-y-4">
+              {order.chatMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${
+                    message.sender === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-xs rounded-lg px-3 py-2 ${
+                      message.sender === "user"
+                        ? "bg-blue-500 text-white"
+                        : message.sender === "system"
+                        ? "bg-gray-100 text-gray-800 text-center"
+                        : "bg-gray-200 text-gray-800"
+                    }`}
+                  >
+                    <p className="text-sm">{message.message}</p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <div className="flex gap-2">
+            <Input
+              placeholder="Type your message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+            />
+            <Button onClick={handleSendMessage}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 export function OrderManagement() {
-  const [orders, setOrders] = useState(mockOrders);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterSide, setFilterSide] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
+
+  // Simulate real-time updates
+  useEffect(() => {
+    if (!isRealTimeEnabled) return;
+
+    const interval = setInterval(() => {
+      setOrders((prevOrders) =>
+        prevOrders.map((order) => {
+          if (order.orderStatus === "pending" && order.timeRemaining) {
+            const newTimeRemaining = Math.max(0, order.timeRemaining - 1);
+            if (newTimeRemaining === 0) {
+              return {
+                ...order,
+                orderStatus: "cancelled" as const,
+                paymentStatus: "refunded" as const,
+                timeRemaining: undefined,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+            return { ...order, timeRemaining: newTimeRemaining };
+          }
+          return order;
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isRealTimeEnabled]);
 
   const filteredOrders = orders.filter((order) => {
     if (filterStatus !== "all" && order.orderStatus !== filterStatus)
       return false;
     if (filterSide !== "all" && order.side !== filterSide) return false;
+    if (
+      searchTerm &&
+      !order.id.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      !order.counterparty.nickName
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    )
+      return false;
     return true;
   });
 
-  const handleViewOrder = (order: any) => {
+  const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
     setIsOrderDialogOpen(true);
   };
 
-  const handleMarkAsPaid = (orderId: string) => {
+  const handleConfirmPayment = (orderId: string) => {
     setOrders(
       orders.map((order) =>
-        order.id === orderId ? { ...order, paymentStatus: "paid" } : order
+        order.id === orderId
+          ? {
+              ...order,
+              orderStatus: "paid" as const,
+              paymentStatus: "paid" as const,
+              updatedAt: new Date().toISOString(),
+            }
+          : order
       )
     );
   };
@@ -152,7 +706,29 @@ export function OrderManagement() {
     setOrders(
       orders.map((order) =>
         order.id === orderId
-          ? { ...order, orderStatus: "completed", paymentStatus: "confirmed" }
+          ? {
+              ...order,
+              orderStatus: "completed" as const,
+              paymentStatus: "confirmed" as const,
+              completedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }
+          : order
+      )
+    );
+  };
+
+  const handleOpenDispute = (orderId: string, reason: string) => {
+    setOrders(
+      orders.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              orderStatus: "disputed" as const,
+              paymentStatus: "disputed" as const,
+              disputeReason: reason,
+              updatedAt: new Date().toISOString(),
+            }
           : order
       )
     );
@@ -161,35 +737,65 @@ export function OrderManagement() {
   const handleCancelOrder = (orderId: string) => {
     setOrders(
       orders.map((order) =>
-        order.id === orderId ? { ...order, orderStatus: "cancelled" } : order
+        order.id === orderId
+          ? {
+              ...order,
+              orderStatus: "cancelled" as const,
+              updatedAt: new Date().toISOString(),
+            }
+          : order
       )
     );
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "new":
-        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case "pending":
+        return <Clock className="h-4 w-4 text-yellow-600" />;
+      case "paid":
+        return <DollarSign className="h-4 w-4 text-blue-600" />;
       case "completed":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case "disputed":
+        return <AlertTriangle className="h-4 w-4 text-red-600" />;
       case "cancelled":
-        return <XCircle className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-4 w-4 text-gray-500" />;
       default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />;
+        return <HelpCircle className="h-4 w-4 text-gray-400" />;
     }
   };
 
-  const getPaymentStatusBadge = (status: string) => {
-    const variants: Record<
-      string,
-      "default" | "secondary" | "destructive" | "outline"
-    > = {
-      unpaid: "secondary",
-      paid: "default",
-      confirmed: "default",
-      unreceived: "destructive",
+  const getStatusBadge = (status: string) => {
+    const config = {
+      pending: {
+        variant: "secondary" as const,
+        className: "bg-yellow-50 text-yellow-700 border-yellow-200",
+      },
+      paid: {
+        variant: "secondary" as const,
+        className: "bg-blue-50 text-blue-700 border-blue-200",
+      },
+      completed: {
+        variant: "secondary" as const,
+        className: "bg-green-50 text-green-700 border-green-200",
+      },
+      disputed: {
+        variant: "secondary" as const,
+        className: "bg-red-50 text-red-700 border-red-200",
+      },
+      cancelled: {
+        variant: "outline" as const,
+        className: "bg-gray-50 text-gray-600",
+      },
     };
-    return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
+
+    const statusConfig =
+      config[status as keyof typeof config] || config.cancelled;
+    return (
+      <Badge variant={statusConfig.variant} className={statusConfig.className}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    );
   };
 
   const formatTimeRemaining = (seconds: number) => {
@@ -198,444 +804,391 @@ export function OrderManagement() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
+  // Calculate statistics
+  const stats = {
+    active: orders.filter((o) => o.orderStatus === "pending").length,
+    completed: orders.filter((o) => o.orderStatus === "completed").length,
+    disputed: orders.filter((o) => o.orderStatus === "disputed").length,
+    totalVolume: orders.reduce(
+      (sum, order) => sum + parseFloat(order.fiatAmount.replace(/,/g, "")),
+      0
+    ),
+    successRate: orders.length
+      ? (
+          (orders.filter((o) => o.orderStatus === "completed").length /
+            orders.length) *
+          100
+        ).toFixed(1)
+      : "0",
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">
-            Order Management
-          </h2>
-          <p className="text-gray-400">
-            Monitor and manage your P2P trading orders
-          </p>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-white">
-              Active Orders
-            </CardTitle>
-            <Clock className="h-4 w-4 text-yellow-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              {orders.filter((o) => o.orderStatus === "new").length}
-            </div>
-            <p className="text-xs text-gray-400">Currently processing</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-white">
-              Completed Today
-            </CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              {orders.filter((o) => o.orderStatus === "completed").length}
-            </div>
-            <p className="text-xs text-gray-400">+2 from yesterday</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-white">
-              Total Volume
-            </CardTitle>
-            <AlertCircle className="h-4 w-4 text-orange-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">$17.9K</div>
-            <p className="text-xs text-gray-400">Today's trading volume</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-white">
-              Success Rate
-            </CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">96.8%</div>
-            <p className="text-xs text-gray-400">Order completion rate</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters and Orders Table */}
-      <Card className="bg-white/5 border-white/10 backdrop-blur-lg">
-        <CardHeader>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto p-6">
+        <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-white">Orders</CardTitle>
-              <CardDescription className="text-gray-400">
-                View and manage your trading orders
-              </CardDescription>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Order Management
+              </h1>
+              <p className="text-gray-600">
+                Manage your P2P trading orders with real-time updates and
+                comprehensive dispute handling
+              </p>
             </div>
-            <div className="flex gap-2">
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filterSide} onValueChange={setFilterSide}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="buy">Buy</SelectItem>
-                  <SelectItem value="sell">Sell</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Real-time Updates
+                </label>
+                <Button
+                  variant={isRealTimeEnabled ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setIsRealTimeEnabled(!isRealTimeEnabled)}
+                >
+                  {isRealTimeEnabled ? "Enabled" : "Disabled"}
+                </Button>
+              </div>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Pair</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Counterparty</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">
-                    {order.id.slice(-6)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={order.side === "buy" ? "default" : "secondary"}
-                    >
-                      {order.side.toUpperCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {order.cryptoCurrency}/{order.fiatCurrency}
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div>
-                        {order.cryptoAmount} {order.cryptoCurrency}
-                      </div>
-                      <div className="text-muted-foreground">
-                        {order.fiatAmount} {order.fiatCurrency}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{order.unitPrice}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(order.orderStatus)}
-                      <span className="capitalize">{order.orderStatus}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {getPaymentStatusBadge(order.paymentStatus)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div>{order.counterparty.nickName}</div>
-                      <div className="text-muted-foreground">
-                        {order.counterparty.completionRate}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {order.orderStatus === "new" && order.timeRemaining ? (
-                      <div className="text-sm">
-                        <div className="text-red-500">
-                          {formatTimeRemaining(order.timeRemaining)}
-                        </div>
-                        <div className="text-muted-foreground">remaining</div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewOrder(order)}
-                        className="text-yellow-400 hover:text-orange-400 hover:bg-white/10"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {order.orderStatus === "new" &&
-                        order.paymentStatus === "unpaid" &&
-                        order.side === "buy" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleMarkAsPaid(order.id)}
-                            className="text-yellow-400 hover:text-orange-400 hover:bg-white/10"
-                          >
-                            Mark Paid
-                          </Button>
-                        )}
-                      {order.orderStatus === "new" &&
-                        order.paymentStatus === "paid" &&
-                        order.side === "sell" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleReleaseCrypto(order.id)}
-                            className="text-green-400 hover:text-green-300 hover:bg-white/10"
-                          >
-                            Release
-                          </Button>
-                        )}
-                      {order.orderStatus === "new" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleCancelOrder(order.id)}
-                          className="text-red-400 hover:text-red-300 hover:bg-white/10"
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Order Details Dialog */}
-      <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Order Details</DialogTitle>
-            <DialogDescription>
-              Complete order information and actions
-            </DialogDescription>
-          </DialogHeader>
-          {selectedOrder && (
-            <OrderDetailsView
-              order={selectedOrder}
-              onClose={() => setIsOrderDialogOpen(false)}
-              onMarkAsPaid={handleMarkAsPaid}
-              onReleaseCrypto={handleReleaseCrypto}
-              onCancelOrder={handleCancelOrder}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function OrderDetailsView({
-  order,
-  onClose,
-  onMarkAsPaid,
-  onReleaseCrypto,
-  onCancelOrder,
-}: {
-  order: any;
-  onClose: () => void;
-  onMarkAsPaid: (orderId: string) => void;
-  onReleaseCrypto: (orderId: string) => void;
-  onCancelOrder: (orderId: string) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      {/* Order Summary */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Order Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Order ID:</span>
-              <span className="font-medium">{order.id}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Type:</span>
-              <Badge variant={order.side === "buy" ? "default" : "secondary"}>
-                {order.side.toUpperCase()}
-              </Badge>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Pair:</span>
-              <span>
-                {order.cryptoCurrency}/{order.fiatCurrency}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Amount:</span>
-              <span>
-                {order.cryptoAmount} {order.cryptoCurrency}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total:</span>
-              <span>
-                {order.fiatAmount} {order.fiatCurrency}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Unit Price:</span>
-              <span>{order.unitPrice}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Status & Timing</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Order Status:</span>
-              <span className="capitalize">{order.orderStatus}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Payment Status:</span>
-              <Badge
-                variant={
-                  order.paymentStatus === "confirmed" ? "default" : "secondary"
-                }
-              >
-                {order.paymentStatus}
-              </Badge>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Created:</span>
-              <span>{new Date(order.createdAt).toLocaleString()}</span>
-            </div>
-            {order.completedAt && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Completed:</span>
-                <span>{new Date(order.completedAt).toLocaleString()}</span>
-              </div>
-            )}
-            {order.timeRemaining && order.orderStatus === "new" && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Time Remaining:</span>
-                <span className="text-red-500">
-                  {Math.floor(order.timeRemaining / 60)}:
-                  {(order.timeRemaining % 60).toString().padStart(2, "0")}
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Counterparty Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Counterparty Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <span className="text-muted-foreground text-sm">Username</span>
-              <div className="font-medium">{order.counterparty.nickName}</div>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-sm">
-                Completion Rate
-              </span>
-              <div className="font-medium">
-                {order.counterparty.completionRate}
-              </div>
-            </div>
-            <div>
-              <span className="text-muted-foreground text-sm">User ID</span>
-              <div className="font-medium">{order.counterparty.userId}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Actions */}
-      <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={onClose}
-          className="bg-white/5 backdrop-blur-sm border border-white/20 text-gray-300 hover:bg-white/10 hover:border-white/30"
-        >
-          Close
-        </Button>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="bg-white/5 backdrop-blur-sm border border-white/20 text-yellow-400 hover:bg-white/10 hover:border-yellow-400/50 hover:text-orange-400"
-          >
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Chat
-          </Button>
-          {order.orderStatus === "new" &&
-            order.paymentStatus === "unpaid" &&
-            order.side === "buy" && (
-              <Button
-                onClick={() => {
-                  onMarkAsPaid(order.id);
-                  onClose();
-                }}
-                className="bg-white/10 backdrop-blur-sm border border-white/20 text-yellow-400 hover:bg-white/20 hover:border-yellow-400/50 hover:text-orange-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all duration-300"
-              >
-                Mark as Paid
-              </Button>
-            )}
-          {order.orderStatus === "new" &&
-            order.paymentStatus === "paid" &&
-            order.side === "sell" && (
-              <Button
-                onClick={() => {
-                  onReleaseCrypto(order.id);
-                  onClose();
-                }}
-                className="bg-white/10 backdrop-blur-sm border border-white/20 text-green-400 hover:bg-white/20 hover:border-green-400/50 hover:text-green-300 hover:shadow-lg hover:shadow-green-400/20 transition-all duration-300"
-              >
-                Release Crypto
-              </Button>
-            )}
-          {order.orderStatus === "new" && (
-            <Button
-              variant="destructive"
-              onClick={() => {
-                onCancelOrder(order.id);
-                onClose();
-              }}
-              className="bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 hover:border-red-500/50 hover:text-red-300"
-            >
-              Cancel Order
-            </Button>
-          )}
         </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+          <Card className="border-gray-200 bg-white shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Active Orders
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.active}
+                  </p>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 bg-white shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Completed</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.completed}
+                  </p>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 bg-white shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Disputed</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.disputed}
+                  </p>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 bg-white shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Volume
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    ${stats.totalVolume.toLocaleString()}
+                  </p>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-yellow-50 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-yellow-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 bg-white shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Success Rate
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.successRate}%
+                  </p>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters and Controls */}
+        <Card className="border-gray-200 bg-white shadow-sm mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    placeholder="Search by order ID or counterparty..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="disputed">Disputed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={filterSide} onValueChange={setFilterSide}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Side" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Orders</SelectItem>
+                    <SelectItem value="buy">Buy Orders</SelectItem>
+                    <SelectItem value="sell">Sell Orders</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Orders Table */}
+        <Card className="border-gray-200 bg-white shadow-sm">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-gray-900">Orders</CardTitle>
+                <CardDescription className="text-gray-600">
+                  View and manage your trading orders
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Order
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Counterparty
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Amount
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Status
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Time
+                    </th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="border-b border-gray-100 hover:bg-gray-50"
+                    >
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                              order.side === "buy"
+                                ? "bg-green-50 text-green-600"
+                                : "bg-red-50 text-red-600"
+                            }`}
+                          >
+                            {order.side === "buy" ? (
+                              <ArrowUp className="h-4 w-4" />
+                            ) : (
+                              <ArrowDown className="h-4 w-4" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {order.side.toUpperCase()} {order.cryptocurrency}
+                            </p>
+                            <p className="text-sm text-gray-500">{order.id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={order.counterparty.avatar} />
+                            <AvatarFallback>
+                              {order.counterparty.nickName.slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {order.counterparty.nickName}
+                            </p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm text-gray-500">
+                                {order.counterparty.completionRate}%
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                ({order.counterparty.completedOrders} orders)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {order.fiatAmount} {order.currency}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {order.cryptoAmount} {order.cryptocurrency}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(order.orderStatus)}
+                          {getStatusBadge(order.orderStatus)}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        {order.orderStatus === "pending" &&
+                        order.timeRemaining ? (
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-yellow-600" />
+                            <span className="text-sm font-medium text-yellow-600">
+                              {formatTimeRemaining(order.timeRemaining)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500">
+                            {new Date(order.createdAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewOrder(order)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+
+                          {order.orderStatus === "pending" && (
+                            <>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleConfirmPayment(order.id)}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Confirm Payment
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCancelOrder(order.id)}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Cancel
+                              </Button>
+                            </>
+                          )}
+
+                          {order.orderStatus === "paid" && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleReleaseCrypto(order.id)}
+                            >
+                              <Send className="h-4 w-4 mr-1" />
+                              Release Crypto
+                            </Button>
+                          )}
+
+                          {(order.orderStatus === "pending" ||
+                            order.orderStatus === "paid") && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() =>
+                                handleOpenDispute(order.id, "Payment issue")
+                              }
+                            >
+                              <AlertTriangle className="h-4 w-4 mr-1" />
+                              Dispute
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Order Detail Dialog */}
+        <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            {selectedOrder && (
+              <OrderDetailDialog
+                order={selectedOrder}
+                onClose={() => setIsOrderDialogOpen(false)}
+                onConfirmPayment={handleConfirmPayment}
+                onReleaseCrypto={handleReleaseCrypto}
+                onOpenDispute={handleOpenDispute}
+                onCancelOrder={handleCancelOrder}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
