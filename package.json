@@ -8,7 +8,17 @@
     "start": "next start",
     "lint": "next lint",
     "db:optimize": "node scripts/optimize-database.js",
-    "db:setup": "node scripts/optimize-database.js"
+    "db:setup": "node scripts/optimize-database.js",
+    "test:p2p": "node scripts/test-p2p.js",
+    "test:p2p:sell": "node scripts/test-p2p.js sell",
+    "test:p2p:buy": "node scripts/test-p2p.js buy",
+    "test:p2p:webhooks": "node scripts/test-p2p.js webhooks",
+    "test:p2p:phone": "node scripts/test-p2p.js phone",
+    "test:live": "node test/live-p2p-test-runner.js",
+    "test:live:auth": "node test/live-p2p-test-runner.js auth",
+    "test:live:sell": "node test/live-p2p-test-runner.js sell",
+    "test:live:buy": "node test/live-p2p-test-runner.js buy",
+    "test:live:webhooks": "node test/live-p2p-test-runner.js webhooks"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -55,6 +65,7 @@
     "next": "15.2.4",
     "next-themes": "^0.4.4",
     "ngrok": "^5.0.0-beta.2",
+    "node-fetch": "^3.3.2",
     "react": "^19",
     "react-dom": "^19",
     "react-hook-form": "^7.54.1",

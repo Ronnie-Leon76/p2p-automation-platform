@@ -151,71 +151,71 @@ const mockAds: Ad[] = [
     currentOrders: 3,
     teamId: "team_001",
     createdBy: "user_001",
-    paymentMethods: ["M-Pesa", "Bank Transfer"],
+    paymentMethods: ["SasaPay"],
     autoReply: true,
     priceMargin: 2.5,
     requirements: {
       minKycLevel: 2,
       minCompletionRate: 95,
-      remarks: "Fast payments only, M-Pesa preferred",
+      remarks: "Fast SasaPay transfers only, instant processing",
     },
   },
   {
     id: "ad_002",
     exchange: "binance",
     side: "buy",
-    cryptocurrency: "BTC",
-    fiatCurrency: "USD",
-    unitPrice: "43,250.00",
-    availableAmount: "0.5",
-    minOrderSize: "0.001",
-    maxOrderSize: "0.1",
+    cryptocurrency: "USDT",
+    fiatCurrency: "KES",
+    unitPrice: "149.50",
+    availableAmount: "15,000.00",
+    minOrderSize: "200",
+    maxOrderSize: "8,000",
     status: "active",
     isHidden: false,
     createdAt: "2024-01-14T15:45:00Z",
     updatedAt: "2024-01-15T08:20:00Z",
-    completedOrders: 12,
-    totalVolume: "86,500",
+    completedOrders: 32,
+    totalVolume: "480,000",
     successRate: 100,
-    currentOrders: 1,
+    currentOrders: 2,
     teamId: "team_001",
     createdBy: "user_002",
-    paymentMethods: ["Bank Transfer", "PayPal"],
-    autoReply: false,
+    paymentMethods: ["SasaPay"],
+    autoReply: true,
     priceMargin: 1.0,
     requirements: {
-      minKycLevel: 3,
-      minCompletionRate: 98,
-      remarks: "Verified traders only",
+      minKycLevel: 1,
+      minCompletionRate: 90,
+      remarks: "SasaPay payments processed within 2 minutes",
     },
   },
   {
     id: "ad_003",
     exchange: "bybit",
     side: "sell",
-    cryptocurrency: "ETH",
-    fiatCurrency: "EUR",
-    unitPrice: "2,450.50",
-    availableAmount: "5.0",
-    minOrderSize: "0.01",
-    maxOrderSize: "1.0",
+    cryptocurrency: "USDT",
+    fiatCurrency: "KES",
+    unitPrice: "151.25",
+    availableAmount: "5,000.00",
+    minOrderSize: "500",
+    maxOrderSize: "2,500",
     status: "paused",
     isHidden: true,
     createdAt: "2024-01-13T09:20:00Z",
     updatedAt: "2024-01-14T16:30:00Z",
-    completedOrders: 8,
-    totalVolume: "19,604",
-    successRate: 87.5,
+    completedOrders: 18,
+    totalVolume: "270,000",
+    successRate: 94.4,
     currentOrders: 0,
     teamId: "team_001",
     createdBy: "user_003",
-    paymentMethods: ["SEPA Transfer"],
-    autoReply: true,
+    paymentMethods: ["SasaPay"],
+    autoReply: false,
     priceMargin: 3.0,
     requirements: {
       minKycLevel: 2,
-      minCompletionRate: 90,
-      remarks: "SEPA transfers only, 24h processing time",
+      minCompletionRate: 95,
+      remarks: "Manual verification required for large orders",
     },
   },
 ];
@@ -357,12 +357,12 @@ function CreateAdDialog({
     exchange: "",
     side: "",
     cryptocurrency: "",
-    fiatCurrency: "",
+    fiatCurrency: "KES",
     unitPrice: "",
     availableAmount: "",
     minOrderSize: "",
     maxOrderSize: "",
-    paymentMethods: [] as string[],
+    paymentMethods: ["SasaPay"] as string[],
     autoReply: true,
     priceMargin: "0",
     requirements: {
@@ -392,12 +392,12 @@ function CreateAdDialog({
         exchange: "",
         side: "",
         cryptocurrency: "",
-        fiatCurrency: "",
+        fiatCurrency: "KES",
         unitPrice: "",
         availableAmount: "",
         minOrderSize: "",
         maxOrderSize: "",
-        paymentMethods: [],
+        paymentMethods: ["SasaPay"],
         autoReply: true,
         priceMargin: "0",
         requirements: {
@@ -504,9 +504,9 @@ function CreateAdDialog({
                     <SelectValue placeholder="Select fiat" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="KES">KES (Kenyan Shilling)</SelectItem>
                     <SelectItem value="USD">USD</SelectItem>
                     <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="KES">KES</SelectItem>
                     <SelectItem value="CNY">CNY</SelectItem>
                   </SelectContent>
                 </Select>
@@ -536,6 +536,56 @@ function CreateAdDialog({
                   }
                 />
               </div>
+            </div>
+
+            {/* Payment Methods */}
+            <div>
+              <Label className="text-sm font-medium text-gray-700">
+                Payment Methods
+              </Label>
+              <div className="mt-2 space-y-2">
+                {["SasaPay", "M-Pesa", "Bank Transfer"].map((method) => (
+                  <div key={method} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={method}
+                      checked={adData.paymentMethods.includes(method)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setAdData({
+                            ...adData,
+                            paymentMethods: [...adData.paymentMethods, method],
+                          });
+                        } else {
+                          setAdData({
+                            ...adData,
+                            paymentMethods: adData.paymentMethods.filter(
+                              (m) => m !== method
+                            ),
+                          });
+                        }
+                      }}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      title={`Select ${method} as payment method`}
+                    />
+                    <Label
+                      htmlFor={method}
+                      className="text-sm font-medium text-gray-900"
+                    >
+                      {method}
+                      {method === "SasaPay" && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          Recommended
+                        </Badge>
+                      )}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                SasaPay offers instant transfers with competitive rates for KES
+                transactions.
+              </p>
             </div>
           </TabsContent>
 
@@ -857,8 +907,15 @@ function ViewAdDialog({
               </Label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {ad.paymentMethods.map((method, index) => (
-                  <Badge key={index} variant="outline">
+                  <Badge
+                    key={index}
+                    variant={method === "SasaPay" ? "default" : "outline"}
+                    className={
+                      method === "SasaPay" ? "bg-blue-600 text-white" : ""
+                    }
+                  >
                     {method}
+                    {method === "SasaPay" && <span className="ml-1">⚡</span>}
                   </Badge>
                 ))}
               </div>
