@@ -10,7 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { useMockAuth } from "@/hooks/use-mock-auth";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import {
   Activity,
   ArrowDownRight,
@@ -37,17 +38,47 @@ import {
 import { useEffect, useState } from "react";
 
 export function DashboardOverview() {
-  const { user, isAuthenticated } = useMockAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDevelopment, setIsDevelopment] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
     setIsDevelopment(process.env.NODE_ENV === "development");
-  }, []);
+
+    const checkAuth = async () => {
+      try {
+        const supabase = createClient();
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (session?.user && !error) {
+          setUser(session.user);
+          setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error("Dashboard auth check failed:", error);
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isClient) {
+      checkAuth();
+    }
+  }, [isClient]);
 
   // Don't render until client-side hydration is complete
-  if (!isClient) {
+  if (!isClient || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50/50">
         <div className="space-y-8 p-6">
@@ -96,12 +127,12 @@ export function DashboardOverview() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">
-                      {user.full_name}
+                      {user.user_metadata?.full_name ||
+                        user.email?.split("@")[0] ||
+                        "User"}
                     </h3>
                     <p className="text-sm text-gray-600">
-                      {user.exchange_credentials?.exchange?.toUpperCase() ||
-                        "Multi-Exchange"}{" "}
-                      Trading Account
+                      P2P Trading Account ({user.email})
                     </p>
                   </div>
                 </div>
@@ -111,7 +142,7 @@ export function DashboardOverview() {
                     className="bg-green-50 text-green-700 border-green-200"
                   >
                     <Signal className="w-3 h-3 mr-1.5" />
-                    {user.provider === "mock" ? "Demo Mode" : "Live Trading"}
+                    Live Trading
                   </Badge>
                   {isDevelopment && (
                     <Badge
@@ -368,14 +399,15 @@ export function DashboardOverview() {
                 <Badge
                   variant="secondary"
                   className={
-                    user?.exchange_credentials?.exchange === "okx"
+                    user?.user_metadata?.exchange_credentials?.exchange ===
+                    "okx"
                       ? "bg-green-50 text-green-700 border-green-200"
                       : "bg-gray-50 text-gray-600 border-gray-200"
                   }
                 >
-                  {user?.exchange_credentials?.exchange === "okx"
+                  {user?.user_metadata?.exchange_credentials?.exchange === "okx"
                     ? "Connected"
-                    : "Disconnected"}
+                    : "Not Connected"}
                 </Badge>
               </div>
 
@@ -392,14 +424,16 @@ export function DashboardOverview() {
                 <Badge
                   variant="secondary"
                   className={
-                    user?.exchange_credentials?.exchange === "binance"
+                    user?.user_metadata?.exchange_credentials?.exchange ===
+                    "binance"
                       ? "bg-green-50 text-green-700 border-green-200"
                       : "bg-gray-50 text-gray-600 border-gray-200"
                   }
                 >
-                  {user?.exchange_credentials?.exchange === "binance"
+                  {user?.user_metadata?.exchange_credentials?.exchange ===
+                  "binance"
                     ? "Connected"
-                    : "Disconnected"}
+                    : "Not Connected"}
                 </Badge>
               </div>
 
@@ -416,14 +450,16 @@ export function DashboardOverview() {
                 <Badge
                   variant="secondary"
                   className={
-                    user?.exchange_credentials?.exchange === "bybit"
+                    user?.user_metadata?.exchange_credentials?.exchange ===
+                    "bybit"
                       ? "bg-green-50 text-green-700 border-green-200"
                       : "bg-gray-50 text-gray-600 border-gray-200"
                   }
                 >
-                  {user?.exchange_credentials?.exchange === "bybit"
+                  {user?.user_metadata?.exchange_credentials?.exchange ===
+                  "bybit"
                     ? "Connected"
-                    : "Disconnected"}
+                    : "Not Connected"}
                 </Badge>
               </div>
             </CardContent>

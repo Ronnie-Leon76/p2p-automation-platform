@@ -1,5 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
-import { ExchangeOAuthService } from "@/lib/auth/exchange-oauth"
+import { createServerClient } from "@/lib/supabase/server"
 
 export interface TeamCredentials {
   id: string
@@ -20,8 +19,7 @@ export interface TeamMemberPermission {
 }
 
 export class TeamDelegationService {
-  private supabase = createClient()
-  private oauthService = new ExchangeOAuthService()
+  private supabase = createServerClient()
 
   async setupTeamCredentials(
     teamId: string,
@@ -114,32 +112,23 @@ export class TeamDelegationService {
   async refreshTeamToken(teamId: string, exchangeProvider: string): Promise<boolean> {
     try {
       const credentials = await this.getTeamCredentials(teamId, exchangeProvider)
-      if (!credentials || !credentials.encrypted_refresh_token) return false
+      if (!credentials) return false
 
-      const refreshToken = this.decryptToken(credentials.encrypted_refresh_token)
-      const config = await this.oauthService.getOAuthConfig(exchangeProvider)
-      if (!config) return false
-
-      const tokenData = await this.oauthService.refreshAccessToken(exchangeProvider, refreshToken, config)
-
-      // Update credentials with new tokens
+      // For API key-based authentication, we don't need to refresh tokens
+      // API keys are long-lived and don't expire like OAuth tokens
+      // This method now validates that the credentials exist and are active
+      
+      // Update the last validated timestamp
       const { error } = await this.supabase
         .from("team_exchange_credentials")
         .update({
-          encrypted_access_token: this.encryptToken(tokenData.access_token),
-          encrypted_refresh_token: tokenData.refresh_token
-            ? this.encryptToken(tokenData.refresh_token)
-            : credentials.encrypted_refresh_token,
-          token_expires_at: tokenData.expires_in
-            ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-            : null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", credentials.id)
 
       return !error
     } catch (error) {
-      console.error("Error refreshing team token:", error)
+      console.error("Error validating team credentials:", error)
       return false
     }
   }

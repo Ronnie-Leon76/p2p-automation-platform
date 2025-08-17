@@ -1,6 +1,17 @@
+"use client";
+
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { AdManagement } from "@/components/ad-management"
+import dynamic from "next/dynamic"
+
+// Dynamically import AdManagement to avoid SSR issues with mock auth
+const AdManagement = dynamic(
+  () => import("@/components/ad-management").then((mod) => ({ default: mod.AdManagement })),
+  { 
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center p-8">Loading...</div>
+  }
+)
 
 export default function AdsPage() {
   return (

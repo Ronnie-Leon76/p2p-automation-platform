@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useMockAuth } from "@/hooks/use-mock-auth";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useToast } from "@/hooks/use-toast";
 import { MockEmailService } from "@/lib/auth/mock-email-service";
 import { MockInvitationStorage } from "@/lib/auth/mock-invitation-storage";
@@ -61,7 +62,23 @@ import { useEffect, useState } from "react";
 
 // Enhanced Team Management Component
 export function EnhancedTeamManagement() {
-  const { user } = useMockAuth();
+  const [isDevelopment, setIsDevelopment] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Environment-aware auth
+  const mockAuth = useMockAuth();
+  const supabaseAuth = useSupabaseAuth();
+
+  const user = isDevelopment ? mockAuth.user : supabaseAuth.user;
+  const isAuthenticated = isDevelopment
+    ? mockAuth.isAuthenticated
+    : supabaseAuth.isAuthenticated;
+
+  useEffect(() => {
+    setIsClient(true);
+    setIsDevelopment(process.env.NODE_ENV === "development");
+  }, []);
+
   const { toast } = useToast();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
@@ -137,8 +154,12 @@ export function EnhancedTeamManagement() {
       const newTeam = teamStorage.addTeam(
         teamForm,
         user.id,
-        user.full_name,
-        user.email
+        isDevelopment
+          ? (user as any).full_name
+          : (user as any).user_metadata?.full_name ||
+              (user as any).email?.split("@")[0] ||
+              "User",
+        (user as any).email
       );
 
       setTeams((prev) => [...prev, newTeam]);
@@ -224,7 +245,11 @@ export function EnhancedTeamManagement() {
         selectedTeam.id,
         selectedTeam.name,
         user.id,
-        user.full_name,
+        isDevelopment
+          ? (user as any).full_name
+          : (user as any).user_metadata?.full_name ||
+              (user as any).email?.split("@")[0] ||
+              "User",
         inviteForm.email,
         inviteForm.role,
         permissions,
@@ -248,7 +273,9 @@ export function EnhancedTeamManagement() {
 
       // Send email invitation
       await emailService.sendTeamInvitation(
-        user.full_name,
+        (user as any).user_metadata?.full_name ||
+        (user as any).email?.split("@")[0] ||
+        "User",
         selectedTeam.name,
         inviteForm.email,
         inviteLink,

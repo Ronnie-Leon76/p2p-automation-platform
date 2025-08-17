@@ -1,5 +1,5 @@
-import { ExchangeAuth } from "@/components/exchange-auth"
+import { AuthForm } from "@/components/auth-form";
 
 export default function AuthPage() {
-  return <ExchangeAuth />
+  return <AuthForm mode="login" />;
 }

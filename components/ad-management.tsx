@@ -39,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useMockAuth } from "@/hooks/use-mock-auth";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { MockAdStorage, type Ad } from "@/lib/auth/mock-ad-storage";
 import { MockTeamStorage, type Team } from "@/lib/auth/mock-team-storage";
 import {
@@ -1396,13 +1397,24 @@ export function AdManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [userRole] = useState<UserRole>(getCurrentUserRole());
   const [isLoading, setIsLoading] = useState(true);
+  const [isDevelopment, setIsDevelopment] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Always call hooks (React requirement), but use environment-aware logic
+  const mockAuth = useMockAuth();
+  const supabaseAuth = useSupabaseAuth();
+
+  useEffect(() => {
+    setIsClient(true);
+    setIsDevelopment(process.env.NODE_ENV === "development");
+  }, []);
+
+  const user = isDevelopment ? mockAuth.user : supabaseAuth.user;
 
   // SasaPay daily usage tracking (this would come from actual daily usage data)
   const [dailyUsed] = useState(245000); // Example: KES 245,000 used today
   const sasaPayLimits = getSasaPayOrderLimits(dailyUsed);
   const usageStatus = getDailyUsageStatus(dailyUsed);
-
-  const { user } = useMockAuth();
 
   const teamStorage = MockTeamStorage.getInstance();
   const adStorage = MockAdStorage.getInstance();
@@ -1486,8 +1498,12 @@ export function AdManagement() {
       const success = teamStorage.joinTeam(
         teamId,
         user.id,
-        user.full_name,
-        user.email
+        isDevelopment
+          ? (user as any).full_name
+          : (user as any).user_metadata?.full_name ||
+              (user as any).email?.split("@")[0] ||
+              "User",
+        (user as any).email || ""
       );
 
       if (success) {

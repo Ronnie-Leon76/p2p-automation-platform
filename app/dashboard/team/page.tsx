@@ -1,10 +1,15 @@
-import { EnhancedTeamManagement } from "@/components/team-management";
+"use client";
+
+import dynamic from "next/dynamic";
+
+const EnhancedTeamManagement = dynamic(
+  () => import("@/components/team-management").then((mod) => ({ default: mod.EnhancedTeamManagement })),
+  { 
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center p-8">Loading...</div>
+  }
+);
 
 export default function TeamPage() {
   return <EnhancedTeamManagement />;
 }
-
-export const metadata = {
-  title: "Team Management - P2P Trading Platform",
-  description: "Manage your P2P trading teams and members",
-};

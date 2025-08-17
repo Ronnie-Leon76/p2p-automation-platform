@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMockAuth } from "@/hooks/use-mock-auth";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useToast } from "@/hooks/use-toast";
 import { MockEmailService } from "@/lib/auth/mock-email-service";
 import {
@@ -45,9 +46,24 @@ interface InvitePageProps {
 }
 
 export function InviteAcceptancePage({ inviteCode }: InvitePageProps) {
-  const { user, signup } = useMockAuth();
+  const [isDevelopment, setIsDevelopment] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  
+  // Environment-aware auth
+  const mockAuth = useMockAuth();
+  const supabaseAuth = useSupabaseAuth();
+  
+  const { user, signup } = isDevelopment 
+    ? mockAuth 
+    : { user: null, signup: () => {} };
+  
   const { toast } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    setIsClient(true);
+    setIsDevelopment(process.env.NODE_ENV === "development");
+  }, []);
 
   const [invitation, setInvitation] = useState<TeamInvitation | null>(null);
   const [isLoading, setIsLoading] = useState(true);

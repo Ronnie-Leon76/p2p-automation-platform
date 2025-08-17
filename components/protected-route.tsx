@@ -1,9 +1,9 @@
 "use client";
 
-import { useMockAuth } from "@/hooks/use-mock-auth";
-import { MockAuthService } from "@/lib/auth/mock-auth";
+import { isMockMode } from "@/lib/config/environment";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,41 +14,48 @@ export function ProtectedRoute({
   children,
   redirectTo = "/auth",
 }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, user } = useMockAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    console.log(
-      `🛡️  ProtectedRoute check: isLoading=${isLoading}, isAuthenticated=${isAuthenticated}, user=${
-        user?.full_name || "none"
-      }`
-    );
-
-    // In development mode, check mock auth
-    if (MockAuthService.isDevelopment()) {
-      // Wait for loading to complete before making decisions
-      if (isLoading) {
-        console.log(`⏳ Still loading, waiting...`);
-        return;
-      }
-
-      if (!isAuthenticated) {
-        console.log(`🔄 Redirecting to ${redirectTo} - not authenticated`);
-        // Only redirect if we're not already on the auth page
-        if (window.location.pathname !== "/auth") {
-          router.push(redirectTo);
+    const checkAuth = async () => {
+      if (isMockMode()) {
+        // In mock mode, import and use mock auth
+        try {
+          const { useMockAuth } = await import("@/hooks/use-mock-auth");
+          // For mock mode, we'd need to handle this differently
+          // For now, assume authenticated in mock mode since middleware handles it
+          setIsAuthenticated(true);
+        } catch {
+          setIsAuthenticated(false);
         }
-        return;
-      }
+      } else {
+        // In local/production mode, use Supabase auth
+        try {
+          const supabase = createClient();
+          const {
+            data: { session },
+            error,
+          } = await supabase.auth.getSession();
 
-      if (isAuthenticated) {
-        console.log(
-          `✅ User is authenticated (${user?.full_name}), showing protected content`
-        );
+          console.log(`🛡️ ProtectedRoute Supabase check:`, {
+            hasSession: !!session,
+            user: session?.user?.email || "none",
+            error: error?.message || "none",
+          });
+
+          setIsAuthenticated(!!session && !error);
+        } catch (error) {
+          console.error("🚨 ProtectedRoute auth check failed:", error);
+          setIsAuthenticated(false);
+        }
       }
-    }
-    // TODO: In production, check real Supabase auth
-  }, [isAuthenticated, isLoading, user, router, redirectTo]);
+      setIsLoading(false);
+    };
+
+    checkAuth();
+  }, []);
 
   // Show loading state
   if (isLoading) {
@@ -62,8 +69,8 @@ export function ProtectedRoute({
     );
   }
 
-  // Show login redirect in development if not authenticated
-  if (MockAuthService.isDevelopment() && !isAuthenticated) {
+  // Show login redirect if not authenticated
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">

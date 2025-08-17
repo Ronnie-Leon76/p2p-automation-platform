@@ -12,13 +12,21 @@ import { SupabaseAdService } from './supabase/supabase-ad-service';
 import { SupabaseTeamService } from './supabase/supabase-team-service';
 import { SupabaseUserService } from './supabase/supabase-user-service';
 
+// Environment management
+import { environmentManager, getEnvironmentMode, isMockMode } from "../config/environment";
+
+/**
+ * Service Factory with Environment-Aware Configuration
+ * Automatically selects the correct service implementation based on environment
+ */
 export class ServiceFactory {
   private static instance: ServiceFactory;
-  private useMockData: boolean;
 
   private constructor() {
-    this.useMockData = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || 
-                      process.env.NODE_ENV === 'development';
+    // Log environment detection on startup
+    if (typeof window !== 'undefined' && environmentManager.getConfig().ui.showDebugInfo) {
+      console.log('🏭 ServiceFactory initialized with environment:', environmentManager.getDebugInfo());
+    }
   }
 
   public static getInstance(): ServiceFactory {
@@ -28,30 +36,57 @@ export class ServiceFactory {
     return ServiceFactory.instance;
   }
 
-  public setUseMockData(useMockData: boolean): void {
-    this.useMockData = useMockData;
+  /**
+   * Get current environment mode
+   */
+  public getEnvironmentMode() {
+    return getEnvironmentMode();
   }
 
+  /**
+   * Check if using mock data (legacy method for backward compatibility)
+   */
   public isUsingMockData(): boolean {
-    return this.useMockData;
+    return isMockMode();
   }
 
+  /**
+   * Legacy setter for backward compatibility
+   */
+  public setUseMockData(useMockData: boolean): void {
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('Cannot manually set mock data in production');
+      return;
+    }
+    
+    environmentManager.switchMode(useMockData ? 'mock' : 'local');
+  }
+
+  /**
+   * Get Ad Service based on environment
+   */
   public getAdService(): AdServiceInterface {
-    if (this.useMockData) {
+    if (isMockMode()) {
       return new MockAdService();
     }
     return new SupabaseAdService();
   }
 
+  /**
+   * Get Team Service based on environment
+   */
   public getTeamService(): TeamServiceInterface {
-    if (this.useMockData) {
+    if (isMockMode()) {
       return new MockTeamService();
     }
     return new SupabaseTeamService();
   }
 
+  /**
+   * Get User Service based on environment
+   */
   public getUserService(): UserServiceInterface {
-    if (this.useMockData) {
+    if (isMockMode()) {
       return new MockUserService();
     }
     return new SupabaseUserService();
@@ -66,20 +101,50 @@ export class ServiceFactory {
     };
   }
 
-  // Development helper to switch between mock and live data
+  /**
+   * Development helper to switch between environments
+   */
   public async switchToMockData(): Promise<void> {
-    this.setUseMockData(true);
-    console.log('🔄 Switched to mock data services');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Cannot switch to mock mode in production');
+    }
+    
+    environmentManager.switchMode('mock');
+    console.log('🎭 Switched to mock data services');
   }
 
   public async switchToLiveData(): Promise<void> {
-    this.setUseMockData(false);
-    console.log('🔄 Switched to live Supabase services');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Cannot switch to live mode in production');
+    }
+    
+    environmentManager.switchMode('local');
+    console.log('🏠 Switched to local Supabase services');
   }
 
-  // Health check for services
+  public async switchToLocalMode(): Promise<void> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Cannot switch to local mode in production');
+    }
+    
+    environmentManager.switchMode('local');
+    console.log('🏠 Switched to local Supabase services');
+  }
+
+  public async switchToProductionMode(): Promise<void> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Cannot switch to production mode in production');
+    }
+    
+    environmentManager.switchMode('production');
+    console.log('🚀 Switched to production services');
+  }
+
+  /**
+   * Health check for all services
+   */
   public async healthCheck(): Promise<{
-    mode: 'mock' | 'live';
+    mode: string;
     services: {
       ad: boolean;
       team: boolean;
@@ -87,7 +152,7 @@ export class ServiceFactory {
     };
     timestamp: string;
   }> {
-    const mode = this.useMockData ? 'mock' : 'live';
+    const mode = getEnvironmentMode();
     
     try {
       const adService = this.getAdService();

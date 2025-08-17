@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useMockAuth } from "@/hooks/use-mock-auth";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useToast } from "@/hooks/use-toast";
 import { MockAuthService } from "@/lib/auth/mock-auth";
 import {
@@ -63,9 +64,22 @@ interface ExchangeConnectionStatus {
 }
 
 export function ExchangeSettings() {
-  const { user } = useMockAuth();
+  const [isDevelopment, setIsDevelopment] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  
+  // Environment-aware auth
+  const mockAuth = useMockAuth();
+  const supabaseAuth = useSupabaseAuth();
+  
+  const user = isDevelopment ? mockAuth.user : supabaseAuth.user;
+  
   const { toast } = useToast();
-  const mockAuth = MockAuthService.getInstance();
+  const mockAuthService = MockAuthService.getInstance();
+
+  useEffect(() => {
+    setIsClient(true);
+    setIsDevelopment(process.env.NODE_ENV === "development");
+  }, []);
 
   const [credentials, setCredentials] = useState<ExchangeCredentials>({
     exchange: "okx",
@@ -90,15 +104,19 @@ export function ExchangeSettings() {
 
   // Load existing credentials on mount
   useEffect(() => {
-    if (user?.exchange_credentials) {
+    const userCredentials = isDevelopment 
+      ? (user as any)?.exchange_credentials 
+      : (user as any)?.user_metadata?.exchange_credentials;
+      
+    if (userCredentials) {
       setCredentials({
-        exchange: user.exchange_credentials.exchange as
+        exchange: userCredentials.exchange as
           | "okx"
           | "binance"
           | "bybit",
-        api_key: user.exchange_credentials.api_key,
-        api_secret: user.exchange_credentials.api_secret,
-        passphrase: user.exchange_credentials.passphrase || "",
+        api_key: userCredentials.api_key,
+        api_secret: userCredentials.api_secret,
+        passphrase: userCredentials.passphrase || "",
         testnet: true, // Default to testnet for development
         permissions: ["read", "trade"], // Mock permissions
       });

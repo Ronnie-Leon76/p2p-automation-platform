@@ -1,10 +1,24 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Bell, Calendar, CheckCircle, Clock, Rocket, Star } from "lucide-react"
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ArrowLeft,
+  Bell,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Rocket,
+  Star,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const EXCHANGE_CONFIGS = {
   binance: {
@@ -35,15 +49,15 @@ const EXCHANGE_CONFIGS = {
     estimatedLaunch: "Q3 2024",
     priority: "Medium",
   },
-}
+};
 
 interface ExchangeComingSoonProps {
-  exchange: "binance" | "bybit"
+  exchange: "binance" | "bybit";
 }
 
 export function ExchangeComingSoon({ exchange }: ExchangeComingSoonProps) {
-  const router = useRouter()
-  const config = EXCHANGE_CONFIGS[exchange]
+  const router = useRouter();
+  const config = EXCHANGE_CONFIGS[exchange];
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -51,28 +65,37 @@ export function ExchangeComingSoon({ exchange }: ExchangeComingSoonProps) {
       <Card className="bg-white/5 border-white/10">
         <CardHeader>
           <div className="flex items-center gap-4">
-            <div className={`h-12 w-12 bg-gradient-to-r ${config.color} rounded-lg flex items-center justify-center`}>
+            <div
+              className={`h-12 w-12 bg-gradient-to-r ${config.color} rounded-lg flex items-center justify-center`}
+            >
               <img
                 src={config.logo || "/placeholder.svg"}
                 alt={config.name}
                 className="h-8 w-8 object-contain"
                 onError={(e) => {
-                  e.currentTarget.style.display = "none"
-                  e.currentTarget.nextElementSibling!.textContent = config.name.charAt(0)
+                  e.currentTarget.style.display = "none";
+                  e.currentTarget.nextElementSibling!.textContent =
+                    config.name.charAt(0);
                 }}
               />
               <span className="text-white font-bold text-lg hidden"></span>
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <CardTitle className="text-white">{config.name} Integration</CardTitle>
-                <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                <CardTitle className="text-white">
+                  {config.name} Integration
+                </CardTitle>
+                <Badge
+                  variant="secondary"
+                  className="bg-blue-500/20 text-blue-400 border-blue-500/30"
+                >
                   <Rocket className="w-3 h-3 mr-1" />
                   Coming Soon
                 </Badge>
               </div>
               <CardDescription className="text-gray-300">
-                We're working hard to bring {config.name} integration to our platform
+                We're working hard to bring {config.name} integration to our
+                platform
               </CardDescription>
             </div>
           </div>
@@ -92,7 +115,10 @@ export function ExchangeComingSoon({ exchange }: ExchangeComingSoonProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-gray-300">Estimated Launch:</span>
-                <Badge variant="outline" className="border-green-500/30 text-green-400">
+                <Badge
+                  variant="outline"
+                  className="border-green-500/30 text-green-400"
+                >
                   <Calendar className="w-3 h-3 mr-1" />
                   {config.estimatedLaunch}
                 </Badge>
@@ -128,7 +154,10 @@ export function ExchangeComingSoon({ exchange }: ExchangeComingSoonProps) {
             <h4 className="text-blue-400 font-medium mb-3">🚀 What's Coming</h4>
             <ul className="space-y-2">
               {config.features.map((feature, index) => (
-                <li key={index} className="flex items-center gap-2 text-gray-300 text-sm">
+                <li
+                  key={index}
+                  className="flex items-center gap-2 text-gray-300 text-sm"
+                >
                   <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
                   {feature}
                 </li>
@@ -137,12 +166,17 @@ export function ExchangeComingSoon({ exchange }: ExchangeComingSoonProps) {
           </div>
 
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-            <h4 className="text-yellow-400 font-medium mb-2">📧 Get Notified</h4>
+            <h4 className="text-yellow-400 font-medium mb-2">
+              📧 Get Notified
+            </h4>
             <p className="text-gray-300 text-sm mb-3">
-              Want to be the first to know when {config.name} integration is ready? We'll send you an email as soon as
-              it's available.
+              Want to be the first to know when {config.name} integration is
+              ready? We'll send you an email as soon as it's available.
             </p>
-            <Button variant="outline" className="w-full border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10">
+            <Button
+              variant="outline"
+              className="w-full border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+            >
               <Bell className="w-4 h-4 mr-2" />
               Notify Me When Available
             </Button>
@@ -165,7 +199,9 @@ export function ExchangeComingSoon({ exchange }: ExchangeComingSoonProps) {
             </div>
             <div className="flex-1">
               <h4 className="text-white font-medium">OKX Integration</h4>
-              <p className="text-gray-300 text-sm">Full P2P trading automation available now</p>
+              <p className="text-gray-300 text-sm">
+                Full P2P trading automation available now
+              </p>
             </div>
             <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
               <CheckCircle className="w-3 h-3 mr-1" />
@@ -177,7 +213,7 @@ export function ExchangeComingSoon({ exchange }: ExchangeComingSoonProps) {
             <Button
               variant="outline"
               className="flex-1 border-white/20 text-white hover:bg-white/5"
-              onClick={() => router.push("/auth/okx/setup")}
+              onClick={() => router.push("/dashboard/exchanges/okx")}
             >
               Setup OKX Integration
             </Button>
@@ -193,5 +229,5 @@ export function ExchangeComingSoon({ exchange }: ExchangeComingSoonProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

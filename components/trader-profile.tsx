@@ -15,7 +15,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { useAuth } from "@/lib/hooks/use-auth";
+import { getUserDisplayName, useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { isMockMode } from "@/lib/config/environment";
 import { createClient } from "@/lib/supabase/client";
 import {
   Activity,
@@ -39,7 +40,7 @@ import {
 import { useEffect, useState } from "react";
 
 interface UserRole {
-  type: "main_user" | "team_member";
+  type: "merchant" | "member";
   permissions: string[];
   accountType: "premium" | "standard" | "basic";
 }
@@ -87,13 +88,16 @@ export function TraderProfile() {
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
 
-  // Use both auth systems
-  const { user: supabaseUser, loading: supabaseLoading } = useAuth();
-  const {
-    user: mockUser,
-    isAuthenticated: isMockAuthenticated,
-    isLoading: mockLoading,
-  } = useMockAuth();
+  // Use environment-appropriate auth
+  const supabaseAuth = useSupabaseAuth();
+  const mockAuth = isMockMode()
+    ? useMockAuth()
+    : { user: null, isAuthenticated: false, isLoading: false };
+
+  // Select auth based on environment
+  const { user, isAuthenticated, isLoading } = isMockMode()
+    ? mockAuth
+    : supabaseAuth;
 
   const supabase = createClient();
 
@@ -107,7 +111,7 @@ export function TraderProfile() {
 
     if (isMainUser) {
       return {
-        type: "main_user",
+        type: "merchant",
         permissions: [
           "create_teams",
           "manage_teams",
@@ -120,7 +124,7 @@ export function TraderProfile() {
       };
     } else {
       return {
-        type: "team_member",
+        type: "member",
         permissions: ["view_ads", "manage_orders", "dispute_resolution"],
         accountType: "basic",
       };
@@ -140,19 +144,15 @@ export function TraderProfile() {
 
     console.log("TraderProfile Debug:", {
       isDevelopment,
-      isMockAuthenticated,
-      mockUser: mockUser
-        ? { id: mockUser.id, full_name: mockUser.full_name }
-        : null,
-      supabaseUser: supabaseUser ? { id: supabaseUser.id } : null,
-      mockLoading,
-      supabaseLoading,
+      isAuthenticated,
+      user: user ? { id: user.id, email: user.email } : null,
+      isLoading,
     });
 
-    if (isDevelopment) {
-      // In development mode, always try to use mock auth
-      if (!mockLoading) {
-        if (mockUser) {
+    if (isDevelopment && isMockMode()) {
+      // In development mode with mock auth
+      if (!isLoading) {
+        if (user) {
           console.log("✅ Loading mock profile data");
           generateMockProfile();
         } else {
@@ -164,8 +164,8 @@ export function TraderProfile() {
       }
     } else {
       // In production mode, use Supabase auth
-      if (!supabaseLoading) {
-        if (supabaseUser) {
+      if (!isLoading) {
+        if (user) {
           console.log("✅ Loading real profile data");
           fetchTraderProfile();
           fetchTraderMetrics();
@@ -178,15 +178,17 @@ export function TraderProfile() {
         console.log("⏳ Supabase auth still loading...");
       }
     }
-  }, [isClient, mockUser, supabaseUser, mockLoading, supabaseLoading]);
+  }, [isClient, user, isLoading]);
 
   const generateMockProfile = () => {
     console.log("🎭 Generating mock profile data...");
     // Generate mock data for development
     const mockProfileData: TraderProfile = {
-      id: mockUser?.id || "mock-trader-1",
-      full_name: mockUser?.full_name || "John Trader",
-      exchange_provider: mockUser?.exchange_credentials?.exchange || "okx",
+      id: user?.id || "mock-trader-1",
+      full_name: isMockMode()
+        ? (user as any)?.full_name || "John Trader"
+        : getUserDisplayName(user as any) || "John Trader",
+      exchange_provider: "okx",
       exchange_user_id: "mock-exchange-123",
       kyc_level: 3,
       completion_rate: 98.5,
@@ -197,7 +199,7 @@ export function TraderProfile() {
         preferred_currency: "USDT",
         trading_hours: "24/7",
       },
-      created_at: mockUser?.created_at || new Date().toISOString(),
+      created_at: user?.created_at || new Date().toISOString(),
     };
 
     // Determine and add user role
@@ -225,8 +227,13 @@ export function TraderProfile() {
         id: "team-1",
         team_name: "Elite Traders",
         team_type: "Professional",
-        exchange_name:
-          mockUser?.exchange_credentials?.exchange?.toUpperCase() || "OKX",
+        exchange_name: isMockMode()
+          ? (user as any)?.exchange_credentials?.exchange?.toUpperCase() ||
+            "OKX"
+          : (
+              user as any
+            )?.user_metadata?.exchange_credentials?.exchange?.toUpperCase() ||
+            "OKX",
         external_team_id: "ET-2024-001",
         exchange_role: "Senior Trader",
       },
@@ -241,7 +248,7 @@ export function TraderProfile() {
       const { data, error } = await supabase
         .from("users")
         .select("*")
-        .eq("id", supabaseUser?.id)
+        .eq("id", user?.id)
         .single();
 
       if (error) throw error;
@@ -256,7 +263,7 @@ export function TraderProfile() {
       const { data, error } = await supabase
         .from("trader_metrics")
         .select("*")
-        .eq("user_id", supabaseUser?.id)
+        .eq("user_id", user?.id)
         .order("metric_date", { ascending: false })
         .limit(30);
 
@@ -279,7 +286,7 @@ export function TraderProfile() {
           exchange_teams(*)
         `
         )
-        .eq("user_id", supabaseUser?.id);
+        .eq("user_id", user?.id);
 
       if (error) throw error;
 
@@ -782,7 +789,7 @@ export function TraderProfile() {
           </TabsContent>
 
           <TabsContent value="teams" className="space-y-6 mt-6">
-            {profile?.user_role?.type === "main_user" ? (
+            {profile?.user_role?.type === "merchant" ? (
               // Main User - Team Management Interface
               <div className="space-y-6">
                 <Card className="border-0 shadow-sm bg-white">

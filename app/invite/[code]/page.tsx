@@ -1,4 +1,14 @@
-import { InviteAcceptancePage } from "@/components/invite-acceptance-page";
+"use client";
+
+import dynamic from "next/dynamic";
+
+const InviteAcceptancePage = dynamic(
+  () => import("@/components/invite-acceptance-page").then((mod) => ({ default: mod.InviteAcceptancePage })),
+  { 
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center p-8">Loading...</div>
+  }
+);
 
 interface InvitePageProps {
   params: {
@@ -8,11 +18,4 @@ interface InvitePageProps {
 
 export default function InvitePage({ params }: InvitePageProps) {
   return <InviteAcceptancePage inviteCode={params.code} />;
-}
-
-export async function generateMetadata({ params }: InvitePageProps) {
-  return {
-    title: `Team Invitation - ${params.code}`,
-    description: "Join a P2P trading team",
-  };
 }

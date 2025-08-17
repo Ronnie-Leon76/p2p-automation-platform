@@ -1,12 +1,13 @@
+"use client";
+
 import { ExchangeWalletSetup } from "@/components/exchange-wallet-setup"
 import { notFound } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 
-interface SetupPageProps {
-  params: Promise<{ exchange: string }>
-}
-
-export default async function ExchangeSetupPage({ params }: SetupPageProps) {
-  const { exchange } = await params
+export default function ExchangeSetupPage() {
+  const params = useParams()
+  const router = useRouter()
+  const exchange = params.exchange as string
 
   if (!["okx", "binance", "bybit"].includes(exchange)) {
     notFound()
@@ -23,7 +24,7 @@ export default async function ExchangeSetupPage({ params }: SetupPageProps) {
       })
 
       if (response.ok) {
-        window.location.href = "/dashboard"
+        router.push("/dashboard")
       } else {
         const error = await response.json()
         console.error("Setup failed:", error)

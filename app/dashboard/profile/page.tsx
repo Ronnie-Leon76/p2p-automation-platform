@@ -1,25 +1,58 @@
+"use client";
+
 import { AppSidebar } from "@/components/app-sidebar";
-import { TraderProfile } from "@/components/trader-profile";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { createServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-export default async function ProfilePage() {
-  // In development mode, bypass Supabase auth check
-  if (process.env.NODE_ENV !== "development") {
-    const supabase = createServerClient();
+const TraderProfile = dynamic(
+  () =>
+    import("@/components/trader-profile").then((mod) => ({
+      default: mod.TraderProfile,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-8">Loading...</div>
+    ),
+  }
+);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+export default function ProfilePage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createClient();
 
-    if (!session) {
-      redirect("/auth");
-    }
+  useEffect(() => {
+    // Client-side auth check for production
+    const checkAuth = async () => {
+      if (process.env.NODE_ENV !== "development") {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/auth");
+          return;
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkAuth();
+  }, [router, supabase]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
   }
 
   return (

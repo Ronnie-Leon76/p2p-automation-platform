@@ -15,10 +15,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isMockMode = process.env.NEXT_PUBLIC_ENVIRONMENT === "mock";
+
   return (
     <html lang="en">
       <body suppressHydrationWarning={true}>
-        <MockAuthProvider>{children}</MockAuthProvider>
+        {isMockMode ? (
+          <MockAuthProvider>{children}</MockAuthProvider>
+        ) : (
+          children
+        )}
       </body>
     </html>
   );

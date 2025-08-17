@@ -10,6 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useMockAuth } from "@/hooks/use-mock-auth";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { isMockMode } from "@/lib/config/environment";
 import { CheckCircle, Clock, ExternalLink, Plus, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -23,7 +25,7 @@ const EXCHANGES = [
     logo: "https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/okx-logo_udbnjv.png",
     status: "available",
     features: ["P2P Trading", "Spot Trading", "Futures", "Options"],
-    setupUrl: "/auth/okx/setup",
+    setupUrl: "/dashboard/exchanges/okx",
   },
   {
     id: "binance",
@@ -33,7 +35,7 @@ const EXCHANGES = [
     logo: "https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/binance-logo_weqahc.png",
     status: "coming-soon",
     features: ["P2P Trading", "Spot Trading", "Futures", "Margin"],
-    setupUrl: "/auth/binance/setup",
+    setupUrl: "/dashboard/exchanges/binance",
     estimatedLaunch: "Q2 2024",
   },
   {
@@ -44,24 +46,32 @@ const EXCHANGES = [
     logo: "https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/bybit-logo_famhwh.png",
     status: "coming-soon",
     features: ["P2P Trading", "Derivatives", "Copy Trading", "NFTs"],
-    setupUrl: "/auth/bybit/setup",
+    setupUrl: "/dashboard/exchanges/bybit",
     estimatedLaunch: "Q3 2024",
   },
 ];
 
 export function ExchangeSelector() {
   const router = useRouter();
-  const { user, isAuthenticated } = useMockAuth();
 
-  // In development mode with mock auth, auto-redirect to dashboard if user has exchange credentials
+  // Use environment-appropriate auth
+  const supabaseAuth = useSupabaseAuth();
+  const mockAuth = isMockMode()
+    ? useMockAuth()
+    : { user: null, isAuthenticated: false, isLoading: false };
+
+  // Select auth based on environment
+  const { user, isAuthenticated } = isMockMode() ? mockAuth : supabaseAuth;
+
+  // In development mode with mock auth, auto-redirect to dashboard if authenticated
   useEffect(() => {
     if (
       process.env.NODE_ENV === "development" &&
       isAuthenticated &&
-      user?.exchange_credentials
+      isMockMode()
     ) {
       console.log(
-        `🔄 ExchangeSelector: Mock auth detected with credentials for ${user.exchange_credentials.exchange}, redirecting to dashboard`
+        `🔄 ExchangeSelector: Mock auth detected, redirecting to dashboard`
       );
       router.push("/dashboard");
     }
@@ -71,7 +81,7 @@ export function ExchangeSelector() {
   if (
     process.env.NODE_ENV === "development" &&
     isAuthenticated &&
-    user?.exchange_credentials
+    isMockMode()
   ) {
     return (
       <div className="space-y-6">
@@ -80,8 +90,7 @@ export function ExchangeSelector() {
             Mock Exchange Configured
           </h1>
           <p className="text-gray-400 max-w-2xl mx-auto">
-            Redirecting to dashboard with{" "}
-            {user.exchange_credentials.exchange.toUpperCase()} credentials...
+            Redirecting to dashboard with mock credentials...
           </p>
         </div>
       </div>
@@ -99,8 +108,8 @@ export function ExchangeSelector() {
               Development Mode
             </CardTitle>
             <CardDescription className="text-blue-300">
-              {isAuthenticated && user?.exchange_credentials
-                ? `Mock ${user.exchange_credentials.exchange.toUpperCase()} credentials detected. You can proceed to dashboard or test other exchange connections.`
+              {isAuthenticated
+                ? "Mock credentials detected. You can proceed to dashboard or test other exchange connections."
                 : "In development mode, you can mock connect to any available exchange without real OAuth setup."}
             </CardDescription>
           </CardHeader>

@@ -6,6 +6,7 @@ export interface User {
   provider?: string;
   provider_id?: string;
   email_verified: boolean;
+  user_type: 'merchant' | 'member';
   created_at: string;
   updated_at: string;
 }

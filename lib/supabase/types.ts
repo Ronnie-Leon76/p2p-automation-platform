@@ -11,6 +11,7 @@ export type Database = {
           provider: string
           provider_id: string | null
           email_verified: boolean
+          user_type: 'merchant' | 'member'
           created_at: string
           updated_at: string
         }
@@ -23,6 +24,7 @@ export type Database = {
           provider?: string
           provider_id?: string | null
           email_verified?: boolean
+          user_type?: 'merchant' | 'member'
           created_at?: string
           updated_at?: string
         }
@@ -35,6 +37,7 @@ export type Database = {
           provider?: string
           provider_id?: string | null
           email_verified?: boolean
+          user_type?: 'merchant' | 'member'
           created_at?: string
           updated_at?: string
         }

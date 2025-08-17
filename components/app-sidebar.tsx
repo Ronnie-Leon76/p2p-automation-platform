@@ -1,7 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { useMockAuth } from "@/hooks/use-mock-auth";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import {
   BarChart3,
   Bot,
@@ -11,11 +12,12 @@ import {
   Settings,
   Signal,
   TrendingUp,
-  User,
+  User as UserIcon,
   Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import {
   Sidebar,
@@ -38,7 +40,7 @@ const mainMenuItems = [
   {
     title: "Profile",
     url: "/dashboard/profile",
-    icon: User,
+    icon: UserIcon,
   },
   {
     title: "Ads",
@@ -62,6 +64,11 @@ const mainMenuItems = [
     url: "/bots",
     icon: Bot,
     badge: "3",
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
   },
 ];
 
@@ -97,7 +104,34 @@ const systemItems = [
 ];
 
 export function AppSidebar() {
-  const { user, isAuthenticated } = useMockAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const supabase = createClient();
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (session?.user && !error) {
+          setUser(session.user);
+          setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error("Sidebar auth check failed:", error);
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   return (
     <Sidebar className="border-r border-gray-200/50 bg-white">
@@ -161,14 +195,7 @@ export function AppSidebar() {
                     <Link href={item.url} className="flex items-center gap-3">
                       <item.icon className="h-4 w-4 text-gray-600 group-hover:text-indigo-600" />
                       <span className="font-medium text-sm">{item.title}</span>
-                      <div
-                        className={`ml-auto h-2 w-2 rounded-full ${
-                          user?.exchange_credentials?.exchange ===
-                          item.title.toLowerCase()
-                            ? "bg-green-500"
-                            : "bg-gray-300"
-                        }`}
-                      />
+                      <div className="ml-auto h-2 w-2 rounded-full bg-green-500" />
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -226,14 +253,16 @@ export function AppSidebar() {
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
               <span className="text-xs font-medium text-green-700">
-                {user.full_name}
+                {user.user_metadata?.full_name ||
+                  user.email?.split("@")[0] ||
+                  "User"}
               </span>
               <Badge
                 variant="secondary"
                 className="ml-auto bg-green-100 text-green-700 text-xs h-4 px-1.5"
               >
                 <Signal className="w-2.5 h-2.5 mr-1" />
-                {user.provider === "mock" ? "Demo" : "Live"}
+                Live
               </Badge>
             </div>
           </div>
