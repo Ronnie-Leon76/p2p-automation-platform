@@ -152,7 +152,6 @@ export class MockAdStorage {
 
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(ads));
-      console.log(`💾 Saved ${ads.length} ads to localStorage`);
     } catch (error) {
       console.error('Failed to save ads to localStorage:', error);
     }
@@ -197,7 +196,6 @@ export class MockAdStorage {
     const updatedAds = [...ads, newAd];
     this.saveAds(updatedAds);
     
-    console.log(`✅ Created new ad: ${newAd.side.toUpperCase()} ${newAd.cryptocurrency} (ID: ${newAd.id})`);
     return newAd;
   }
 
@@ -221,7 +219,6 @@ export class MockAdStorage {
     ads[adIndex] = updatedAd;
     
     this.saveAds(ads);
-    console.log(`📝 Updated ad: ${updatedAd.side.toUpperCase()} ${updatedAd.cryptocurrency}`);
     return updatedAd;
   }
 
@@ -233,12 +230,10 @@ export class MockAdStorage {
     const filteredAds = ads.filter(a => a.id !== adId);
     
     if (filteredAds.length === ads.length) {
-      console.error(`Ad with ID ${adId} not found`);
       return false;
     }
 
     this.saveAds(filteredAds);
-    console.log(`🗑️ Deleted ad with ID: ${adId}`);
     return true;
   }
 
@@ -266,7 +261,6 @@ export class MockAdStorage {
     const ad = ads.find(a => a.id === adId);
     
     if (!ad) {
-      console.error(`Ad with ID ${adId} not found`);
       return null;
     }
 
@@ -280,7 +274,6 @@ export class MockAdStorage {
   clearAllAds(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(this.storageKey);
-      console.log('🧹 Cleared all ads from localStorage');
     }
   }
 

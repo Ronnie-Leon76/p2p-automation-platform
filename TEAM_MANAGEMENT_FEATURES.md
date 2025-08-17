@@ -41,7 +41,7 @@
   - Invitation status tracking (pending, accepted, declined, expired)
   - Bulk invitation cleanup
 
-## **3. Enhanced Team Management UI** (`components/enhanced-team-management.tsx`)
+## **3. Team Management UI** (`components/team-management.tsx`)
 
 - **Complete CRUD Interface:**
 
