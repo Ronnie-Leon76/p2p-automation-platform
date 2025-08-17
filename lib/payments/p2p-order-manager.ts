@@ -103,6 +103,17 @@ export class P2POrderManager {
         throw new Error("Failed to create transaction record")
       }
 
+      // Get daily usage for transaction limit validation
+      const { data: dailyUsage } = await this.supabase
+        .from("payment_transactions")
+        .select("amount")
+        .eq("payment_method", "sasapay")
+        .eq("transaction_type", "sasapay_b2c")
+        .gte("created_at", new Date().toISOString().split("T")[0] + "T00:00:00.000Z")
+        .eq("status", "completed")
+
+      const dailyUsed = dailyUsage?.reduce((total: number, tx: any) => total + Number(tx.amount), 0) || 0
+
       // Send payment to seller via SasaPay B2C
       const paymentResponse = await sasaPayService.sendMoney({
         amount: Number(order.amount_fiat),
@@ -110,6 +121,7 @@ export class P2POrderManager {
         receiver_phone: sellerPhone,
         merchant_reference: merchantReference,
         reason: `Payment for ${order.amount_crypto} ${order.crypto_currency} at rate ${order.rate}`,
+        daily_used: dailyUsed, // Include daily usage for validation
       })
 
       // Update transaction with SasaPay response

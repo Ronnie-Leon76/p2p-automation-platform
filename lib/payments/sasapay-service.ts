@@ -3,6 +3,8 @@
  * Handles authentication and payment requests to SasaPay sandbox environment
  */
 
+import { SASAPAY_LIMITS, validateB2CTransaction } from './sasapay-limits';
+
 interface SasaPayAuthResponse {
   access_token: string
   token_type: string
@@ -162,8 +164,15 @@ export class SasaPayService {
     merchant_reference: string
     reason?: string
     callback_url?: string
+    daily_used?: number // Optional daily usage tracking
   }): Promise<SasaPayB2CResponse> {
     try {
+      // Validate transaction amount against SasaPay limits
+      const validation = validateB2CTransaction(paymentData.amount, paymentData.daily_used || 0);
+      if (!validation.isValid) {
+        throw new Error(`Transaction validation failed: ${validation.reason}`);
+      }
+
       const accessToken = await this.authenticate()
 
       // Normalize phone number to correct format
@@ -185,6 +194,9 @@ export class SasaPayService {
         amount: paymentData.amount,
         receiver_phone: normalizedPhone,
         original_phone: paymentData.receiver_phone,
+        validation: 'PASSED',
+        daily_used: paymentData.daily_used || 0,
+        daily_limit: SASAPAY_LIMITS.DAILY_LIMIT,
       })
 
       const response = await fetch(`${this.baseUrl}/api/v1/payments/b2c/`, {
@@ -210,6 +222,8 @@ export class SasaPayService {
         conversation_id: data.ConversationID,
         response_code: data.ResponseCode,
         status: data.status,
+        amount: paymentData.amount,
+        transaction_charges: data.TransactionCharges,
       })
 
       return data

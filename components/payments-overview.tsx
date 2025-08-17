@@ -45,6 +45,11 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  SASAPAY_LIMITS,
+  getSasaPayOrderLimits,
+  validateB2CTransaction,
+} from "@/lib/payments/sasapay-limits";
+import {
   ArrowDownRight,
   ArrowUpRight,
   CheckCircle,
@@ -82,13 +87,20 @@ export function PaymentsOverview() {
     clientSecret: "",
     webhookUrl: "https://your-domain.com/api/webhooks/sasapay",
     isActive: true,
-    dailyLimit: 100000,
+    dailyLimit: SASAPAY_LIMITS.DAILY_LIMIT as number, // Daily limit for B2C transactions
+    maxSingleTransaction: SASAPAY_LIMITS.MAX_SINGLE_TRANSACTION as number, // Maximum single B2C transaction
     // Updated fee structure based on actual SasaPay pricing
-    c2bFee: 0, // C2B (receiving) is typically free
-    b2cFeePercent: 1.5, // B2C percentage fee
-    b2cFeeFixed: 5, // B2C fixed fee in KES
-    maxB2cFee: 50, // Maximum B2C fee cap
+    c2bFeePercent: SASAPAY_LIMITS.C2B_FEE_PERCENT as number, // C2B (receiving) 0.2% charged on business
+    c2bFeeCap: SASAPAY_LIMITS.C2B_FEE_CAP as number, // C2B fee capped at 150 KES
+    b2cFeeTable: true, // B2C uses tiered fee table
     autoSettle: true,
+    // Daily usage tracking
+    dailyUsageTracking: {
+      date: new Date().toISOString().split("T")[0],
+      totalSent: 0,
+      transactionCount: 0,
+      remainingLimit: SASAPAY_LIMITS.DAILY_LIMIT as number,
+    },
   });
 
   const [mpesaConfig, setMpesaConfig] = useState({
@@ -109,6 +121,56 @@ export function PaymentsOverview() {
     routingNumber: "",
     isActive: false,
   });
+
+  // Validate SasaPay B2C transaction limits using shared utility
+  const validateB2CTransactionLocal = (
+    amount: number
+  ): {
+    isValid: boolean;
+    reason?: string;
+    maxAllowed?: number;
+  } => {
+    const today = new Date().toISOString().split("T")[0];
+    const usage = sasaPayConfig.dailyUsageTracking;
+
+    // Reset tracking if it's a new day
+    if (usage.date !== today) {
+      usage.date = today;
+      usage.totalSent = 0;
+      usage.transactionCount = 0;
+      usage.remainingLimit = sasaPayConfig.dailyLimit;
+    }
+
+    return validateB2CTransaction(amount, usage.totalSent);
+  };
+
+  // Update daily usage tracking
+  const updateDailyUsage = (amount: number) => {
+    const today = new Date().toISOString().split("T")[0];
+    const usage = sasaPayConfig.dailyUsageTracking;
+
+    if (usage.date !== today) {
+      usage.date = today;
+      usage.totalSent = 0;
+      usage.transactionCount = 0;
+    }
+
+    setSasaPayConfig((prev) => ({
+      ...prev,
+      dailyUsageTracking: {
+        ...usage,
+        totalSent: usage.totalSent + amount,
+        transactionCount: usage.transactionCount + 1,
+        remainingLimit: prev.dailyLimit - (usage.totalSent + amount),
+      },
+    }));
+  };
+
+  // Get recommended buy ad limits for SasaPay using shared utility
+  const getSasaPayBuyAdLimitsLocal = () => {
+    const usage = sasaPayConfig.dailyUsageTracking;
+    return getSasaPayOrderLimits(usage.totalSent);
+  };
 
   // Handle modal actions
   const handleConfigure = (method: string, action: string) => {
@@ -321,8 +383,8 @@ export function PaymentsOverview() {
                 Track fees and their impact on P2P trading profitability
               </CardDescription>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => handleConfigure("sasapay", "analytics")}
               className="border-orange-300 text-orange-700 hover:bg-orange-100"
@@ -335,48 +397,72 @@ export function PaymentsOverview() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-4">
             <div className="text-center p-3 bg-white rounded-lg border border-orange-200">
-              <div className="text-2xl font-bold text-orange-600">KES 890</div>
-              <div className="text-sm text-orange-700">Total Fees (30 days)</div>
-              <div className="text-xs text-orange-600 mt-1">18 B2C transactions</div>
+              <div className="text-2xl font-bold text-orange-600">
+                KES 1,240
+              </div>
+              <div className="text-sm text-orange-700">
+                Total Fees (30 days)
+              </div>
+              <div className="text-xs text-orange-600 mt-1">
+                18 B2C + 6 C2B transactions
+              </div>
             </div>
-            
-            <div className="text-center p-3 bg-white rounded-lg border border-green-200">
-              <div className="text-2xl font-bold text-green-600">FREE</div>
-              <div className="text-sm text-green-700">C2B Transactions</div>
-              <div className="text-xs text-green-600 mt-1">6 received payments</div>
-            </div>
-            
+
             <div className="text-center p-3 bg-white rounded-lg border border-blue-200">
-              <div className="text-2xl font-bold text-blue-600">KES 49.4</div>
-              <div className="text-sm text-blue-700">Avg Fee per B2C</div>
-              <div className="text-xs text-blue-600 mt-1">1.5% + KES 5 (max 50)</div>
+              <div className="text-2xl font-bold text-blue-600">KES 350</div>
+              <div className="text-sm text-blue-700">C2B Fees</div>
+              <div className="text-xs text-blue-600 mt-1">
+                0.2% (max KES 150)
+              </div>
             </div>
-            
+
+            <div className="text-center p-3 bg-white rounded-lg border border-red-200">
+              <div className="text-2xl font-bold text-red-600">KES 890</div>
+              <div className="text-sm text-red-700">B2C Fees</div>
+              <div className="text-xs text-red-600 mt-1">Tiered structure</div>
+            </div>
+
             <div className="text-center p-3 bg-white rounded-lg border border-purple-200">
-              <div className="text-2xl font-bold text-purple-600">0.6%</div>
+              <div className="text-2xl font-bold text-purple-600">0.9%</div>
               <div className="text-sm text-purple-700">Fee Impact on PNL</div>
-              <div className="text-xs text-purple-600 mt-1">Low cost structure</div>
+              <div className="text-xs text-purple-600 mt-1">
+                Moderate cost structure
+              </div>
             </div>
           </div>
-          
+
           <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Fee Type Breakdown</span>
+              <span className="text-sm font-medium text-gray-700">
+                Fee Type Breakdown
+              </span>
               <span className="text-xs text-gray-500">Last 30 days</span>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">C2B (Receiving money)</span>
+                <span className="text-sm text-gray-600">
+                  C2B (Receiving money)
+                </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-green-600">FREE</span>
-                  <Badge variant="outline" className="text-xs">6 transactions</Badge>
+                  <span className="text-sm font-medium text-blue-600">
+                    KES 350
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    6 transactions
+                  </Badge>
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">B2C (Sending money)</span>
+                <span className="text-sm text-gray-600">
+                  B2C (Sending money)
+                </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-orange-600">KES 890</span>
-                  <Badge variant="outline" className="text-xs">18 transactions</Badge>
+                  <span className="text-sm font-medium text-orange-600">
+                    KES 890
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    18 transactions
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -597,15 +683,23 @@ export function PaymentsOverview() {
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Daily Limit:</span>
-                          <span className="font-medium">KES 100,000</span>
+                          <span className="font-medium">KES 500,000</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Max Single:</span>
+                          <span className="font-medium text-orange-600">
+                            KES 150,000
+                          </span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">C2B Fee:</span>
-                          <span className="font-medium text-green-600">FREE</span>
+                          <span className="font-medium text-orange-600">
+                            0.2% (max KES 150)
+                          </span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">B2C Fee:</span>
-                          <span className="font-medium">1.5% + KES 5</span>
+                          <span className="font-medium">Tiered (KES 0-39)</span>
                         </div>
                       </div>
                       <div className="flex gap-2 mt-3">
@@ -967,8 +1061,8 @@ export function PaymentsOverview() {
                                   Customer to Business (Receiving)
                                 </p>
                               </div>
-                              <span className="text-sm font-medium text-green-600">
-                                FREE
+                              <span className="text-sm font-medium text-orange-600">
+                                0.2% (Max: KES 150)
                               </span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-white rounded-lg border">
@@ -980,8 +1074,8 @@ export function PaymentsOverview() {
                                   Business to Customer (Sending)
                                 </p>
                               </div>
-                              <span className="text-sm font-medium text-orange-600">
-                                1.5% + KES 5 (Max: KES 50)
+                              <span className="text-sm font-medium text-blue-600">
+                                Tiered: KES 0-39
                               </span>
                             </div>
                           </div>
@@ -1083,6 +1177,116 @@ export function PaymentsOverview() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Daily Usage Tracking Section */}
+                    <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-orange-600" />
+                          Daily B2C Usage Tracking
+                        </h4>
+                        <Badge
+                          variant="outline"
+                          className={`${
+                            sasaPayConfig.dailyUsageTracking.remainingLimit <
+                            100000
+                              ? "border-red-300 text-red-700"
+                              : "border-green-300 text-green-700"
+                          }`}
+                        >
+                          {sasaPayConfig.dailyUsageTracking.transactionCount}{" "}
+                          transactions today
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <div className="text-center p-3 bg-white rounded-lg border">
+                          <div className="text-lg font-bold text-blue-600">
+                            KES{" "}
+                            {sasaPayConfig.dailyUsageTracking.totalSent.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Total Sent Today
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {(
+                              (sasaPayConfig.dailyUsageTracking.totalSent /
+                                sasaPayConfig.dailyLimit) *
+                              100
+                            ).toFixed(1)}
+                            % of daily limit
+                          </div>
+                        </div>
+
+                        <div className="text-center p-3 bg-white rounded-lg border">
+                          <div className="text-lg font-bold text-green-600">
+                            KES{" "}
+                            {sasaPayConfig.dailyUsageTracking.remainingLimit.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Remaining Today
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Available for new orders
+                          </div>
+                        </div>
+
+                        <div className="text-center p-3 bg-white rounded-lg border">
+                          <div className="text-lg font-bold text-orange-600">
+                            KES{" "}
+                            {Math.min(
+                              sasaPayConfig.maxSingleTransaction,
+                              sasaPayConfig.dailyUsageTracking.remainingLimit
+                            ).toLocaleString()}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Max Next Order
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {sasaPayConfig.dailyUsageTracking.remainingLimit <
+                            sasaPayConfig.maxSingleTransaction
+                              ? "Limited by daily cap"
+                              : "Limited by single transaction"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                        <div className="flex items-start space-x-2">
+                          <div className="p-1 bg-amber-500 rounded">
+                            <TrendingUp className="h-3 w-3 text-white" />
+                          </div>
+                          <div className="text-sm">
+                            <p className="font-medium text-amber-800 mb-1">
+                              Buy Ad Recommendations:
+                            </p>
+                            <p className="text-amber-700">
+                              • Set max order size to{" "}
+                              <strong>
+                                KES{" "}
+                                {Math.min(
+                                  sasaPayConfig.maxSingleTransaction,
+                                  sasaPayConfig.dailyUsageTracking
+                                    .remainingLimit
+                                ).toLocaleString()}
+                              </strong>{" "}
+                              to avoid payment failures
+                            </p>
+                            <p className="text-amber-700">
+                              • Monitor daily usage to prevent exceeding KES
+                              500,000 limit
+                            </p>
+                            {sasaPayConfig.dailyUsageTracking.remainingLimit <
+                              50000 && (
+                              <p className="text-red-700 font-medium">
+                                ⚠️ Low daily limit remaining - consider pausing
+                                buy ads until tomorrow
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1363,83 +1567,143 @@ export function PaymentsOverview() {
                             dailyLimit: parseInt(e.target.value),
                           })
                         }
-                        placeholder="100000"
+                        placeholder="500000"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        SasaPay daily B2C limit: KES 500,000
+                      </p>
                     </div>
                     <div>
-                      <Label htmlFor="c2bFee">C2B Fee (KES)</Label>
+                      <Label htmlFor="maxSingleTransaction">
+                        Max Single Transaction (KES)
+                      </Label>
                       <Input
-                        id="c2bFee"
+                        id="maxSingleTransaction"
                         type="number"
-                        step="0.1"
-                        value={sasaPayConfig.c2bFee}
+                        value={sasaPayConfig.maxSingleTransaction}
                         onChange={(e) =>
                           setSasaPayConfig({
                             ...sasaPayConfig,
-                            c2bFee: parseFloat(e.target.value),
+                            maxSingleTransaction: parseInt(e.target.value),
                           })
                         }
-                        placeholder="0"
-                        disabled
+                        placeholder="150000"
                       />
-                      <p className="text-xs text-gray-500 mt-1">C2B transactions are typically free</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        SasaPay single B2C limit: KES 150,000
+                      </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="b2cFeePercent">B2C Fee (%)</Label>
+                      <Label htmlFor="c2bFeePercent">C2B Fee (%)</Label>
                       <Input
-                        id="b2cFeePercent"
+                        id="c2bFeePercent"
                         type="number"
                         step="0.1"
-                        value={sasaPayConfig.b2cFeePercent}
+                        value={sasaPayConfig.c2bFeePercent}
                         onChange={(e) =>
                           setSasaPayConfig({
                             ...sasaPayConfig,
-                            b2cFeePercent: parseFloat(e.target.value),
+                            c2bFeePercent: parseFloat(e.target.value),
                           })
                         }
-                        placeholder="1.5"
+                        placeholder="0.2"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        C2B fee: 0.2% charged on business
+                      </p>
                     </div>
                     <div>
-                      <Label htmlFor="b2cFeeFixed">B2C Fixed Fee (KES)</Label>
+                      <Label htmlFor="c2bFeeCap">C2B Fee Cap (KES)</Label>
                       <Input
-                        id="b2cFeeFixed"
+                        id="c2bFeeCap"
                         type="number"
-                        step="0.1"
-                        value={sasaPayConfig.b2cFeeFixed}
+                        step="1"
+                        value={sasaPayConfig.c2bFeeCap}
                         onChange={(e) =>
                           setSasaPayConfig({
                             ...sasaPayConfig,
-                            b2cFeeFixed: parseFloat(e.target.value),
+                            c2bFeeCap: parseFloat(e.target.value),
                           })
                         }
-                        placeholder="5"
+                        placeholder="150"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Maximum C2B fee cap
+                      </p>
                     </div>
+                  </div>
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="maxB2cFee">Max B2C Fee (KES)</Label>
-                      <Input
-                        id="maxB2cFee"
-                        type="number"
-                        step="0.1"
-                        value={sasaPayConfig.maxB2cFee}
-                        onChange={(e) =>
-                          setSasaPayConfig({
-                            ...sasaPayConfig,
-                            maxB2cFee: parseFloat(e.target.value),
-                          })
-                        }
-                        placeholder="50"
-                      />
+                      <Label>B2C Fee Structure</Label>
+                      <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-sm text-gray-700 mb-2">
+                          Fixed tiered fees based on amount:
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <span>KES 1-100: Free</span>
+                          <span>KES 101-500: KES 7</span>
+                          <span>KES 501-1,000: KES 11</span>
+                          <span>KES 1,001-2,500: KES 19</span>
+                          <span>KES 2,501-5,000: KES 24</span>
+                          <span>KES 5,001-10,000: KES 24</span>
+                          <span>KES 10,001-15,000: KES 29</span>
+                          <span>KES 15,001-20,000: KES 29</span>
+                          <span>KES 20,001-150,000: KES 39</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <h4 className="font-medium text-yellow-900 mb-2">Fee Calculation Example</h4>
-                    <p className="text-sm text-yellow-700">
-                      For a KES 10,000 B2C transaction: (10,000 × 1.5%) + 5 = KES 155, capped at KES 50 = <strong>KES 50 fee</strong>
-                    </p>
+                    <h4 className="font-medium text-yellow-900 mb-2">
+                      Fee Calculation Examples
+                    </h4>
+                    <div className="space-y-2 text-sm text-yellow-700">
+                      <p>
+                        <strong>C2B (Receiving):</strong> KES 10,000 × 0.2% =
+                        KES 20
+                      </p>
+                      <p>
+                        <strong>C2B (Receiving):</strong> KES 100,000 × 0.2% =
+                        KES 200 → Capped at KES 150
+                      </p>
+                      <p>
+                        <strong>B2C (Sending):</strong> KES 5,000 = KES 24 fee
+                      </p>
+                      <p>
+                        <strong>B2C (Sending):</strong> KES 25,000 = KES 39 fee
+                      </p>
+                      <p className="text-red-600 font-medium">
+                        <strong>⚠️ B2C Limit:</strong> Max KES 150,000 per
+                        transaction
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                    <h4 className="font-medium text-red-900 mb-2">
+                      ⚠️ Buy Ad Configuration Warnings
+                    </h4>
+                    <div className="space-y-2 text-sm text-red-700">
+                      <p>
+                        • Set buy ad max order size to{" "}
+                        <strong>KES 150,000</strong> or less to avoid payment
+                        failures
+                      </p>
+                      <p>
+                        • Monitor daily usage - SasaPay has a{" "}
+                        <strong>KES 500,000 daily limit</strong> for B2C
+                        transfers
+                      </p>
+                      <p>
+                        • Consider splitting large orders across multiple days
+                        if approaching daily limit
+                      </p>
+                      <p>
+                        • Pause buy ads when daily limit is nearly reached to
+                        prevent transaction failures
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
@@ -1604,18 +1868,18 @@ export function PaymentsOverview() {
                           From 24 completed P2P trades
                         </p>
                       </div>
-                      
+
                       <div className="p-4 border rounded-lg bg-red-50">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-red-700">
-                            SasaPay Fees (B2C)
+                            SasaPay Fees (Total)
                           </span>
                           <span className="text-lg font-bold text-red-600">
-                            -KES 890
+                            -KES 1,240
                           </span>
                         </div>
                         <p className="text-xs text-red-600 mt-1">
-                          18 B2C transactions • C2B: FREE
+                          18 B2C + 6 C2B transactions
                         </p>
                       </div>
                     </div>
@@ -1627,11 +1891,11 @@ export function PaymentsOverview() {
                             Net Profit
                           </span>
                           <span className="text-lg font-bold text-blue-600">
-                            KES 144,310
+                            KES 143,960
                           </span>
                         </div>
                         <p className="text-xs text-blue-600 mt-1">
-                          99.4% profit margin after fees
+                          99.1% profit margin after fees
                         </p>
                       </div>
 
@@ -1641,37 +1905,51 @@ export function PaymentsOverview() {
                             Fee Impact
                           </span>
                           <span className="text-lg font-bold text-yellow-600">
-                            0.6%
+                            0.9%
                           </span>
                         </div>
                         <p className="text-xs text-yellow-600 mt-1">
-                          Low impact on profitability
+                          Moderate impact on profitability
                         </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="border-t pt-4">
-                    <h4 className="font-medium text-sm mb-3">Fee Breakdown by Transaction Type</h4>
+                    <h4 className="font-medium text-sm mb-3">
+                      Fee Breakdown by Transaction Type
+                    </h4>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
                         <div>
-                          <span className="text-sm font-medium">C2B (Receiving)</span>
-                          <p className="text-xs text-gray-600">6 transactions</p>
+                          <span className="text-sm font-medium">
+                            C2B (Receiving)
+                          </span>
+                          <p className="text-xs text-gray-600">
+                            6 transactions
+                          </p>
                         </div>
                         <div className="text-right">
-                          <span className="text-sm font-bold text-green-600">FREE</span>
-                          <p className="text-xs text-gray-600">KES 0</p>
+                          <span className="text-sm font-bold text-orange-600">
+                            KES 350
+                          </span>
+                          <p className="text-xs text-gray-600">Avg: KES 58.3</p>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
                         <div>
-                          <span className="text-sm font-medium">B2C (Sending)</span>
-                          <p className="text-xs text-gray-600">18 transactions</p>
+                          <span className="text-sm font-medium">
+                            B2C (Sending)
+                          </span>
+                          <p className="text-xs text-gray-600">
+                            18 transactions
+                          </p>
                         </div>
                         <div className="text-right">
-                          <span className="text-sm font-bold text-red-600">KES 890</span>
+                          <span className="text-sm font-bold text-red-600">
+                            KES 890
+                          </span>
                           <p className="text-xs text-gray-600">Avg: KES 49.4</p>
                         </div>
                       </div>
@@ -1679,22 +1957,29 @@ export function PaymentsOverview() {
                   </div>
 
                   <div className="border-t pt-4 mt-4">
-                    <h4 className="font-medium text-sm mb-3">Transaction Cost Calculator</h4>
+                    <h4 className="font-medium text-sm mb-3">
+                      Transaction Cost Calculator
+                    </h4>
                     <div className="grid gap-3 text-xs">
                       <div className="flex justify-between p-2 bg-gray-50 rounded">
                         <span>KES 1,000 (B2C)</span>
-                        <span className="font-medium">Fee: KES 20 (2%)</span>
+                        <span className="font-medium">Fee: KES 11</span>
                       </div>
                       <div className="flex justify-between p-2 bg-gray-50 rounded">
                         <span>KES 10,000 (B2C)</span>
-                        <span className="font-medium">Fee: KES 50 (0.5%)</span>
+                        <span className="font-medium">Fee: KES 24</span>
                       </div>
                       <div className="flex justify-between p-2 bg-gray-50 rounded">
                         <span>KES 50,000 (B2C)</span>
-                        <span className="font-medium">Fee: KES 50 (0.1%)</span>
+                        <span className="font-medium">Fee: KES 39</span>
+                      </div>
+                      <div className="flex justify-between p-2 bg-gray-50 rounded">
+                        <span>KES 30,000 (C2B)</span>
+                        <span className="font-medium">Fee: KES 60 (0.2%)</span>
                       </div>
                       <p className="text-xs text-gray-600 mt-2">
-                        * B2C fees: 1.5% + KES 5, capped at KES 50
+                        * B2C fees: Tiered structure • C2B fees: 0.2% (max KES
+                        150)
                       </p>
                     </div>
                   </div>

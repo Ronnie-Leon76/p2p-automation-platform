@@ -54,8 +54,20 @@ interface Order {
   currency: string;
   fiatAmount: string;
   unitPrice: string;
-  orderStatus: "pending" | "paid" | "completed" | "disputed" | "cancelled";
-  paymentStatus: "unpaid" | "paid" | "confirmed" | "disputed" | "refunded";
+  orderStatus:
+    | "pending"
+    | "payment_pending"
+    | "paid"
+    | "completed"
+    | "disputed"
+    | "cancelled";
+  paymentStatus:
+    | "unpaid"
+    | "payment_pending"
+    | "paid"
+    | "confirmed"
+    | "disputed"
+    | "refunded";
   paymentMethod: string;
   paymentReference?: string;
   timeRemaining?: number;
@@ -71,6 +83,10 @@ interface Order {
     completedOrders: number;
   };
   chatMessages: ChatMessage[];
+  // Add field to track who created the order (seller in sell ads, buyer in buy ads)
+  creator_user_id: string;
+  // Add field to track the current user's role in this specific order
+  current_user_role?: "buyer" | "seller";
 }
 
 interface ChatMessage {
@@ -85,19 +101,21 @@ interface ChatMessage {
 const mockOrders: Order[] = [
   {
     id: "ORD-001",
-    side: "buy",
+    side: "buy", // This is a BUY-USDT ad, so current user is BUYER
     cryptocurrency: "USDT",
     cryptoAmount: "1,000.00",
     currency: "KES",
     fiatAmount: "150,000",
     unitPrice: "150.00",
-    orderStatus: "pending",
-    paymentStatus: "unpaid",
+    orderStatus: "payment_pending", // Buyer has confirmed payment, waiting for seller to release crypto
+    paymentStatus: "payment_pending",
     paymentMethod: "M-Pesa",
     paymentReference: "MPESA-REF-001",
     timeRemaining: 895,
     createdAt: "2024-01-15T10:30:00Z",
     updatedAt: "2024-01-15T10:30:00Z",
+    creator_user_id: "current_user", // Current user created this buy order
+    current_user_role: "buyer", // Current user is the buyer
     counterparty: {
       userId: "user_456",
       nickName: "CryptoTrader_KE",
@@ -125,7 +143,7 @@ const mockOrders: Order[] = [
   },
   {
     id: "ORD-002",
-    side: "sell",
+    side: "sell", // This is a SELL-USDT ad, so current user is SELLER
     cryptocurrency: "USDT",
     cryptoAmount: "500.00",
     currency: "KES",
@@ -137,6 +155,8 @@ const mockOrders: Order[] = [
     paymentReference: "BNK-TXN-789",
     createdAt: "2024-01-15T09:15:00Z",
     updatedAt: "2024-01-15T10:45:00Z",
+    creator_user_id: "current_user", // Current user created this sell order
+    current_user_role: "seller", // Current user is the seller
     counterparty: {
       userId: "user_789",
       nickName: "QuickBuyer",
@@ -171,7 +191,7 @@ const mockOrders: Order[] = [
   },
   {
     id: "ORD-003",
-    side: "buy",
+    side: "buy", // BUY-BTC ad, current user is BUYER
     cryptocurrency: "BTC",
     cryptoAmount: "0.001",
     currency: "USD",
@@ -184,6 +204,8 @@ const mockOrders: Order[] = [
     createdAt: "2024-01-14T15:20:00Z",
     updatedAt: "2024-01-14T16:05:00Z",
     completedAt: "2024-01-14T16:05:00Z",
+    creator_user_id: "current_user", // Current user created this buy order
+    current_user_role: "buyer", // Current user is the buyer
     counterparty: {
       userId: "user_321",
       nickName: "BTCMaster",
@@ -217,7 +239,7 @@ const mockOrders: Order[] = [
   },
   {
     id: "ORD-004",
-    side: "sell",
+    side: "sell", // SELL-ETH ad, current user is SELLER
     cryptocurrency: "ETH",
     cryptoAmount: "0.25",
     currency: "EUR",
@@ -230,6 +252,8 @@ const mockOrders: Order[] = [
     disputeReason: "Payment not received after 2 hours",
     createdAt: "2024-01-13T11:00:00Z",
     updatedAt: "2024-01-13T14:30:00Z",
+    creator_user_id: "current_user", // Current user created this sell order
+    current_user_role: "seller", // Current user is the seller
     counterparty: {
       userId: "user_654",
       nickName: "EuroTrader",
@@ -281,7 +305,7 @@ const mockOrders: Order[] = [
   },
   {
     id: "ORD-005",
-    side: "buy",
+    side: "buy", // BUY-USDT ad, current user is BUYER
     cryptocurrency: "USDT",
     cryptoAmount: "200.00",
     currency: "KES",
@@ -292,6 +316,8 @@ const mockOrders: Order[] = [
     paymentMethod: "M-Pesa",
     createdAt: "2024-01-12T08:45:00Z",
     updatedAt: "2024-01-12T09:15:00Z",
+    creator_user_id: "current_user", // Current user created this buy order
+    current_user_role: "buyer", // Current user is the buyer
     counterparty: {
       userId: "user_987",
       nickName: "FastTrader",
@@ -516,37 +542,134 @@ function OrderDetailDialog({
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4">
-            {order.orderStatus === "pending" && (
+            {/* BUY Orders - Current user is BUYER */}
+            {order.side === "buy" && order.current_user_role === "buyer" && (
               <>
-                <Button
-                  onClick={() => onConfirmPayment(order.id)}
-                  className="flex-1"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Confirm Payment
-                </Button>
-                <Button variant="outline" onClick={() => setIsDisputing(true)}>
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  Dispute
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => onCancelOrder(order.id)}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
+                {order.orderStatus === "pending" && (
+                  <>
+                    <Button
+                      onClick={() => onConfirmPayment(order.id)}
+                      className="flex-1"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Confirm Payment Sent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDisputing(true)}
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Dispute
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => onCancelOrder(order.id)}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </>
+                )}
+
+                {order.orderStatus === "payment_pending" && (
+                  <>
+                    <div className="flex-1 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-yellow-800">
+                        <Clock className="h-4 w-4" />
+                        <span className="font-medium">
+                          Waiting for seller to release crypto
+                        </span>
+                      </div>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        Your payment confirmation has been sent. The seller will
+                        release the cryptocurrency once they verify receipt.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDisputing(true)}
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Dispute
+                    </Button>
+                  </>
+                )}
               </>
             )}
 
-            {order.orderStatus === "paid" && (
-              <Button
-                onClick={() => onReleaseCrypto(order.id)}
-                className="flex-1"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Release Cryptocurrency
-              </Button>
+            {/* BUY Orders - Current user is SELLER (matched to buyer's buy order) */}
+            {order.side === "buy" && order.current_user_role === "seller" && (
+              <>
+                {order.orderStatus === "payment_pending" && (
+                  <Button
+                    onClick={() => onReleaseCrypto(order.id)}
+                    className="flex-1"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Release Cryptocurrency
+                  </Button>
+                )}
+              </>
+            )}
+
+            {/* SELL Orders - Current user is SELLER */}
+            {order.side === "sell" && order.current_user_role === "seller" && (
+              <>
+                {order.orderStatus === "pending" && (
+                  <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-blue-800">
+                      <Clock className="h-4 w-4" />
+                      <span className="font-medium">
+                        Waiting for buyer payment
+                      </span>
+                    </div>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Please wait for the buyer to send payment and confirm it.
+                    </p>
+                  </div>
+                )}
+
+                {order.orderStatus === "paid" && (
+                  <Button
+                    onClick={() => onReleaseCrypto(order.id)}
+                    className="flex-1"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Release Cryptocurrency
+                  </Button>
+                )}
+              </>
+            )}
+
+            {/* SELL Orders - Current user is BUYER (matched to seller's sell order) */}
+            {order.side === "sell" && order.current_user_role === "buyer" && (
+              <>
+                {order.orderStatus === "pending" && (
+                  <>
+                    <Button
+                      onClick={() => onConfirmPayment(order.id)}
+                      className="flex-1"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Confirm Payment Sent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDisputing(true)}
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Dispute
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => onCancelOrder(order.id)}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </>
+                )}
+              </>
             )}
           </div>
 
@@ -693,8 +816,16 @@ export function OrderManagement() {
         order.id === orderId
           ? {
               ...order,
-              orderStatus: "paid" as const,
-              paymentStatus: "paid" as const,
+              // For BUY orders (buyer confirming payment sent), set to payment_pending
+              // For SELL orders (buyer confirming payment sent), set to paid (awaiting seller confirmation)
+              orderStatus:
+                order.side === "buy"
+                  ? ("payment_pending" as const)
+                  : ("paid" as const),
+              paymentStatus:
+                order.side === "buy"
+                  ? ("payment_pending" as const)
+                  : ("paid" as const),
               updatedAt: new Date().toISOString(),
             }
           : order
@@ -752,6 +883,8 @@ export function OrderManagement() {
     switch (status) {
       case "pending":
         return <Clock className="h-4 w-4 text-yellow-600" />;
+      case "payment_pending":
+        return <Clock className="h-4 w-4 text-orange-600" />;
       case "paid":
         return <DollarSign className="h-4 w-4 text-blue-600" />;
       case "completed":
@@ -770,6 +903,10 @@ export function OrderManagement() {
       pending: {
         variant: "secondary" as const,
         className: "bg-yellow-50 text-yellow-700 border-yellow-200",
+      },
+      payment_pending: {
+        variant: "secondary" as const,
+        className: "bg-orange-50 text-orange-700 border-orange-200",
       },
       paid: {
         variant: "secondary" as const,
@@ -793,7 +930,9 @@ export function OrderManagement() {
       config[status as keyof typeof config] || config.cancelled;
     return (
       <Badge variant={statusConfig.variant} className={statusConfig.className}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status === "payment_pending"
+          ? "Payment Pending"
+          : status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
@@ -806,7 +945,9 @@ export function OrderManagement() {
 
   // Calculate statistics
   const stats = {
-    active: orders.filter((o) => o.orderStatus === "pending").length,
+    active: orders.filter(
+      (o) => o.orderStatus === "pending" || o.orderStatus === "payment_pending"
+    ).length,
     completed: orders.filter((o) => o.orderStatus === "completed").length,
     disputed: orders.filter((o) => o.orderStatus === "disputed").length,
     totalVolume: orders.reduce(
@@ -966,6 +1107,9 @@ export function OrderManagement() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="payment_pending">
+                      Payment Pending
+                    </SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="disputed">Disputed</SelectItem>
