@@ -267,10 +267,27 @@ export function TraderProfile() {
         .order("metric_date", { ascending: false })
         .limit(30);
 
-      if (error) throw error;
+      if (error) {
+        // If table doesn't exist, set empty metrics
+        if (
+          error.code === "PGRST204" ||
+          error.code === "PGRST106" ||
+          error.message.includes("relation") ||
+          error.message.includes("does not exist")
+        ) {
+          console.log(
+            "Trader metrics table not found, using empty metrics list"
+          );
+          setMetrics([]);
+          return;
+        }
+        throw error;
+      }
       setMetrics(data || []);
     } catch (error) {
       console.error("Error fetching trader metrics:", error);
+      // Set empty metrics array on error to prevent blocking the UI
+      setMetrics([]);
     } finally {
       setLoading(false);
     }
@@ -278,6 +295,7 @@ export function TraderProfile() {
 
   const fetchExchangeTeams = async () => {
     try {
+      // Check if exchange_team_members table exists by trying to query it
       const { data, error } = await supabase
         .from("exchange_team_members")
         .select(
@@ -288,7 +306,22 @@ export function TraderProfile() {
         )
         .eq("user_id", user?.id);
 
-      if (error) throw error;
+      if (error) {
+        // If table doesn't exist or user has no teams, set empty array
+        if (
+          error.code === "PGRST204" ||
+          error.code === "PGRST106" ||
+          error.message.includes("relation") ||
+          error.message.includes("does not exist")
+        ) {
+          console.log(
+            "Exchange teams tables not found, using empty teams list"
+          );
+          setTeams([]);
+          return;
+        }
+        throw error;
+      }
 
       const teamsData = data?.map((member: any) => ({
         ...member.exchange_teams,
@@ -298,6 +331,8 @@ export function TraderProfile() {
       setTeams(teamsData || []);
     } catch (error) {
       console.error("Error fetching exchange teams:", error);
+      // Set empty teams array on error to prevent blocking the UI
+      setTeams([]);
     }
   };
 
@@ -436,8 +471,8 @@ export function TraderProfile() {
                     {profile.full_name}
                   </h2>
                   <p className="text-gray-600 mt-1">
-                    {getExchangeIcon(profile.exchange_provider)}{" "}
-                    {profile.exchange_provider.toUpperCase()} Trader
+                    {getExchangeIcon(profile.exchange_provider || "okx")}{" "}
+                    {(profile.exchange_provider || "OKX").toUpperCase()} Trader
                   </p>
                   <div className="flex items-center gap-2 mt-3">
                     {getKYCBadge(profile.kyc_level)}
@@ -452,12 +487,12 @@ export function TraderProfile() {
               </div>
               <Button variant="outline" asChild className="gap-2">
                 <a
-                  href={`https://${profile.exchange_provider}.com`}
+                  href={`https://${profile.exchange_provider || "okx"}.com`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <ExternalLink className="h-4 w-4" />
-                  View on {profile.exchange_provider.toUpperCase()}
+                  View on {(profile.exchange_provider || "OKX").toUpperCase()}
                   <ArrowUpRight className="h-3 w-3" />
                 </a>
               </Button>
@@ -982,7 +1017,7 @@ export function TraderProfile() {
                         </p>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">
-                        Connected {profile.exchange_provider.toUpperCase()}{" "}
+                        Connected {(profile.exchange_provider || "OKX").toUpperCase()}{" "}
                         account on{" "}
                         {new Date(profile.created_at).toLocaleDateString()}
                       </p>

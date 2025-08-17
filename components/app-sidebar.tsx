@@ -233,20 +233,6 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-gray-100 bg-white p-4">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="h-10 px-3 hover:bg-gray-50 rounded-lg transition-colors duration-200"
-            >
-              <Link href="/settings" className="flex items-center gap-3">
-                <Settings className="h-4 w-4 text-gray-600" />
-                <span className="font-medium text-sm">Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-
         {/* Minimal Status Indicator */}
         {isAuthenticated && user && (
           <div className="mt-4 px-3 py-2 rounded-lg bg-green-50 border border-green-100">
