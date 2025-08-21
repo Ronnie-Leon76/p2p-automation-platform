@@ -1,15 +1,15 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
 import { PaymentService } from "@/lib/payments/payment-service"
+import { createServerClient } from "@/lib/supabase/server"
+import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       .from("team_members")
       .select("role")
       .eq("team_id", team_id)
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .single()
 
     if (teamError || !teamMember) {

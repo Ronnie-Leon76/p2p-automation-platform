@@ -1,5 +1,14 @@
 -- Comprehensive P2P Automation Platform Schema
 -- This migration sets up the complete database schema with secure authentication and P2P functionality
+--
+-- EXCHANGE DATA AUTOMATION:
+-- The exchange_user_id and exchange_provider fields in the users table are automatically populated when:
+-- 1. User saves their exchange API credentials (via OKX Configuration page)
+-- 2. System successfully fetches and caches their exchange profile data
+-- 3. Triggers automatically update the users table with their exchange identity
+--
+-- This ensures user profiles always reflect their current exchange connection status
+-- and allows for multi-exchange support by tracking which exchange they're using.
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -124,6 +133,19 @@ CREATE TABLE IF NOT EXISTS trader_metrics (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, metric_date)
+);
+
+-- User exchange data cache (stores fetched exchange data)
+CREATE TABLE IF NOT EXISTS user_exchange_data (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    exchange VARCHAR(50) NOT NULL,
+    data_type VARCHAR(50) NOT NULL, -- 'profile', 'balance', 'payment_methods'
+    data JSONB NOT NULL,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '1 hour'),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, exchange, data_type)
 );
 
 -- Exchange teams table
@@ -317,6 +339,9 @@ CREATE INDEX IF NOT EXISTS idx_team_exchange_credentials_team_id ON team_exchang
 CREATE INDEX IF NOT EXISTS idx_team_exchange_credentials_exchange ON team_exchange_credentials(exchange_provider);
 CREATE INDEX IF NOT EXISTS idx_exchange_team_members_team_id ON exchange_team_members(team_id);
 CREATE INDEX IF NOT EXISTS idx_exchange_team_members_user_id ON exchange_team_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_exchange_data_user_id ON user_exchange_data(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_exchange_data_expires ON user_exchange_data(expires_at);
+CREATE INDEX IF NOT EXISTS idx_user_exchange_data_lookup ON user_exchange_data(user_id, exchange, data_type);
 CREATE INDEX IF NOT EXISTS idx_trader_metrics_user_id ON trader_metrics(user_id);
 CREATE INDEX IF NOT EXISTS idx_trader_metrics_date ON trader_metrics(metric_date);
 CREATE INDEX IF NOT EXISTS idx_ads_user_id ON ads(user_id);
@@ -334,6 +359,7 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exchange_credentials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exchange_teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exchange_team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_exchange_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_exchange_credentials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trader_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ads ENABLE ROW LEVEL SECURITY;
@@ -416,6 +442,12 @@ BEGIN
         CREATE POLICY "Users can view their own security logs" ON security_logs 
         FOR SELECT USING (auth.uid() = user_id);
     END IF;
+    
+    -- User exchange data policies
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'user_exchange_data' AND policyname = 'Users can manage their own exchange data') THEN
+        CREATE POLICY "Users can manage their own exchange data" ON user_exchange_data 
+        FOR ALL USING (auth.uid() = user_id);
+    END IF;
 END $$;
 
 -- Functions for updated_at timestamps
@@ -472,3 +504,70 @@ COMMENT ON TABLE ads IS 'P2P trading advertisements';
 COMMENT ON TABLE orders IS 'P2P trading orders and transactions';
 COMMENT ON TABLE activity_logs IS 'User activity audit trail';
 COMMENT ON TABLE security_logs IS 'Security events and audit trail';
+
+-- Exchange Automation Functions and Triggers
+-- These functions automatically update user exchange information when credentials are saved or profile data is cached
+
+-- Function to automatically update user exchange info when credentials are saved
+CREATE OR REPLACE FUNCTION update_user_exchange_info()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Update the users table with exchange information when credentials are saved
+    UPDATE users
+    SET 
+        exchange_provider = NEW.exchange,
+        exchange_user_id = (
+            SELECT (data->>'userId')::text
+            FROM user_exchange_data
+            WHERE user_id = NEW.user_id
+            AND exchange = NEW.exchange
+            AND data_type IN ('profile', 'merchant_profile')
+            ORDER BY created_at DESC
+            LIMIT 1
+        ),
+        updated_at = NOW()
+    WHERE id = NEW.user_id;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger on exchange_credentials table
+DROP TRIGGER IF EXISTS trigger_update_user_exchange_info ON exchange_credentials;
+CREATE TRIGGER trigger_update_user_exchange_info
+    AFTER INSERT OR UPDATE ON exchange_credentials
+    FOR EACH ROW
+    EXECUTE FUNCTION update_user_exchange_info();
+
+-- Function to update user exchange info when profile data is cached
+CREATE OR REPLACE FUNCTION update_user_from_exchange_data()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only update for profile or merchant_profile data types
+    IF NEW.data_type IN ('profile', 'merchant_profile') THEN
+        UPDATE users
+        SET 
+            exchange_provider = NEW.exchange,
+            exchange_user_id = (NEW.data->>'userId')::text,
+            updated_at = NOW()
+        WHERE id = NEW.user_id
+        AND (exchange_user_id IS NULL OR exchange_user_id != (NEW.data->>'userId')::text);
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger on user_exchange_data table
+DROP TRIGGER IF EXISTS trigger_update_user_from_exchange_data ON user_exchange_data;
+CREATE TRIGGER trigger_update_user_from_exchange_data
+    AFTER INSERT OR UPDATE ON user_exchange_data
+    FOR EACH ROW
+    EXECUTE FUNCTION update_user_from_exchange_data();
+
+-- Add comments for the new functions
+COMMENT ON FUNCTION update_user_exchange_info() IS 'Automatically updates users table with exchange provider when credentials are saved';
+COMMENT ON FUNCTION update_user_from_exchange_data() IS 'Automatically updates users table with exchange user ID when profile data is cached';
+
+-- Index for better performance on exchange lookups
+CREATE INDEX IF NOT EXISTS idx_users_exchange_lookup ON users(exchange_provider, exchange_user_id) WHERE exchange_user_id IS NOT NULL;

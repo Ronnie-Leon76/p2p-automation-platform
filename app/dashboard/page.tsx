@@ -1,12 +1,13 @@
 ﻿"use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { DashboardOverview } from "@/components/dashboard-overview";
+import { DashboardOverview } from "@/components/dashboard-overview-enhanced";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { UserOnboarding } from "@/components/user-onboarding";
 
 export default function DashboardPage() {
   return (
@@ -23,6 +24,7 @@ export default function DashboardPage() {
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4">
+            <UserOnboarding />
             <DashboardOverview />
           </div>
         </SidebarInset>

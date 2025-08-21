@@ -1,15 +1,15 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
 import { PaymentService } from "@/lib/payments/payment-service"
+import { createServerClient } from "@/lib/supabase/server"
+import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const paymentService = new PaymentService()
-    const fileUrl = await paymentService.uploadPaymentProof(transactionId, orderId, file, session.user.id)
+    const fileUrl = await paymentService.uploadPaymentProof(transactionId, orderId, file, user.id)
 
     return NextResponse.json({ file_url: fileUrl })
   } catch (error) {

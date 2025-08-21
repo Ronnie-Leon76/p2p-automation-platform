@@ -29,6 +29,11 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { DataRefreshControl } from "@/components/data-refresh-control";
+import { useExchangeData } from "@/hooks/use-exchange-data";
+import { useMockAuth } from "@/hooks/use-mock-auth";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { isMockMode } from "@/lib/config/environment";
 import {
   AlertTriangle,
   ArrowDown,
@@ -351,6 +356,66 @@ const mockOrders: Order[] = [
     ],
   },
 ];
+
+// Convert exchange order data to our component format
+const convertExchangeOrderToOrder = (exchangeOrder: any): Order => {
+  return {
+    id: exchangeOrder.orderId || exchangeOrder.id || `order_${Date.now()}`,
+    side: exchangeOrder.side === "sell" ? "sell" : "buy",
+    cryptocurrency: exchangeOrder.cryptoCurrency || "USDT",
+    cryptoAmount: exchangeOrder.cryptoAmount || "0",
+    currency: exchangeOrder.fiatCurrency || "USD", 
+    fiatAmount: exchangeOrder.fiatAmount || "0",
+    unitPrice: exchangeOrder.unitPrice || "0",
+    orderStatus: convertExchangeOrderStatus(exchangeOrder.orderStatus),
+    paymentStatus: convertExchangePaymentStatus(exchangeOrder.paymentStatus),
+    paymentMethod: exchangeOrder.paymentMethod || "Bank Transfer",
+    paymentReference: exchangeOrder.paymentReference,
+    timeRemaining: exchangeOrder.timeRemaining,
+    createdAt: exchangeOrder.createTime || new Date().toISOString(),
+    updatedAt: exchangeOrder.updateTime || new Date().toISOString(),
+    completedAt: exchangeOrder.completedTime,
+    disputeReason: exchangeOrder.disputeReason,
+    counterparty: {
+      userId: exchangeOrder.counterparty?.userId || "unknown",
+      nickName: exchangeOrder.counterparty?.nickName || "Anonymous",
+      avatar: "",
+      completionRate: parseFloat(exchangeOrder.counterparty?.completionRate || "0"),
+      completedOrders: parseInt(exchangeOrder.counterparty?.completedOrders || "0"),
+    },
+    chatMessages: [],
+    creator_user_id: exchangeOrder.creatorUserId || "unknown",
+    current_user_role: exchangeOrder.side === "sell" ? "seller" : "buyer",
+  };
+};
+
+// Convert exchange order status to our format
+const convertExchangeOrderStatus = (status: string) => {
+  const statusMap: { [key: string]: Order["orderStatus"] } = {
+    "0": "pending",
+    "1": "payment_pending", 
+    "2": "paid",
+    "3": "completed",
+    "4": "cancelled",
+    "5": "disputed",
+    // Add more mappings as needed
+  };
+  return statusMap[status] || "pending";
+};
+
+// Convert exchange payment status to our format  
+const convertExchangePaymentStatus = (status: string) => {
+  const statusMap: { [key: string]: Order["paymentStatus"] } = {
+    "0": "unpaid",
+    "1": "payment_pending",
+    "2": "paid", 
+    "3": "confirmed",
+    "4": "disputed",
+    "5": "refunded",
+    // Add more mappings as needed
+  };
+  return statusMap[status] || "unpaid";
+};
 
 // Order Detail Dialog Component
 function OrderDetailDialog({
@@ -754,6 +819,22 @@ function OrderDetailDialog({
 }
 
 export function OrderManagement() {
+  // Use environment-appropriate auth
+  const supabaseAuth = useSupabaseAuth();
+  const mockAuth = isMockMode()
+    ? useMockAuth()
+    : { user: null, isAuthenticated: false, isLoading: false };
+
+  // Select auth based on environment
+  const { user, isAuthenticated } = isMockMode() ? mockAuth : supabaseAuth;
+
+  // Use the exchange data hook for live order data
+  const exchangeData = useExchangeData(user?.id || null, "okx", {
+    autoRefresh: true,
+    refreshInterval: 5, // More frequent refresh for orders (5 minutes)
+    includeTypes: ["orders"],
+  });
+
   const [orders, setOrders] = useState<Order[]>(mockOrders);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
@@ -761,6 +842,17 @@ export function OrderManagement() {
   const [filterSide, setFilterSide] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
+
+  // Convert exchange data to our order format when available
+  useEffect(() => {
+    if (exchangeData.orders?.data && Array.isArray(exchangeData.orders.data)) {
+      console.log("🔄 Converting exchange orders to component format");
+      const convertedOrders = exchangeData.orders.data.map((orderData: any) => 
+        convertExchangeOrderToOrder(orderData)
+      );
+      setOrders([...convertedOrders, ...mockOrders]); // Combine real and mock data
+    }
+  }, [exchangeData.orders?.data]);
 
   // Simulate real-time updates
   useEffect(() => {
@@ -977,6 +1069,15 @@ export function OrderManagement() {
                 comprehensive dispute handling
               </p>
             </div>
+            <DataRefreshControl
+              isRefreshing={exchangeData.isRefreshing}
+              lastRefresh={exchangeData.lastRefresh}
+              onRefresh={() => exchangeData.refreshData?.()}
+              onRefreshDataType={exchangeData.refreshDataType}
+              onClearCache={exchangeData.clearCacheAndReload}
+              getDataStatus={exchangeData.getDataStatus}
+              errors={exchangeData.errors}
+            />
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">

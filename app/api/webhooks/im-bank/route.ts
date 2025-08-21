@@ -1,10 +1,10 @@
-import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Verify webhook signature (implement based on I&M Bank documentation)
     const signature = request.headers.get("x-signature")

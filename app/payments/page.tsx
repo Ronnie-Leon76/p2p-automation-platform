@@ -1,5 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
-import { PaymentsOverview } from "@/components/payments-overview";
+import { PaymentsOverview } from "@/components/payments-overview-enhanced";
 import {
   SidebarInset,
   SidebarProvider,

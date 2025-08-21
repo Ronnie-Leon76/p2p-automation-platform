@@ -21,6 +21,7 @@ import type {
   GetOrdersResponse,
   MarkAsPaidParams,
   MarkAsPaidResponse,
+  MerchantProfileResponse,
   OptimalPriceResponse,
   P2PExchange,
   PaymentMethodsResponse,
@@ -415,6 +416,44 @@ export class OKXExchange implements P2PExchange {
       completedOrders: data?.completedOrders || "",
       completionRate: data?.completionRate || "",
       kycLevel: data?.kycLevel || "",
+    }
+  }
+
+  async getMerchantProfile(): Promise<MerchantProfileResponse> {
+    const response = await this.makeRequest("/api/v5/p2p/merchant/profile")
+    const data = response.data?.[0]
+    
+    console.log("🏪 OKX Merchant Profile Raw Response:", data)
+
+    return {
+      userId: data?.merchantId || "",
+      nickName: data?.nickName || "",
+      userType: data?.userType || "",
+      completedOrders: data?.completedBuyOrders || "0",
+      completionRate: data?.merchantInfo30DayOrderInfo?.[0]?.completionRate30Day || "0",
+      kycLevel: data?.isKycVerified ? "2" : "1",
+      totalOrderAmount: data?.commonOrderTotal || "0",
+      positiveRate: data?.positiveReviewPercentage || "0",
+      tradingVolume: data?.commonOrderTotal || "0",
+      avgReleaseTime: "0", // Not provided in this API
+      avgPayTime: "0", // Not provided in this API
+      totalTradingCount: data?.totalOrders || "0",
+      isMerchant: true, // This is always true for merchant profile
+      merchantLevel: data?.auditStatus === "1" ? "verified" : "unverified",
+      merchantScore: data?.positiveReviewPercentage || "0",
+      blockReasons: [],
+      isBlocked: data?.isDisabled || false,
+      registerTime: data?.merchantRegisteredTimestamp || "",
+      lastActiveTime: "",
+      avgConfirmTime: "0",
+      safetyLevel: data?.isKycVerified ? "high" : "medium",
+      tradingPreferences: {
+        acceptsNewTraders: true,
+        requiresKyc: data?.isKycVerified || false,
+        minOrderAmount: "0",
+        maxOrderAmount: "0",
+        preferredPaymentMethods: [],
+      },
     }
   }
 

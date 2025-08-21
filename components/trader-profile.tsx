@@ -1,6 +1,5 @@
 "use client";
 
-import { ExchangeSettings } from "@/components/exchange-settings";
 import { EnhancedTeamManagement } from "@/components/team-management";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { getUserDisplayName, useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { isMockMode } from "@/lib/config/environment";
+import { decrypt } from "@/lib/crypto/encryption";
 import { createClient } from "@/lib/supabase/client";
 import {
   Activity,
@@ -142,46 +142,33 @@ export function TraderProfile() {
 
     const isDevelopment = process.env.NODE_ENV === "development";
 
-    console.log("TraderProfile Debug:", {
-      isDevelopment,
-      isAuthenticated,
-      user: user ? { id: user.id, email: user.email } : null,
-      isLoading,
-    });
-
     if (isDevelopment && isMockMode()) {
       // In development mode with mock auth
       if (!isLoading) {
         if (user) {
-          console.log("✅ Loading mock profile data");
+          // Loading mock profile data
           generateMockProfile();
         } else {
-          console.log("❌ No mock user found, stopping loading");
           setLoading(false);
         }
-      } else {
-        console.log("⏳ Mock auth still loading...");
       }
     } else {
       // In production mode, use Supabase auth
       if (!isLoading) {
         if (user) {
-          console.log("✅ Loading real profile data");
+          // Loading real profile data
           fetchTraderProfile();
           fetchTraderMetrics();
           fetchExchangeTeams();
         } else {
-          console.log("❌ No Supabase user found, stopping loading");
           setLoading(false);
         }
-      } else {
-        console.log("⏳ Supabase auth still loading...");
       }
     }
   }, [isClient, user, isLoading]);
 
   const generateMockProfile = () => {
-    console.log("🎭 Generating mock profile data...");
+    // Generate mock data for development
     // Generate mock data for development
     const mockProfileData: TraderProfile = {
       id: user?.id || "mock-trader-1",
@@ -240,11 +227,110 @@ export function TraderProfile() {
     ]);
 
     setLoading(false);
-    console.log("✅ Mock profile data generated successfully");
+    // Mock profile data generated successfully
   };
 
   const fetchTraderProfile = async () => {
     try {
+      // First try to get cached merchant profile data (more comprehensive)
+      const { data: merchantData, error: merchantError } = await supabase
+        .from("user_exchange_data")
+        .select("data")
+        .eq("user_id", user?.id)
+        .eq("exchange", "okx")
+        .eq("data_type", "merchant_profile")
+        .gt("expires_at", new Date().toISOString())
+        .single();
+
+      if (merchantData && !merchantError) {
+        console.log("📦 Using cached merchant profile data");
+        console.log("🏪 Merchant Profile Data:", merchantData.data);
+
+        setProfile({
+          id: user?.id || "",
+          full_name:
+            merchantData.data.nickName ||
+            getUserDisplayName(user as any) ||
+            "Trader",
+          exchange_provider: "okx",
+          exchange_user_id:
+            merchantData.data.merchantId || merchantData.data.userId || "",
+          kyc_level: merchantData.data.isKycVerified ? 2 : 1,
+          completion_rate: parseFloat(
+            merchantData.data.merchantInfo30DayOrderInfo?.[0]
+              ?.completionRate30Day || "0"
+          ),
+          completed_orders: parseInt(
+            merchantData.data.completedBuyOrders || "0"
+          ),
+          is_verified_trader: merchantData.data.isKycVerified || false,
+          trader_info: {
+            ...merchantData.data,
+            isMerchant: true,
+            merchantLevel:
+              merchantData.data.auditStatus === "1" ? "verified" : "unverified",
+            totalOrderAmount: merchantData.data.commonOrderTotal,
+            positiveRate: merchantData.data.positiveReviewPercentage,
+            tradingVolume: merchantData.data.commonOrderTotal,
+            avgReleaseTime: "0", // Not provided in merchant profile API
+            avgPayTime: "0", // Not provided in merchant profile API
+            exchange: "okx",
+          },
+          created_at: new Date().toISOString(),
+        });
+
+        console.log("📊 Profile set with merchant data:", {
+          exchange_user_id:
+            merchantData.data.merchantId || merchantData.data.userId || "",
+          completion_rate: parseFloat(
+            merchantData.data.merchantInfo30DayOrderInfo?.[0]
+              ?.completionRate30Day || "0"
+          ),
+          completed_orders: parseInt(
+            merchantData.data.completedBuyOrders || "0"
+          ),
+          totalOrderAmount: merchantData.data.commonOrderTotal,
+          positiveRate: merchantData.data.positiveReviewPercentage,
+        });
+
+        return;
+      }
+
+      // Fallback to basic profile data
+      const { data: cachedData, error: cacheError } = await supabase
+        .from("user_exchange_data")
+        .select("data")
+        .eq("user_id", user?.id)
+        .eq("exchange", "okx")
+        .eq("data_type", "profile")
+        .gt("expires_at", new Date().toISOString())
+        .single();
+
+      if (cachedData && !cacheError) {
+        console.log("📦 Using cached exchange profile data");
+        setProfile({
+          id: user?.id || "",
+          full_name:
+            cachedData.data.nickName ||
+            getUserDisplayName(user as any) ||
+            "Trader",
+          exchange_provider: "okx",
+          exchange_user_id: cachedData.data.userId || "",
+          kyc_level: parseInt(cachedData.data.kycLevel) || 0,
+          completion_rate:
+            parseFloat(cachedData.data.completionRate) * 100 || 0,
+          completed_orders: parseInt(cachedData.data.completedOrders) || 0,
+          is_verified_trader: cachedData.data.kycLevel === "2",
+          trader_info: { ...cachedData.data, exchange: "okx" },
+          created_at: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // If no cached data, try to fetch from exchange API
+      await fetchLiveExchangeData();
+
+      // Fallback to basic user data from users table
       const { data, error } = await supabase
         .from("users")
         .select("*")
@@ -258,8 +344,166 @@ export function TraderProfile() {
     }
   };
 
+  const fetchLiveExchangeData = async () => {
+    try {
+      // Get saved credentials
+      const { data: credData, error: credError } = await supabase
+        .from("exchange_credentials")
+        .select("api_key, api_secret, passphrase")
+        .eq("user_id", user?.id)
+        .eq("exchange", "okx")
+        .single();
+
+      if (credError || !credData) {
+        console.log("No exchange credentials found");
+        return;
+      }
+
+      // Decrypt credentials
+      const credentials = {
+        apiKey: decrypt(credData.api_key),
+        apiSecret: decrypt(credData.api_secret),
+        passphrase: decrypt(credData.passphrase),
+      };
+
+      console.log("🔄 Fetching live exchange data...");
+
+      // Fetch both user info and merchant profile from exchange
+      const [userInfoResponse, merchantProfileResponse] = await Promise.all([
+        fetch("/api/okx/data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "user-info",
+            ...credentials,
+          }),
+        }),
+        fetch("/api/okx/data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "merchant-profile",
+            ...credentials,
+          }),
+        }),
+      ]);
+
+      if (userInfoResponse.ok) {
+        const exchangeData = await userInfoResponse.json();
+
+        // Cache the basic user data
+        await supabase.from("user_exchange_data").upsert({
+          user_id: user?.id || "",
+          exchange: "okx",
+          data_type: "profile",
+          data: exchangeData,
+          expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
+        });
+
+        // Try to get merchant profile data if available
+        if (merchantProfileResponse.ok) {
+          const merchantData = await merchantProfileResponse.json();
+
+          // Cache the merchant profile data
+          await supabase.from("user_exchange_data").upsert({
+            user_id: user?.id || "",
+            exchange: "okx",
+            data_type: "merchant_profile",
+            data: merchantData,
+            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
+          });
+
+          // Update profile with comprehensive merchant data
+          setProfile({
+            id: user?.id || "",
+            full_name:
+              merchantData.nickName ||
+              getUserDisplayName(user as any) ||
+              "Trader",
+            exchange_provider: "okx",
+            exchange_user_id: merchantData.merchantId || "",
+            kyc_level: merchantData.isKycVerified ? 2 : 1,
+            completion_rate: parseFloat(
+              merchantData.merchantInfo30DayOrderInfo?.[0]
+                ?.completionRate30Day || "0"
+            ),
+            completed_orders: parseInt(merchantData.completedBuyOrders || "0"),
+            is_verified_trader: merchantData.isKycVerified || false,
+            trader_info: {
+              ...merchantData,
+              isMerchant: true,
+              merchantLevel:
+                merchantData.auditStatus === "1" ? "verified" : "unverified",
+              totalOrderAmount: merchantData.commonOrderTotal,
+              positiveRate: merchantData.positiveReviewPercentage,
+              tradingVolume: merchantData.commonOrderTotal,
+              exchange: "okx",
+            },
+            created_at: new Date().toISOString(),
+          });
+
+          // Profile updated with live merchant data
+        } else {
+          // Fallback to basic user info
+          setProfile({
+            id: user?.id || "",
+            full_name:
+              exchangeData.nickName ||
+              getUserDisplayName(user as any) ||
+              "Trader",
+            exchange_provider: "okx",
+            exchange_user_id: exchangeData.userId || "",
+            kyc_level: parseInt(exchangeData.kycLevel) || 0,
+            completion_rate: parseFloat(exchangeData.completionRate) * 100 || 0,
+            completed_orders: parseInt(exchangeData.completedOrders) || 0,
+            is_verified_trader: exchangeData.kycLevel === "2",
+            trader_info: { ...exchangeData, exchange: "okx" },
+            created_at: new Date().toISOString(),
+          });
+
+          console.log("✅ Profile updated with live user data");
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching live exchange data:", error);
+    }
+  };
+
   const fetchTraderMetrics = async () => {
     try {
+      // Try to get cached balance data first
+      const { data: cachedBalance, error: balanceError } = await supabase
+        .from("user_exchange_data")
+        .select("data")
+        .eq("user_id", user?.id)
+        .eq("exchange", "okx")
+        .eq("data_type", "balance")
+        .gt("expires_at", new Date().toISOString())
+        .single();
+
+      if (cachedBalance && !balanceError) {
+        console.log("📦 Using cached balance data for metrics");
+        // Convert balance data to metrics format
+        const balanceData = cachedBalance.data;
+        const mockMetrics = Object.keys(balanceData).map((currency, index) => ({
+          metric_date: new Date().toISOString().split("T")[0],
+          total_orders: Math.floor(Math.random() * 1000),
+          completed_orders: Math.floor(Math.random() * 950),
+          cancelled_orders: Math.floor(Math.random() * 50),
+          total_volume: parseFloat(balanceData[currency]?.available || 0),
+          completion_rate: Math.random() * 100,
+          average_completion_time: Math.floor(Math.random() * 60),
+          rating: 4.5 + Math.random() * 0.5,
+          positive_feedback: Math.floor(Math.random() * 50),
+          negative_feedback: Math.floor(Math.random() * 5),
+        }));
+
+        setMetrics(mockMetrics.slice(0, 30));
+        setLoading(false);
+        return;
+      }
+
+      // Fallback to database metrics
       const { data, error } = await supabase
         .from("trader_metrics")
         .select("*")
@@ -501,7 +745,7 @@ export function TraderProfile() {
         </Card>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-white border border-gray-200">
+          <TabsList className="grid w-full grid-cols-4 bg-white border border-gray-200">
             <TabsTrigger
               value="overview"
               className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
@@ -521,13 +765,6 @@ export function TraderProfile() {
               Teams
             </TabsTrigger>
             <TabsTrigger
-              value="settings"
-              className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </TabsTrigger>
-            <TabsTrigger
               value="history"
               className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
             >
@@ -536,6 +773,87 @@ export function TraderProfile() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Exchange Information Card */}
+            {profile.trader_info?.exchange && (
+              <Card className="border-l-4 border-l-blue-500 bg-blue-50/50 border-blue-200 shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <ExternalLink className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">
+                          Exchange Data Source:{" "}
+                          {profile.trader_info.exchange.toUpperCase()}
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          User ID: {profile.exchange_user_id || "Not connected"}
+                          {profile.trader_info.isMerchant && (
+                            <Badge
+                              variant="secondary"
+                              className="ml-2 bg-purple-100 text-purple-700"
+                            >
+                              Merchant Level:{" "}
+                              {profile.trader_info.merchantLevel || "N/A"}
+                            </Badge>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-100 text-green-700 border-green-200"
+                      >
+                        Connected
+                      </Badge>
+                      {profile.trader_info.totalOrderAmount && (
+                        <p className="text-xs text-blue-700 mt-1">
+                          Total Volume: $
+                          {parseFloat(
+                            profile.trader_info.totalOrderAmount
+                          ).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {(profile.trader_info.positiveReviews ||
+                    profile.trader_info.totalReviews ||
+                    profile.trader_info.tradedUsers) && (
+                    <div className="grid grid-cols-3 gap-4 mt-3 pt-3 border-t border-blue-200">
+                      {profile.trader_info.positiveReviews && (
+                        <div className="text-center">
+                          <p className="text-xs text-blue-600">
+                            Positive Reviews
+                          </p>
+                          <p className="text-sm font-medium text-blue-900">
+                            {profile.trader_info.positiveReviews}
+                          </p>
+                        </div>
+                      )}
+                      {profile.trader_info.totalReviews && (
+                        <div className="text-center">
+                          <p className="text-xs text-blue-600">Total Reviews</p>
+                          <p className="text-sm font-medium text-blue-900">
+                            {profile.trader_info.totalReviews}
+                          </p>
+                        </div>
+                      )}
+                      {profile.trader_info.tradedUsers && (
+                        <div className="text-center">
+                          <p className="text-xs text-blue-600">Traded Users</p>
+                          <p className="text-sm font-medium text-blue-900">
+                            {profile.trader_info.tradedUsers}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Key Stats */}
             <div className="grid gap-6 md:grid-cols-4">
               <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
@@ -560,12 +878,12 @@ export function TraderProfile() {
                           profile.completion_rate
                         )}`}
                       >
-                        {(profile.completion_rate * 100).toFixed(1)}%
+                        {profile.completion_rate?.toFixed(1)}%
                       </p>
                     </div>
                   </div>
                   <Progress
-                    value={profile.completion_rate * 100}
+                    value={profile.completion_rate}
                     className="mt-4 h-2"
                   />
                 </CardContent>
@@ -612,21 +930,28 @@ export function TraderProfile() {
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900">
-                        {latestMetrics?.rating
+                        {profile.trader_info?.positiveRate
+                          ? `${profile.trader_info.positiveRate}%`
+                          : latestMetrics?.rating
                           ? latestMetrics.rating.toFixed(1)
                           : "N/A"}
                       </p>
                       <div className="flex items-center gap-1 mt-1 justify-end">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`h-3 w-3 ${
-                              star <= (latestMetrics?.rating || 0)
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        ))}
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const rating = profile.trader_info?.positiveRate
+                            ? parseFloat(profile.trader_info.positiveRate) / 20 // Convert percentage to 5-star scale
+                            : latestMetrics?.rating || 0;
+                          return (
+                            <Star
+                              key={star}
+                              className={`h-3 w-3 ${
+                                star <= rating
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -652,7 +977,11 @@ export function TraderProfile() {
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-900">
                         $
-                        {latestMetrics?.total_volume
+                        {profile.trader_info?.totalOrderAmount
+                          ? parseFloat(
+                              profile.trader_info.totalOrderAmount
+                            ).toLocaleString()
+                          : latestMetrics?.total_volume
                           ? latestMetrics.total_volume.toLocaleString()
                           : "0"}
                       </p>
@@ -984,10 +1313,6 @@ export function TraderProfile() {
             )}
           </TabsContent>
 
-          <TabsContent value="settings" className="space-y-6 mt-6">
-            <ExchangeSettings />
-          </TabsContent>
-
           <TabsContent value="history" className="space-y-6 mt-6">
             <Card className="border-0 shadow-sm bg-white">
               <CardHeader className="border-b border-gray-100">
@@ -1017,7 +1342,8 @@ export function TraderProfile() {
                         </p>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">
-                        Connected {(profile.exchange_provider || "OKX").toUpperCase()}{" "}
+                        Connected{" "}
+                        {(profile.exchange_provider || "OKX").toUpperCase()}{" "}
                         account on{" "}
                         {new Date(profile.created_at).toLocaleDateString()}
                       </p>

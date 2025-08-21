@@ -1,6 +1,6 @@
-import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { headers } from "next/headers"
+import { type NextRequest, NextResponse } from "next/server"
 
 interface MPesaSTKCallback {
   Body: {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Log all webhook requests for debugging and audit
     const webhookLog = await supabase
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     // Log the error
     try {
-      const supabase = createServerClient()
+      const supabase = await createServerClient()
       const headersList = await headers()
       await supabase.from("webhook_logs").insert({
         provider_id: "mpesa",

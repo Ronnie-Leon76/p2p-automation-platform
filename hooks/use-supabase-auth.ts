@@ -18,13 +18,13 @@ export function useSupabaseAuth(): AuthState {
   useEffect(() => {
     const supabase = createClient();
 
-    // Get initial session
-    const getSession = async () => {
+    // Get initial user
+    const getUser = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { user }, error } = await supabase.auth.getUser();
         
-        if (session?.user && !error) {
-          setUser(session.user);
+        if (user && !error) {
+          setUser(user);
           setIsAuthenticated(true);
         } else {
           setUser(null);
@@ -39,7 +39,7 @@ export function useSupabaseAuth(): AuthState {
       }
     };
 
-    getSession();
+    getUser();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

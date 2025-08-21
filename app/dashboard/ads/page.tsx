@@ -1,4 +1,4 @@
-import { AdManagement } from "@/components/ad-management";
+import { AdManagement } from "@/components/ad-management-enhanced";
 import { AppSidebar } from "@/components/app-sidebar";
 import {
   SidebarInset,

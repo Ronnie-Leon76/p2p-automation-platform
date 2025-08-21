@@ -17,6 +17,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { decrypt } from "@/lib/crypto/encryption";
 import { createClient } from "@/lib/supabase/client";
 import {
   CheckCircle,
@@ -60,7 +61,48 @@ export default function OKXExchangePage() {
   // Load saved credentials on component mount
   useEffect(() => {
     loadSavedCredentials();
+    loadCachedData();
   }, []);
+
+  const loadCachedData = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Load cached exchange data
+      const { data: cachedData, error } = await supabase
+        .from("user_exchange_data")
+        .select("data_type, data, expires_at")
+        .eq("user_id", user.id)
+        .eq("exchange", "okx")
+        .gt("expires_at", new Date().toISOString()); // Only non-expired data
+
+      if (cachedData && !error && cachedData.length > 0) {
+        const userData: any = { isConnected: true };
+
+        cachedData.forEach((item) => {
+          switch (item.data_type) {
+            case "profile":
+              userData.userInfo = item.data;
+              break;
+            case "balance":
+              userData.balance = item.data;
+              break;
+            case "payment_methods":
+              userData.paymentMethods = item.data;
+              break;
+          }
+        });
+
+        setUserData(userData);
+        console.log("✅ Loaded cached exchange data");
+      }
+    } catch (error) {
+      console.error("Error loading cached data:", error);
+    }
+  };
 
   const loadSavedCredentials = async () => {
     try {
@@ -78,14 +120,19 @@ export default function OKXExchangePage() {
 
       if (data && !error) {
         const creds = {
-          apiKey: data.api_key || "",
-          apiSecret: data.api_secret || "",
-          passphrase: data.passphrase || "",
+          apiKey: decrypt(data.api_key || ""),
+          apiSecret: decrypt(data.api_secret || ""),
+          passphrase: decrypt(data.passphrase || ""),
         };
         setCredentials(creds);
 
-        // Test connection with saved credentials
-        if (creds.apiKey && creds.apiSecret && creds.passphrase) {
+        // Test connection with saved credentials if not already loaded from cache
+        if (
+          creds.apiKey &&
+          creds.apiSecret &&
+          creds.passphrase &&
+          !userData.isConnected
+        ) {
           await loadUserData(creds);
         }
       }

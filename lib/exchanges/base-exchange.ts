@@ -27,6 +27,7 @@ export interface P2PExchange {
 
   // User Management
   getUserInfo(): Promise<UserInfoResponse>
+  getMerchantProfile(): Promise<MerchantProfileResponse>
   getBalance(currency: string): Promise<BalanceResponse>
 
   // Payment Methods
@@ -230,6 +231,37 @@ export interface UserInfoResponse {
   completedOrders: string
   completionRate: string
   kycLevel: string
+}
+
+export interface MerchantProfileResponse {
+  userId: string
+  nickName: string
+  userType: string
+  completedOrders: string
+  completionRate: string
+  kycLevel: string
+  totalOrderAmount: string
+  positiveRate: string
+  tradingVolume: string
+  avgReleaseTime: string
+  avgPayTime: string
+  totalTradingCount: string
+  isMerchant: boolean
+  merchantLevel: string
+  merchantScore: string
+  blockReasons: string[]
+  isBlocked: boolean
+  registerTime: string
+  lastActiveTime: string
+  avgConfirmTime: string
+  safetyLevel: string
+  tradingPreferences: {
+    acceptsNewTraders: boolean
+    requiresKyc: boolean
+    minOrderAmount: string
+    maxOrderAmount: string
+    preferredPaymentMethods: string[]
+  }
 }
 
 export interface BalanceResponse {

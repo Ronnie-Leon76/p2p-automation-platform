@@ -1,7 +1,21 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { decrypt } from "@/lib/crypto/encryption"
 import { OKXExchange } from "@/lib/exchanges/okx-exchange"
 import { createServerClient } from "@/lib/supabase/server"
+import { type NextRequest, NextResponse } from "next/server"
 
+// Helper function to handle OKX API errors
+function handleOKXError(error: unknown, action: string) {
+  console.error(`Failed to ${action}:`, error)
+  if (error instanceof Error && error.message.includes('401')) {
+    return NextResponse.json({ 
+      error: "Invalid OKX API credentials. Please update your credentials.",
+      action: "credentials_invalid"
+    }, { status: 401 })
+  }
+  return NextResponse.json({ error: `Failed to ${action}` }, { status: 500 })
+}
+
+// POST handler for actions that modify data (kept for backwards compatibility)
 export async function POST(request: NextRequest) {
   try {
     const { action, apiKey, apiSecret, passphrase, currency } = await request.json()
@@ -41,6 +55,61 @@ export async function POST(request: NextRequest) {
         } catch (error) {
           console.error("Failed to get user info:", error)
           return NextResponse.json({ error: "Failed to get user information" }, { status: 500 })
+        }
+
+      case "merchant-profile":
+        try {
+          const merchantProfile = await okxExchange.getMerchantProfile()
+          return NextResponse.json(merchantProfile)
+        } catch (error) {
+          console.error("Failed to get merchant profile:", error)
+          return NextResponse.json({ error: "Failed to get merchant profile" }, { status: 500 })
+        }
+
+      case "balances":
+        try {
+          // Get all major currency balances
+          const currencies = ['USDT', 'BTC', 'ETH', 'BNB', 'USDC'];
+          const balances: Record<string, any> = {};
+          
+          await Promise.all(currencies.map(async (curr) => {
+            try {
+              const balance = await okxExchange.getBalance(curr);
+              if (balance.availableAmount !== "0" || balance.onHoldAmount !== "0") {
+                balances[curr] = balance;
+              }
+            } catch (error) {
+              console.warn(`Failed to get ${curr} balance:`, error);
+              // Continue with other currencies
+            }
+          }));
+
+          return NextResponse.json(balances);
+        } catch (error) {
+          console.error("Failed to get balances:", error)
+          return NextResponse.json({ error: "Failed to get account balances" }, { status: 500 })
+        }
+
+      case "payment-methods":
+        try {
+          const paymentMethods = await okxExchange.getPaymentMethods()
+          return NextResponse.json(paymentMethods)
+        } catch (error) {
+          console.error("Failed to get payment methods:", error)
+          return NextResponse.json({ error: "Failed to get payment methods" }, { status: 500 })
+        }
+
+      case "orders":
+        try {
+          // Get recent orders with pagination
+          const orders = await okxExchange.getOrders({ 
+            pageIndex: "0",
+            pageSize: "50" // Get last 50 orders
+          })
+          return NextResponse.json(orders)
+        } catch (error) {
+          console.error("Failed to get merchant profile:", error)
+          return NextResponse.json({ error: "Failed to get merchant profile" }, { status: 500 })
         }
 
       case "balance":
@@ -98,7 +167,7 @@ export async function GET(request: NextRequest) {
     const action = searchParams.get("action")
 
     // For GET requests, we need to get credentials from the database
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     
     // Get the authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -117,14 +186,22 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (credError || !credentials) {
-      return NextResponse.json({ error: "OKX credentials not found" }, { status: 404 })
+      return NextResponse.json({ 
+        error: "OKX credentials not found. Please set up your OKX API credentials.",
+        action: "setup_required"
+      }, { status: 404 })
     }
+
+    // Decrypt the credentials
+    const decryptedApiKey = decrypt(credentials.api_key);
+    const decryptedApiSecret = decrypt(credentials.api_secret);
+    const decryptedPassphrase = decrypt(credentials.passphrase);
 
     // Create OKX exchange instance
     const okxExchange = new OKXExchange(
-      credentials.api_key,
-      credentials.api_secret,
-      credentials.passphrase
+      decryptedApiKey,
+      decryptedApiSecret,
+      decryptedPassphrase
     )
 
     if (!okxExchange.isConnected) {
@@ -179,6 +256,28 @@ export async function GET(request: NextRequest) {
         } catch (error) {
           console.error("Failed to get payment methods:", error)
           return NextResponse.json({ error: "Failed to get payment methods" }, { status: 500 })
+        }
+
+      case "merchant-profile":
+        try {
+          const merchantProfile = await okxExchange.getMerchantProfile()
+          return NextResponse.json(merchantProfile)
+        } catch (error) {
+          console.error("Failed to get merchant profile:", error)
+          return NextResponse.json({ error: "Failed to get merchant profile" }, { status: 500 })
+        }
+
+      case "orders":
+        try {
+          // Get recent orders with pagination
+          const orders = await okxExchange.getOrders({ 
+            pageIndex: "0",
+            pageSize: "50" // Get last 50 orders
+          })
+          return NextResponse.json(orders)
+        } catch (error) {
+          console.error("Failed to get orders:", error)
+          return NextResponse.json({ error: "Failed to get orders" }, { status: 500 })
         }
 
       default:

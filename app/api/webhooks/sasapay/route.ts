@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
   try {
     const headersList = await headers()
     const body = await request.json()
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     console.log("SasaPay webhook received:", body)
 
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     // Log the error
     try {
-      const supabase = createServerClient()
+      const supabase = await createServerClient()
       const headersList = await headers()
       await supabase.from("webhook_logs").insert({
         provider_id: "sasapay",

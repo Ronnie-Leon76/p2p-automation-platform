@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 const TraderProfile = dynamic(
   () =>
-    import("@/components/trader-profile").then((mod) => ({
+    import("@/components/trader-profile-enhanced").then((mod) => ({
       default: mod.TraderProfile,
     })),
   {
