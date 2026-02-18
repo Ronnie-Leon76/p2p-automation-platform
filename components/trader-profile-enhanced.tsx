@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useExchangeData } from "@/hooks/use-exchange-data";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { getUserDisplayName, useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import { isMockMode } from "@/lib/config/environment";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -388,8 +389,7 @@ export function TraderProfile() {
     if (!user?.id) return;
 
     try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
+      const supabase = getBrowserDbClient();
 
       const { data, error } = await supabase
         .from("user_preferences")
@@ -417,8 +417,7 @@ export function TraderProfile() {
 
     setPreferencesLoading(true);
     try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
+      const supabase = getBrowserDbClient();
 
       const { error } = await supabase.from("user_preferences").upsert({
         user_id: user.id,

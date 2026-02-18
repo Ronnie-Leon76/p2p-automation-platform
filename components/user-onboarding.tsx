@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import {
   AlertCircle,
   ArrowRight,
@@ -36,7 +36,7 @@ export function UserOnboarding() {
   const [completionPercentage, setCompletionPercentage] = useState(0);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = getBrowserDbClient();
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -219,3 +219,4 @@ export function UserOnboarding() {
     </Card>
   );
 }
+

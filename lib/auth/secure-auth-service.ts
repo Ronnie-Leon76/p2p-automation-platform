@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client';
+import { getBrowserDbClient } from '@/lib/composition/browser-db-composer';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -36,7 +36,7 @@ export interface UserSession {
 }
 
 export class SecureAuthService {
-  private supabase = createClient();
+  private supabase = getBrowserDbClient();
 
   /**
    * Register a new user with crypto-grade security
@@ -571,3 +571,4 @@ export class SecureAuthService {
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUrl)}`;
   }
 }
+

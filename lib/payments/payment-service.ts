@@ -1,10 +1,10 @@
-import { createClient } from "@/lib/supabase/client"
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import { MPesaProvider } from "./mpesa"
 import { IMBankProvider } from "./im-bank"
 import type { PaymentProvider, PaymentTransaction, InitiatePaymentRequest, PaymentStatusResponse } from "./types"
 
 export class PaymentService {
-  private supabase = createClient()
+  private supabase = getBrowserDbClient()
 
   async getTeamPaymentProviders(teamId: string): Promise<PaymentProvider[]> {
     const { data, error } = await this.supabase
@@ -262,3 +262,4 @@ export class PaymentService {
     return cloudinaryData.secure_url
   }
 }
+

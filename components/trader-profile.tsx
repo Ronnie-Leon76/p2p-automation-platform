@@ -17,7 +17,7 @@ import { useMockAuth } from "@/hooks/use-mock-auth";
 import { getUserDisplayName, useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { isMockMode } from "@/lib/config/environment";
 import { decrypt } from "@/lib/crypto/encryption";
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import {
   Activity,
   ArrowUpRight,
@@ -99,7 +99,7 @@ export function TraderProfile() {
     ? mockAuth
     : supabaseAuth;
 
-  const supabase = createClient();
+  const supabase = getBrowserDbClient();
 
   // Function to determine user role based on profile data
   const determineUserRole = (userProfile: TraderProfile): UserRole => {
@@ -1393,3 +1393,4 @@ export function TraderProfile() {
     </div>
   );
 }
+

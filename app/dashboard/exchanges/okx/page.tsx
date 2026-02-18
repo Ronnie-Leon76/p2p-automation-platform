@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { decrypt } from "@/lib/crypto/encryption";
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import {
   CheckCircle,
   CreditCard,
@@ -56,7 +56,7 @@ export default function OKXExchangePage() {
 
   const [loading, setLoading] = useState(false);
 
-  const supabase = createClient();
+  const supabase = getBrowserDbClient();
 
   // Load saved credentials on component mount
   useEffect(() => {
@@ -636,3 +636,4 @@ export default function OKXExchangePage() {
     </div>
   );
 }
+

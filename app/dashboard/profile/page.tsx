@@ -6,7 +6,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -27,7 +27,7 @@ const TraderProfile = dynamic(
 export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = getBrowserDbClient();
 
   useEffect(() => {
     // Client-side auth check for production
@@ -72,3 +72,4 @@ export default function ProfilePage() {
     </SidebarProvider>
   );
 }
+

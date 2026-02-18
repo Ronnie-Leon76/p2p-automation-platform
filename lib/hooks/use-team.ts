@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import { useAuth } from "./use-auth"
 
 interface Team {
@@ -29,7 +29,7 @@ export function useTeam() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
-  const supabase = createClient()
+  const supabase = getBrowserDbClient()
 
   useEffect(() => {
     if (!user) {
@@ -147,3 +147,4 @@ export function useTeam() {
     switchTeam,
   }
 }
+

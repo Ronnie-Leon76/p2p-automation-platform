@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTeam } from "@/lib/hooks/use-team";
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import {
   AlertCircle,
   ArrowUpRight,
@@ -86,7 +86,7 @@ export function PaymentIntegration({ orderId }: { orderId: string }) {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isProofDialogOpen, setIsProofDialogOpen] = useState(false);
   const { currentTeam } = useTeam();
-  const supabase = createClient();
+  const supabase = getBrowserDbClient();
 
   useEffect(() => {
     if (currentTeam) {
@@ -792,3 +792,4 @@ export function PaymentIntegration({ orderId }: { orderId: string }) {
     </div>
   );
 }
+

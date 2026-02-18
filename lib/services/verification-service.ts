@@ -3,7 +3,7 @@
  * Handles email and phone number verification functionality
  */
 
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 
 export interface VerificationStatus {
   email: {
@@ -26,7 +26,7 @@ export interface VerificationResult {
 }
 
 export class VerificationService {
-  private supabase = createClient();
+  private supabase = getBrowserDbClient();
 
   /**
    * Get current verification status for user
@@ -204,3 +204,4 @@ export class VerificationService {
 }
 
 export const verificationService = new VerificationService();
+

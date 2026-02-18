@@ -4,7 +4,7 @@
  */
 
 import { decrypt } from "@/lib/crypto/encryption";
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 
 export interface ExchangeDataOptions {
   forceRefresh?: boolean;
@@ -34,7 +34,7 @@ export interface DataRefreshEvent {
 
 export class ExchangeDataService {
   private static instance: ExchangeDataService | null = null;
-  private supabase = createClient();
+  private supabase = getBrowserDbClient();
   private refreshListeners: Set<(event: DataRefreshEvent) => void> = new Set();
   private refreshPromises: Map<string, Promise<any>> = new Map();
   private fetchPromises: Map<string, Promise<any>> = new Map(); // Add fetch deduplication
@@ -458,3 +458,4 @@ export class ExchangeDataService {
 
 // Singleton instance
 export const exchangeDataService = ExchangeDataService.getInstance();
+

@@ -2,7 +2,7 @@
 // Production-ready activity logs service with optimized queries
 // No manual SQL patches needed - everything handled automatically
 
-import { createClient } from '@/lib/supabase/client';
+import { getBrowserDbClient } from '@/lib/composition/browser-db-composer';
 
 export interface ActivityLog {
   id: string;
@@ -44,7 +44,7 @@ export interface ActivityLogWithUser extends Omit<ActivityLog, 'user_id'> {
  * Optimized for high performance with proper indexing
  */
 export class ActivityLogsService {
-  private supabase = createClient();
+  private supabase = getBrowserDbClient();
 
   /**
    * Get user activity logs (optimized with proper indexes)
@@ -295,3 +295,4 @@ export class ActivityLogsService {
 
 // Export singleton instance
 export const activityLogsService = new ActivityLogsService();
+

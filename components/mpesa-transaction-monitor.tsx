@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,7 +28,7 @@ interface MPesaTransactionMonitorProps {
 export function MPesaTransactionMonitor({ orderId, teamId }: MPesaTransactionMonitorProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const supabase = getBrowserDbClient()
 
   useEffect(() => {
     fetchTransactions()

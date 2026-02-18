@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client"
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 
 export interface ExchangeOAuthConfig {
   clientId: string
@@ -10,7 +10,7 @@ export interface ExchangeOAuthConfig {
 }
 
 export class ExchangeOAuthService {
-  private supabase = createClient()
+  private supabase = getBrowserDbClient()
 
   async getOAuthConfig(exchange: string): Promise<ExchangeOAuthConfig | null> {
     const { data, error } = await this.supabase
@@ -105,3 +105,4 @@ export class ExchangeOAuthService {
     return response.json()
   }
 }
+

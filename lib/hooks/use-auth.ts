@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
-import { createClient } from "@/lib/supabase/client"
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const supabase = getBrowserDbClient()
 
   useEffect(() => {
     const getUser = async () => {
@@ -32,3 +32,4 @@ export function useAuth() {
 
   return { user, loading }
 }
+

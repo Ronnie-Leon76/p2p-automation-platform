@@ -3,7 +3,7 @@
  * Provides fake login/signup functionality to test authenticated features
  */
 
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 
 export interface MockUser {
   id: string;
@@ -22,7 +22,7 @@ export interface MockUser {
 
 export class MockAuthService {
   private static instance: MockAuthService;
-  private supabase = createClient();
+  private supabase = getBrowserDbClient();
 
   static getInstance(): MockAuthService {
     if (!MockAuthService.instance) {
@@ -210,3 +210,4 @@ export class MockAuthService {
     return process.env.NODE_ENV === 'development';
   }
 }
+

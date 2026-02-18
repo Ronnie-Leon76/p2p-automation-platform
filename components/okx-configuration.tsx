@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { decrypt, encrypt } from "@/lib/crypto/encryption";
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import {
   AlertCircle,
   CheckCircle,
@@ -53,7 +53,7 @@ export function OKXConfiguration({
   const [isEditing, setIsEditing] = useState(false);
   const [credentialsData, setCredentialsData] = useState<any>(null);
 
-  const supabase = createClient();
+  const supabase = getBrowserDbClient();
 
   // Cache exchange data after successful API calls
   const cacheExchangeData = async (creds: typeof credentials) => {
@@ -784,3 +784,4 @@ export function OKXConfiguration({
     </div>
   );
 }
+
