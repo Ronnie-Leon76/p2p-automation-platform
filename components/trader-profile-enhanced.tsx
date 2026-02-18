@@ -22,7 +22,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useExchangeData } from "@/hooks/use-exchange-data";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { getUserDisplayName, useSupabaseAuth } from "@/hooks/use-supabase-auth";
-import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import { isMockMode } from "@/lib/config/environment";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -389,21 +388,17 @@ export function TraderProfile() {
     if (!user?.id) return;
 
     try {
-      const supabase = getBrowserDbClient();
+      const response = await fetch("/api/user/preferences", { cache: "no-store" });
+      if (!response.ok) return;
+      const payload = await response.json();
 
-      const { data, error } = await supabase
-        .from("user_preferences")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (data && !error) {
+      if (payload.preferences) {
         setPreferences((prev) => ({
           ...prev,
-          ...data,
+          ...payload.preferences,
           notification_settings:
-            data.notification_settings || prev.notification_settings,
-          risk_management: data.risk_management || prev.risk_management,
+            payload.preferences.notification_settings || prev.notification_settings,
+          risk_management: payload.preferences.risk_management || prev.risk_management,
         }));
       }
     } catch (error) {
@@ -417,28 +412,20 @@ export function TraderProfile() {
 
     setPreferencesLoading(true);
     try {
-      const supabase = getBrowserDbClient();
-
-      const { error } = await supabase.from("user_preferences").upsert({
-        user_id: user.id,
-        ...preferences,
-        updated_at: new Date().toISOString(),
+      const response = await fetch("/api/user/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(preferences),
       });
 
-      if (!error) {
-        // Mark profile as complete
-        await supabase
-          .from("users")
-          .update({ profile_complete: true })
-          .eq("id", user.id);
-
-        // Show success message
-        console.log("✅ Preferences saved successfully");
+      if (response.ok) {
+        console.log("Preferences saved successfully");
       } else {
-        console.error("❌ Error saving preferences:", error);
+        const error = await response.json();
+        console.error("Error saving preferences:", error);
       }
     } catch (error) {
-      console.error("❌ Error saving preferences:", error);
+      console.error("Error saving preferences:", error);
     } finally {
       setPreferencesLoading(false);
     }

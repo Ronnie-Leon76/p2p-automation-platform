@@ -17,8 +17,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { decrypt } from "@/lib/crypto/encryption";
-import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import {
   CheckCircle,
   CreditCard,
@@ -56,88 +54,22 @@ export default function OKXExchangePage() {
 
   const [loading, setLoading] = useState(false);
 
-  const supabase = getBrowserDbClient();
-
-  // Load saved credentials on component mount
   useEffect(() => {
-    loadSavedCredentials();
     loadCachedData();
   }, []);
 
   const loadCachedData = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Load cached exchange data
-      const { data: cachedData, error } = await supabase
-        .from("user_exchange_data")
-        .select("data_type, data, expires_at")
-        .eq("user_id", user.id)
-        .eq("exchange", "okx")
-        .gt("expires_at", new Date().toISOString()); // Only non-expired data
-
-      if (cachedData && !error && cachedData.length > 0) {
-        const userData: any = { isConnected: true };
-
-        cachedData.forEach((item) => {
-          switch (item.data_type) {
-            case "profile":
-              userData.userInfo = item.data;
-              break;
-            case "balance":
-              userData.balance = item.data;
-              break;
-            case "payment_methods":
-              userData.paymentMethods = item.data;
-              break;
-          }
-        });
-
-        setUserData(userData);
-        console.log("✅ Loaded cached exchange data");
+      const response = await fetch("/api/okx/client-state", { cache: "no-store" });
+      if (!response.ok) {
+        return;
+      }
+      const payload = await response.json();
+      if (payload?.state) {
+        setUserData(payload.state);
       }
     } catch (error) {
       console.error("Error loading cached data:", error);
-    }
-  };
-
-  const loadSavedCredentials = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("exchange_credentials")
-        .select("api_key, api_secret, passphrase")
-        .eq("user_id", user.id)
-        .eq("exchange", "okx")
-        .single();
-
-      if (data && !error) {
-        const creds = {
-          apiKey: decrypt(data.api_key || ""),
-          apiSecret: decrypt(data.api_secret || ""),
-          passphrase: decrypt(data.passphrase || ""),
-        };
-        setCredentials(creds);
-
-        // Test connection with saved credentials if not already loaded from cache
-        if (
-          creds.apiKey &&
-          creds.apiSecret &&
-          creds.passphrase &&
-          !userData.isConnected
-        ) {
-          await loadUserData(creds);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading credentials:", error);
     }
   };
 
@@ -636,4 +568,5 @@ export default function OKXExchangePage() {
     </div>
   );
 }
+
 

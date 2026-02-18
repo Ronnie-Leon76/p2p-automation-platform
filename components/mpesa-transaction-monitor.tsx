@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,52 +27,27 @@ interface MPesaTransactionMonitorProps {
 export function MPesaTransactionMonitor({ orderId, teamId }: MPesaTransactionMonitorProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = getBrowserDbClient()
 
   useEffect(() => {
-    fetchTransactions()
-
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel("mpesa-transactions")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "payment_transactions",
-          filter: orderId ? `order_id=eq.${orderId}` : `team_id=eq.${teamId}`,
-        },
-        (payload) => {
-          console.log("Transaction update:", payload)
-          fetchTransactions()
-        },
-      )
-      .subscribe()
-
+    fetchTransactions();
+    const interval = setInterval(fetchTransactions, 10000);
     return () => {
-      supabase.removeChannel(channel)
+      clearInterval(interval);
     }
   }, [orderId, teamId])
 
   const fetchTransactions = async () => {
     try {
-      let query = supabase
-        .from("payment_transactions")
-        .select("*")
-        .eq("provider_id", "mpesa")
-        .order("created_at", { ascending: false })
+      const params = new URLSearchParams({ provider_id: "mpesa" });
+      if (orderId) params.set("order_id", orderId);
+      if (!orderId && teamId) params.set("team_id", teamId);
 
-      if (orderId) {
-        query = query.eq("order_id", orderId)
-      } else if (teamId) {
-        query = query.eq("team_id", teamId)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setTransactions(data || [])
+      const response = await fetch(`/api/payments/transactions?${params.toString()}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Failed to fetch transactions");
+      const payload = await response.json();
+      setTransactions(payload.transactions || []);
     } catch (error) {
       console.error("Error fetching transactions:", error)
     } finally {

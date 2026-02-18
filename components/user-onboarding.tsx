@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import {
   AlertCircle,
   ArrowRight,
@@ -36,7 +35,6 @@ export function UserOnboarding() {
   const [completionPercentage, setCompletionPercentage] = useState(0);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = getBrowserDbClient();
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -44,35 +42,9 @@ export function UserOnboarding() {
 
   const checkOnboardingStatus = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Check exchange credentials
-      const { data: credentials } = await supabase
-        .from("exchange_credentials")
-        .select("exchange")
-        .eq("user_id", user.id)
-        .eq("is_active", true);
-
-      // Check cached exchange data
-      const { data: cachedData } = await supabase
-        .from("user_exchange_data")
-        .select("data_type")
-        .eq("user_id", user.id)
-        .gt("expires_at", new Date().toISOString());
-
-      // Check profile completion
-      const { data: userProfile } = await supabase
-        .from("users")
-        .select("profile_complete, exchange_provider")
-        .eq("id", user.id)
-        .single();
-
-      const hasCredentials = credentials && credentials.length > 0;
-      const hasExchangeData = cachedData && cachedData.length > 0;
-      const profileComplete = userProfile?.profile_complete;
+      const response = await fetch("/api/onboarding/status", { cache: "no-store" });
+      if (!response.ok) return;
+      const status = await response.json();
 
       const onboardingSteps: OnboardingStep[] = [
         {
@@ -80,7 +52,7 @@ export function UserOnboarding() {
           title: "Configure Exchange API",
           description:
             "Connect your exchange account to enable automated trading",
-          completed: hasCredentials,
+          completed: Boolean(status.hasCredentials),
           action: "Set up Exchange",
           href: "/dashboard/exchanges/okx",
           icon: Wallet,
@@ -89,7 +61,7 @@ export function UserOnboarding() {
           id: "data-sync",
           title: "Sync Exchange Data",
           description: "Import your trading data and account information",
-          completed: hasExchangeData,
+          completed: Boolean(status.hasExchangeData),
           action: "Sync Data",
           href: "/dashboard/exchanges/okx",
           icon: TrendingUp,
@@ -98,7 +70,7 @@ export function UserOnboarding() {
           id: "profile-complete",
           title: "Complete Profile",
           description: "Finalize your trader profile and preferences",
-          completed: profileComplete,
+          completed: Boolean(status.profileComplete),
           action: "Complete Profile",
           href: "/dashboard/profile",
           icon: Settings,

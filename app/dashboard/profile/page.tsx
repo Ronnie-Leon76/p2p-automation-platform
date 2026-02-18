@@ -6,7 +6,6 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -27,25 +26,26 @@ const TraderProfile = dynamic(
 export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const supabase = getBrowserDbClient();
 
   useEffect(() => {
-    // Client-side auth check for production
     const checkAuth = async () => {
-      if (process.env.NODE_ENV !== "development") {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session) {
-          router.push("/auth");
-          return;
-        }
+      if (process.env.NODE_ENV === "development") {
+        setIsLoading(false);
+        return;
       }
+
+      const response = await fetch("/api/auth/session", { cache: "no-store" });
+      const data = await response.json();
+      if (!data.authenticated) {
+        router.push("/auth");
+        return;
+      }
+
       setIsLoading(false);
     };
 
     checkAuth();
-  }, [router, supabase]);
+  }, [router]);
 
   if (isLoading) {
     return (

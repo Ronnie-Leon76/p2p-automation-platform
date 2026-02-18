@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTeam } from "@/lib/hooks/use-team";
-import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import {
   AlertCircle,
   ArrowUpRight,
@@ -86,7 +85,6 @@ export function PaymentIntegration({ orderId }: { orderId: string }) {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isProofDialogOpen, setIsProofDialogOpen] = useState(false);
   const { currentTeam } = useTeam();
-  const supabase = getBrowserDbClient();
 
   useEffect(() => {
     if (currentTeam) {
@@ -98,23 +96,12 @@ export function PaymentIntegration({ orderId }: { orderId: string }) {
 
   const fetchProviders = async () => {
     try {
-      const { data, error } = await supabase
-        .from("payment_providers")
-        .select(
-          `
-          *,
-          team_payment_configs!inner(
-            team_id,
-            is_active
-          )
-        `
-        )
-        .eq("team_payment_configs.team_id", currentTeam?.id)
-        .eq("team_payment_configs.is_active", true)
-        .eq("is_active", true);
-
-      if (error) throw error;
-      setProviders(data || []);
+      const response = await fetch(`/api/payments/providers?team_id=${currentTeam?.id}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Failed to fetch providers");
+      const payload = await response.json();
+      setProviders(payload.providers || []);
     } catch (error) {
       console.error("Error fetching providers:", error);
     }
@@ -122,14 +109,12 @@ export function PaymentIntegration({ orderId }: { orderId: string }) {
 
   const fetchTransactions = async () => {
     try {
-      const { data, error } = await supabase
-        .from("payment_transactions")
-        .select("*")
-        .eq("order_id", orderId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setTransactions(data || []);
+      const response = await fetch(`/api/payments/transactions?order_id=${orderId}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Failed to fetch transactions");
+      const payload = await response.json();
+      setTransactions(payload.transactions || []);
     } catch (error) {
       console.error("Error fetching transactions:", error);
     }
@@ -137,14 +122,12 @@ export function PaymentIntegration({ orderId }: { orderId: string }) {
 
   const fetchProofs = async () => {
     try {
-      const { data, error } = await supabase
-        .from("payment_proofs")
-        .select("*")
-        .eq("order_id", orderId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setProofs(data || []);
+      const response = await fetch(`/api/payments/proofs?order_id=${orderId}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Failed to fetch proofs");
+      const payload = await response.json();
+      setProofs(payload.proofs || []);
     } catch (error) {
       console.error("Error fetching proofs:", error);
     }
