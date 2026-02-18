@@ -1,6 +1,5 @@
-import type { Ad } from '@/lib/auth/mock-ad-storage';
 import { MockAdStorage } from '@/lib/auth/mock-ad-storage';
-import type { AdServiceInterface } from '../interfaces/ad-service';
+import type { Ad, AdServiceInterface } from '../interfaces/ad-service';
 
 export class MockAdService implements AdServiceInterface {
   private storage: MockAdStorage;

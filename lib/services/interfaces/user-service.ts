@@ -35,6 +35,16 @@ export interface UserProfile {
   updated_at: string;
 }
 
+export type AuthSessionUser = {
+  id: string;
+  email?: string;
+};
+
+export interface AuthServiceInterface {
+  getCurrentUser(): Promise<AuthSessionUser | null>;
+  signOut(): Promise<void>;
+}
+
 export interface UserServiceInterface {
   // Authentication
   getCurrentUser(): Promise<User | null>;

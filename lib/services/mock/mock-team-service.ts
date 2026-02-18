@@ -1,7 +1,6 @@
 import { MockInvitationStorage } from '@/lib/auth/mock-invitation-storage';
-import type { Team } from '@/lib/auth/mock-team-storage';
 import { MockTeamStorage } from '@/lib/auth/mock-team-storage';
-import type { TeamInvitation, TeamMember, TeamServiceInterface } from '../interfaces/team-service';
+import type { Team, TeamInvitation, TeamMember, TeamServiceInterface } from '../interfaces/team-service';
 
 export class MockTeamService implements TeamServiceInterface {
   private teamStorage: MockTeamStorage;
@@ -50,7 +49,7 @@ export class MockTeamService implements TeamServiceInterface {
   }
 
   async updateTeam(id: string, teamData: Partial<Team>): Promise<Team | null> {
-    return this.teamStorage.updateTeam(id, teamData);
+    return this.teamStorage.updateTeam(id, teamData as any);
   }
 
   async deleteTeam(id: string): Promise<boolean> {

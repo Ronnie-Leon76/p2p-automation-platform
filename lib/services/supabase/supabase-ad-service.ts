@@ -1,5 +1,4 @@
-import type { Ad } from '@/lib/auth/mock-ad-storage';
-import type { AdServiceInterface } from '../interfaces/ad-service';
+import type { Ad, AdServiceInterface } from '../interfaces/ad-service';
 import { supabase } from './supabase-client';
 
 // Database to TypeScript mapping

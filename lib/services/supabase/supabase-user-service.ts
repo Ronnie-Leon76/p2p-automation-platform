@@ -18,6 +18,7 @@ export class SupabaseUserService implements UserServiceInterface {
         avatar_url: authData.user.user_metadata?.avatar_url,
         provider: 'email',
         email_verified: authData.user.email_confirmed_at != null,
+        user_type: (authData.user.user_metadata?.user_type as 'merchant' | 'member') || 'merchant',
         created_at: authData.user.created_at,
         updated_at: authData.user.updated_at || authData.user.created_at,
       };

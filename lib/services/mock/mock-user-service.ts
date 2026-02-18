@@ -22,6 +22,7 @@ export class MockUserService implements UserServiceInterface {
       provider: mockUser.provider || 'email',
       provider_id: mockUser.provider_id,
       email_verified: mockUser.email_verified || false,
+      user_type: mockUser.user_type || 'merchant',
       created_at: mockUser.created_at || new Date().toISOString(),
       updated_at: mockUser.updated_at || new Date().toISOString(),
     };
@@ -40,6 +41,7 @@ export class MockUserService implements UserServiceInterface {
       avatar_url: 'https://res.cloudinary.com/daqr2zwhj/image/upload/v1749292046/placeholder-user.jpg',
       provider: 'email',
       email_verified: true,
+      user_type: 'merchant',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

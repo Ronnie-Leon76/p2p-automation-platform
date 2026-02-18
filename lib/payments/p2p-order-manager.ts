@@ -3,8 +3,8 @@
  * Handles the complete sell order flow with payment requests and confirmations
  */
 
-import { createServerClient } from "@/lib/supabase/server"
 import { sasaPayService } from "./sasapay-service"
+import type { BackendDatabaseClient } from "@/lib/ports/backend-database-port"
 
 interface P2PSellOrder {
   id: string
@@ -34,10 +34,10 @@ interface PaymentRequestResult {
 }
 
 export class P2POrderManager {
-  private supabase: any
+  private supabase: BackendDatabaseClient
 
-  constructor(supabaseClient?: any) {
-    this.supabase = supabaseClient || createServerClient()
+  constructor(supabaseClient: BackendDatabaseClient) {
+    this.supabase = supabaseClient
   }
 
   /**

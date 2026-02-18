@@ -1,29 +1,29 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { getAuthPort } from "@/lib/composition/auth-composer";
+import type { AuthPortUser } from "@/lib/ports/auth-port";
 import { useEffect, useState } from "react";
 
 export interface AuthState {
-  user: User | null;
+  user: AuthPortUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
 
 export function useSupabaseAuth(): AuthState {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthPortUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = createClient();
+    const authPort = getAuthPort();
 
     // Get initial user
     const getUser = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const user = await authPort.getCurrentUser();
         
-        if (user && !error) {
+        if (user) {
           setUser(user);
           setIsAuthenticated(true);
         } else {
@@ -42,23 +42,15 @@ export function useSupabaseAuth(): AuthState {
     getUser();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email || 'no user');
-        
-        if (session?.user) {
-          setUser(session.user);
-          setIsAuthenticated(true);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
-        }
-        setIsLoading(false);
-      }
-    );
+    const unsubscribe = authPort.onAuthStateChange((updatedUser) => {
+      console.log('Auth state changed:', updatedUser?.email || 'no user');
+      setUser(updatedUser);
+      setIsAuthenticated(Boolean(updatedUser));
+      setIsLoading(false);
+    });
 
     return () => {
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
 
@@ -66,7 +58,7 @@ export function useSupabaseAuth(): AuthState {
 }
 
 // Utility function to get display name from Supabase user
-export function getUserDisplayName(user: User | null): string {
+export function getUserDisplayName(user: AuthPortUser | null): string {
   if (!user) return 'User';
   
   return (
@@ -78,7 +70,7 @@ export function getUserDisplayName(user: User | null): string {
 }
 
 // Utility function to check if user has specific role
-export function userHasRole(user: User | null, role: string): boolean {
+export function userHasRole(user: AuthPortUser | null, role: string): boolean {
   if (!user) return false;
   return user.user_metadata?.role === role;
 }

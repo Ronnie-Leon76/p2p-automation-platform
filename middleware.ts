@@ -1,12 +1,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getEnvironmentMode, isMockMode } from "./lib/config/environment";
-import { createServerClient } from "./lib/supabase/server";
+import { getServerAuthPort } from "./lib/composition/auth-composer";
+import { isMockMode } from "./lib/config/environment";
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
-  
-  const currentMode = getEnvironmentMode();
   
   // Skip authentication middleware when using mock data
   if (isMockMode()) {
@@ -20,17 +18,8 @@ export async function middleware(req: NextRequest) {
 
   // For local and production modes, use Supabase authentication
   try {
-    const supabase = await createServerClient()
-
-    const {
-      data: { user },
-      error
-    } = await supabase.auth.getUser()
-
-    if (error) {
-      // Don't redirect on auth errors, let the request through
-      return res;
-    }
+    const authPort = getServerAuthPort();
+    const user = await authPort.getCurrentUser();
 
     // Protect dashboard routes
     if (req.nextUrl.pathname.startsWith("/dashboard") && !user) {

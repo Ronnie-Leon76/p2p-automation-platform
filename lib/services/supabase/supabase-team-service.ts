@@ -1,5 +1,4 @@
-import type { Team } from '@/lib/auth/mock-team-storage';
-import type { TeamInvitation, TeamMember, TeamServiceInterface } from '../interfaces/team-service';
+import type { Team, TeamInvitation, TeamMember, TeamServiceInterface } from '../interfaces/team-service';
 import { supabase } from './supabase-client';
 
 // Database to TypeScript mapping for teams

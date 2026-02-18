@@ -1,4 +1,32 @@
-import type { Team } from "@/lib/auth/mock-team-storage";
+export interface TeamPerson {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  role: 'owner' | 'admin' | 'manager' | 'operator' | 'member' | 'viewer';
+  permissions: string[];
+  joinedAt: string;
+  isActive: boolean;
+  lastActive: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  description: string;
+  owner: TeamPerson;
+  members: TeamPerson[];
+  exchanges: {
+    okx: { connected: boolean; accountId?: string };
+    binance: { connected: boolean; accountId?: string };
+    bybit: { connected: boolean; accountId?: string };
+  };
+  createdAt: string;
+  totalAds: number;
+  activeAds: number;
+  totalVolume: string;
+  isActive: boolean;
+}
 
 export interface TeamMember {
   id: string;

@@ -1,4 +1,32 @@
-import type { Ad } from "@/lib/auth/mock-ad-storage";
+export interface Ad {
+  id: string;
+  exchange: "okx" | "binance" | "bybit";
+  side: "buy" | "sell";
+  cryptocurrency: string;
+  fiatCurrency: string;
+  unitPrice: string;
+  availableAmount: string;
+  minOrderSize: string;
+  maxOrderSize: string;
+  status: "active" | "paused" | "inactive";
+  isHidden: boolean;
+  createdAt: string;
+  updatedAt: string;
+  completedOrders: number;
+  totalVolume: string;
+  successRate: number;
+  currentOrders: number;
+  teamId: string;
+  createdBy: string;
+  paymentMethods: string[];
+  autoReply: boolean;
+  priceMargin: number;
+  requirements: {
+    minKycLevel: number;
+    minCompletionRate: number;
+    remarks: string;
+  };
+}
 
 export interface AdServiceInterface {
   // Basic CRUD operations

@@ -1,6 +1,6 @@
 import type { AdServiceInterface } from './interfaces/ad-service';
 import type { TeamServiceInterface } from './interfaces/team-service';
-import type { UserServiceInterface } from './interfaces/user-service';
+import type { AuthServiceInterface, UserServiceInterface } from './interfaces/user-service';
 
 // Mock service imports
 import { MockAdService } from './mock/mock-ad-service';
@@ -15,18 +15,74 @@ import { SupabaseUserService } from './supabase/supabase-user-service';
 // Environment management
 import { environmentManager, getEnvironmentMode, isMockMode } from "../config/environment";
 
+export type BackendAdapter = "mock" | "supabase" | "postgres";
+
+type ServiceBundle = {
+  adService: AdServiceInterface;
+  teamService: TeamServiceInterface;
+  userService: UserServiceInterface;
+  authService?: AuthServiceInterface;
+};
+
 /**
  * Service Factory with Environment-Aware Configuration
  * Automatically selects the correct service implementation based on environment
  */
 export class ServiceFactory {
   private static instance: ServiceFactory;
+  private cachedServices: Partial<Record<BackendAdapter, ServiceBundle>> = {};
 
   private constructor() {
     // Log environment detection on startup
     if (typeof window !== 'undefined' && environmentManager.getConfig().ui.showDebugInfo) {
       console.log('🏭 ServiceFactory initialized with environment:', environmentManager.getDebugInfo());
     }
+  }
+
+  private getConfiguredBackendAdapter(): BackendAdapter {
+    const configured = process.env.NEXT_PUBLIC_BACKEND_ADAPTER?.toLowerCase();
+    if (configured === "mock" || configured === "supabase" || configured === "postgres") {
+      return configured;
+    }
+
+    if (isMockMode()) {
+      return "mock";
+    }
+
+    return "supabase";
+  }
+
+  private createServicesForAdapter(adapter: BackendAdapter): ServiceBundle {
+    switch (adapter) {
+      case "mock":
+        return {
+          adService: new MockAdService(),
+          teamService: new MockTeamService(),
+          userService: new MockUserService(),
+        };
+      case "supabase":
+        return {
+          adService: new SupabaseAdService(),
+          teamService: new SupabaseTeamService(),
+          userService: new SupabaseUserService(),
+        };
+      case "postgres":
+        throw new Error("Postgres adapter is not implemented yet. Set NEXT_PUBLIC_BACKEND_ADAPTER to 'supabase' or 'mock'.");
+      default:
+        throw new Error(`Unknown backend adapter: ${adapter}`);
+    }
+  }
+
+  private getServicesForCurrentAdapter(): ServiceBundle {
+    const adapter = this.getConfiguredBackendAdapter();
+    if (!this.cachedServices[adapter]) {
+      this.cachedServices[adapter] = this.createServicesForAdapter(adapter);
+    }
+    return this.cachedServices[adapter] as ServiceBundle;
+  }
+
+  public getBackendAdapter(): BackendAdapter {
+    return this.getConfiguredBackendAdapter();
   }
 
   public static getInstance(): ServiceFactory {
@@ -66,39 +122,26 @@ export class ServiceFactory {
    * Get Ad Service based on environment
    */
   public getAdService(): AdServiceInterface {
-    if (isMockMode()) {
-      return new MockAdService();
-    }
-    return new SupabaseAdService();
+    return this.getServicesForCurrentAdapter().adService;
   }
 
   /**
    * Get Team Service based on environment
    */
   public getTeamService(): TeamServiceInterface {
-    if (isMockMode()) {
-      return new MockTeamService();
-    }
-    return new SupabaseTeamService();
+    return this.getServicesForCurrentAdapter().teamService;
   }
 
   /**
    * Get User Service based on environment
    */
   public getUserService(): UserServiceInterface {
-    if (isMockMode()) {
-      return new MockUserService();
-    }
-    return new SupabaseUserService();
+    return this.getServicesForCurrentAdapter().userService;
   }
 
   // Utility method to get all services at once
   public getServices() {
-    return {
-      adService: this.getAdService(),
-      teamService: this.getTeamService(),
-      userService: this.getUserService(),
-    };
+    return this.getServicesForCurrentAdapter();
   }
 
   /**
@@ -144,7 +187,7 @@ export class ServiceFactory {
    * Health check for all services
    */
   public async healthCheck(): Promise<{
-    mode: string;
+    mode: "mock" | "live";
     services: {
       ad: boolean;
       team: boolean;
@@ -152,7 +195,7 @@ export class ServiceFactory {
     };
     timestamp: string;
   }> {
-    const mode = getEnvironmentMode();
+    const mode = isMockMode() ? "mock" : "live";
     
     try {
       const adService = this.getAdService();
