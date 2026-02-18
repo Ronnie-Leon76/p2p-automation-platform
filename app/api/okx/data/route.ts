@@ -280,6 +280,46 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ error: "Failed to get orders" }, { status: 500 })
         }
 
+      case "ads":
+        try {
+          console.log("🔍 Getting user's own ads...")
+          
+          // First try to get user's own ads
+          const userAds = await okxExchange.getUserAds()
+          
+          console.log("📦 Raw OKX getUserAds response:", userAds)
+          console.log("📊 User ads length:", userAds?.ads?.length || 0)
+          
+          // If user has their own ads, return them
+          if (userAds && userAds.ads && userAds.ads.length > 0) {
+            console.log("✅ Returning user's own ads:", userAds.ads.length)
+            return NextResponse.json(userAds)
+          }
+          
+          // Fallback: get marketplace ads for reference/demo
+          console.log("📋 No user ads found, falling back to marketplace ads for demo...")
+          const sideParam = searchParams.get("side") || "sell"
+          const side = (sideParam === "buy" || sideParam === "sell") ? sideParam : "sell"
+          const cryptoCurrency = searchParams.get("cryptoCurrency") || "USDT"
+          const fiatCurrency = searchParams.get("fiatCurrency") || "KES"
+          
+          console.log("🔍 Getting marketplace ads with params:", { side, cryptoCurrency, fiatCurrency })
+          
+          const marketplaceAds = await okxExchange.getActiveAds({
+            side,
+            cryptoCurrency,
+            fiatCurrency
+          })
+          
+          console.log("📦 Raw OKX getActiveAds response:", marketplaceAds)
+          console.log("📊 Marketplace ads length:", marketplaceAds?.ads?.length || 0)
+          
+          return NextResponse.json(marketplaceAds)
+        } catch (error) {
+          console.error("Failed to get ads:", error)
+          return NextResponse.json({ error: "Failed to get ads" }, { status: 500 })
+        }
+
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }

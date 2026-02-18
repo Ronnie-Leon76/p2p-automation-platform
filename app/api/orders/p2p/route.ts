@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action')
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     // Create P2P manager instance with the request-scoped supabase client
     const p2pOrderManager = new P2POrderManager(supabase)
 
@@ -577,7 +577,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const sellerId = searchParams.get('seller_id')
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     if (orderId) {
       // Get specific order

@@ -12,7 +12,7 @@ export interface ExchangeDataOptions {
   includeTypes?: DataType[];
 }
 
-export type DataType = 'profile' | 'merchant_profile' | 'balance' | 'payment_methods' | 'orders';
+export type DataType = 'profile' | 'merchant_profile' | 'balance' | 'payment_methods' | 'orders' | 'ads';
 
 export interface ExchangeDataResult<T = any> {
   data: T | null;
@@ -337,7 +337,8 @@ export class ExchangeDataService {
       'merchant_profile': 'merchant-profile',
       'balance': 'balances',
       'payment_methods': 'payment-methods',
-      'orders': 'orders'
+      'orders': 'orders',
+      'ads': 'ads'
     };
 
     // Build query parameters for GET request
@@ -373,7 +374,8 @@ export class ExchangeDataService {
       'merchant_profile': 60,  // 1 hour
       'balance': 15,           // 15 minutes
       'payment_methods': 120,  // 2 hours
-      'orders': 5              // 5 minutes
+      'orders': 5,             // 5 minutes
+      'ads': 10                // 10 minutes
     };
 
     const expiresAt = new Date(

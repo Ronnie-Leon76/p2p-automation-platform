@@ -10,6 +10,7 @@ export interface P2PExchange {
   cancelAd(adId: string): Promise<CancelAdResponse>
   getAd(adId: string): Promise<GetAdResponse>
   getActiveAds(params: GetActiveAdsParams): Promise<GetActiveAdsResponse>
+  getUserAds(): Promise<GetActiveAdsResponse>  // Get user's own ads
   getMarketplaceAds(params: GetMarketplaceAdsParams): Promise<GetMarketplaceAdsResponse>
   updateAdStatus(adId: string, status: "hidden" | "show"): Promise<UpdateAdStatusResponse>
 

@@ -21,6 +21,7 @@ export interface ExchangeDataState {
   balance: ExchangeDataResult | null;
   paymentMethods: ExchangeDataResult | null;
   orders: ExchangeDataResult | null;
+  ads: ExchangeDataResult | null;
   isLoading: boolean;
   isRefreshing: boolean;
   lastRefresh: string | null;
@@ -47,6 +48,7 @@ export function useExchangeData(
     balance: null,
     paymentMethods: null,
     orders: null,
+    ads: null,
     isLoading: false,
     isRefreshing: false,
     lastRefresh: null,
@@ -55,7 +57,8 @@ export function useExchangeData(
       merchant_profile: null,
       balance: null,
       payment_methods: null,
-      orders: null
+      orders: null,
+      ads: null
     }
   });
 
@@ -110,7 +113,8 @@ export function useExchangeData(
 
         results.forEach(({ dataType, result }) => {
           const stateKey = dataType === 'merchant_profile' ? 'merchantProfile' : 
-                          dataType === 'payment_methods' ? 'paymentMethods' : dataType;
+                          dataType === 'payment_methods' ? 'paymentMethods' : 
+                          dataType === 'ads' ? 'ads' : dataType;
           
           (newState as any)[stateKey] = result;
           newErrors[dataType] = result.error;
@@ -165,7 +169,8 @@ export function useExchangeData(
         Object.entries(results).forEach(([dataType, result]) => {
           if (result) {
             const stateKey = dataType === 'merchant_profile' ? 'merchantProfile' : 
-                            dataType === 'payment_methods' ? 'paymentMethods' : dataType;
+                            dataType === 'payment_methods' ? 'paymentMethods' : 
+                            dataType === 'ads' ? 'ads' : dataType;
             
             (newState as any)[stateKey] = result;
             newErrors[dataType as DataType] = result.error;
@@ -203,7 +208,8 @@ export function useExchangeData(
 
       setState(prev => {
         const stateKey = dataType === 'merchant_profile' ? 'merchantProfile' : 
-                        dataType === 'payment_methods' ? 'paymentMethods' : dataType;
+                        dataType === 'payment_methods' ? 'paymentMethods' : 
+                        dataType === 'ads' ? 'ads' : dataType;
         
         return {
           ...prev,
@@ -262,7 +268,8 @@ export function useExchangeData(
 
           results.forEach(({ dataType, result }) => {
             const stateKey = dataType === 'merchant_profile' ? 'merchantProfile' : 
-                            dataType === 'payment_methods' ? 'paymentMethods' : dataType;
+                            dataType === 'payment_methods' ? 'paymentMethods' : 
+                            dataType === 'ads' ? 'ads' : dataType;
             
             (newState as any)[stateKey] = result;
             newErrors[dataType] = result.error;

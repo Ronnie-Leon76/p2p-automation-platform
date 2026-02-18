@@ -1,7 +1,7 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
-import { ExchangeOAuthService } from "@/lib/auth/exchange-oauth"
 import { ExchangeAPIService } from "@/lib/auth/exchange-api"
+import { ExchangeOAuthService } from "@/lib/auth/exchange-oauth"
+import { createServerClient } from "@/lib/supabase/server"
+import { type NextRequest, NextResponse } from "next/server"
 
 export async function GET(request: NextRequest, { params }: { params: { exchange: string } }) {
   try {
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { exchange
       return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=missing_parameters`)
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
     const oauthService = new ExchangeOAuthService()
     const apiService = new ExchangeAPIService()
 

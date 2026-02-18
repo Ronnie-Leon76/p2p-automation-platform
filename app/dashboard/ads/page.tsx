@@ -11,7 +11,7 @@ import { redirect } from "next/navigation";
 export default async function AdsPage() {
   // In development mode, bypass Supabase auth check
   if (process.env.NODE_ENV !== "development") {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     const {
       data: { session },

@@ -90,6 +90,7 @@ export function DataRefreshControl({
       balance: <Wifi className="h-4 w-4" />,
       payment_methods: <Settings className="h-4 w-4" />,
       orders: <Clock className="h-4 w-4" />,
+      ads: <TrendingUp className="h-4 w-4" />,
     };
     return icons[dataType] || <Database className="h-4 w-4" />;
   };
@@ -101,6 +102,7 @@ export function DataRefreshControl({
       balance: "Account Balance",
       payment_methods: "Payment Methods",
       orders: "Order History",
+      ads: "Advertisements",
     };
     return labels[dataType] || dataType;
   };

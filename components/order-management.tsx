@@ -1,5 +1,6 @@
 "use client";
 
+import { DataRefreshControl } from "@/components/data-refresh-control";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { DataRefreshControl } from "@/components/data-refresh-control";
 import { useExchangeData } from "@/hooks/use-exchange-data";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
@@ -364,7 +364,7 @@ const convertExchangeOrderToOrder = (exchangeOrder: any): Order => {
     side: exchangeOrder.side === "sell" ? "sell" : "buy",
     cryptocurrency: exchangeOrder.cryptoCurrency || "USDT",
     cryptoAmount: exchangeOrder.cryptoAmount || "0",
-    currency: exchangeOrder.fiatCurrency || "USD", 
+    currency: exchangeOrder.fiatCurrency || "USD",
     fiatAmount: exchangeOrder.fiatAmount || "0",
     unitPrice: exchangeOrder.unitPrice || "0",
     orderStatus: convertExchangeOrderStatus(exchangeOrder.orderStatus),
@@ -380,8 +380,12 @@ const convertExchangeOrderToOrder = (exchangeOrder: any): Order => {
       userId: exchangeOrder.counterparty?.userId || "unknown",
       nickName: exchangeOrder.counterparty?.nickName || "Anonymous",
       avatar: "",
-      completionRate: parseFloat(exchangeOrder.counterparty?.completionRate || "0"),
-      completedOrders: parseInt(exchangeOrder.counterparty?.completedOrders || "0"),
+      completionRate: parseFloat(
+        exchangeOrder.counterparty?.completionRate || "0"
+      ),
+      completedOrders: parseInt(
+        exchangeOrder.counterparty?.completedOrders || "0"
+      ),
     },
     chatMessages: [],
     creator_user_id: exchangeOrder.creatorUserId || "unknown",
@@ -393,7 +397,7 @@ const convertExchangeOrderToOrder = (exchangeOrder: any): Order => {
 const convertExchangeOrderStatus = (status: string) => {
   const statusMap: { [key: string]: Order["orderStatus"] } = {
     "0": "pending",
-    "1": "payment_pending", 
+    "1": "payment_pending",
     "2": "paid",
     "3": "completed",
     "4": "cancelled",
@@ -403,12 +407,12 @@ const convertExchangeOrderStatus = (status: string) => {
   return statusMap[status] || "pending";
 };
 
-// Convert exchange payment status to our format  
+// Convert exchange payment status to our format
 const convertExchangePaymentStatus = (status: string) => {
   const statusMap: { [key: string]: Order["paymentStatus"] } = {
     "0": "unpaid",
     "1": "payment_pending",
-    "2": "paid", 
+    "2": "paid",
     "3": "confirmed",
     "4": "disputed",
     "5": "refunded",
@@ -831,8 +835,14 @@ export function OrderManagement() {
   // Use the exchange data hook for live order data
   const exchangeData = useExchangeData(user?.id || null, "okx", {
     autoRefresh: true,
-    refreshInterval: 5, // More frequent refresh for orders (5 minutes)
-    includeTypes: ["orders"],
+    refreshInterval: 3, // More frequent refresh for orders (3 minutes)
+    includeTypes: ["orders", "balance", "payment_methods", "ads"],
+    onRefreshStart: () =>
+      console.log("🔄 Order management data refresh started"),
+    onRefreshComplete: () =>
+      console.log("✅ Order management data refresh completed"),
+    onRefreshError: (error) =>
+      console.error("❌ Order management data refresh failed:", error),
   });
 
   const [orders, setOrders] = useState<Order[]>(mockOrders);
@@ -847,7 +857,7 @@ export function OrderManagement() {
   useEffect(() => {
     if (exchangeData.orders?.data && Array.isArray(exchangeData.orders.data)) {
       console.log("🔄 Converting exchange orders to component format");
-      const convertedOrders = exchangeData.orders.data.map((orderData: any) => 
+      const convertedOrders = exchangeData.orders.data.map((orderData: any) =>
         convertExchangeOrderToOrder(orderData)
       );
       setOrders([...convertedOrders, ...mockOrders]); // Combine real and mock data
@@ -1068,6 +1078,51 @@ export function OrderManagement() {
                 Manage your P2P trading orders with real-time updates and
                 comprehensive dispute handling
               </p>
+              {/* Live Data Status Indicators */}
+              <div className="flex items-center gap-4 mt-3">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`h-2 w-2 rounded-full ${
+                      exchangeData.orders?.data ? "bg-green-500" : "bg-gray-400"
+                    }`}
+                  />
+                  <span className="text-xs text-gray-600">
+                    Orders:{" "}
+                    {exchangeData.orders?.data ? "Connected" : "Mock Data"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`h-2 w-2 rounded-full ${
+                      exchangeData.balance?.data
+                        ? "bg-green-500"
+                        : "bg-gray-400"
+                    }`}
+                  />
+                  <span className="text-xs text-gray-600">
+                    Balance: {exchangeData.balance?.data ? "Live" : "Mock"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`h-2 w-2 rounded-full ${
+                      exchangeData.paymentMethods?.data
+                        ? "bg-green-500"
+                        : "bg-gray-400"
+                    }`}
+                  />
+                  <span className="text-xs text-gray-600">
+                    Payments:{" "}
+                    {exchangeData.paymentMethods?.data ? "Live" : "Mock"}
+                  </span>
+                </div>
+                {exchangeData.lastRefresh && (
+                  <span className="text-xs text-gray-500">
+                    Last update:{" "}
+                    {new Date(exchangeData.lastRefresh).toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
             </div>
             <DataRefreshControl
               isRefreshing={exchangeData.isRefreshing}
@@ -1183,6 +1238,55 @@ export function OrderManagement() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Live Exchange Balance Display */}
+        {exchangeData.balance?.data && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-green-600" />
+                Live Exchange Balances
+              </CardTitle>
+              <CardDescription>
+                Real-time balances from your exchange account
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                {Object.entries(exchangeData.balance.data).map(
+                  ([currency, balance]: [string, any]) => (
+                    <div key={currency} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-700">
+                          {currency}
+                        </span>
+                        <Badge variant="outline">
+                          {balance?.currencySymbol || currency}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Available:</span>
+                          <span className="font-medium">
+                            {balance?.available ||
+                              balance?.availableAmount ||
+                              "0.00"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">On Hold:</span>
+                          <span className="font-medium">
+                            {balance?.onHoldAmount || "0.00"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters and Controls */}
         <Card className="border-gray-200 bg-white shadow-sm mb-6">
