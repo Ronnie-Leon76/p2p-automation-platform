@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Verify order belongs to seller
     const { data: order, error: orderError } = await supabase
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
     const minAmount = Number(searchParams.get('min_amount')) || 0
     const maxAmount = Number(searchParams.get('max_amount')) || 1000000
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     const hoursAgo = new Date()
     hoursAgo.setHours(hoursAgo.getHours() - hours)

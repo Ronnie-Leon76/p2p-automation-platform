@@ -5,7 +5,7 @@ import { type NextRequest, NextResponse } from "next/server"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     const {
       amount,
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Get transaction from database
     let query = supabase

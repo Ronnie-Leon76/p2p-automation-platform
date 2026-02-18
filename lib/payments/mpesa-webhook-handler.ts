@@ -1,14 +1,22 @@
 import { createServerClient } from "@/lib/supabase/server"
 
 export class MPesaWebhookHandler {
-  private supabase = createServerClient()
+  private supabase: any | null = null
+
+  private async getSupabase() {
+    if (!this.supabase) {
+      this.supabase = await createServerClient()
+    }
+    return this.supabase
+  }
 
   async processSTKCallback(callbackData: any) {
+    const supabase = await this.getSupabase()
     const { stkCallback } = callbackData.Body
     const { CheckoutRequestID, ResultCode, ResultDesc } = stkCallback
 
     // Find the transaction
-    const { data: transaction } = await this.supabase
+    const { data: transaction } = await supabase
       .from("payment_transactions")
       .select("*")
       .eq("external_transaction_id", CheckoutRequestID)
@@ -28,10 +36,11 @@ export class MPesaWebhookHandler {
   }
 
   async processC2BConfirmation(confirmationData: any) {
+    const supabase = await this.getSupabase()
     const { TransID, BillRefNumber, TransAmount, MSISDN } = confirmationData
 
     // Try to find transaction by bill reference
-    const { data: transaction } = await this.supabase
+    const { data: transaction } = await supabase
       .from("payment_transactions")
       .select("*")
       .eq("id", BillRefNumber)
@@ -45,11 +54,12 @@ export class MPesaWebhookHandler {
   }
 
   async validateC2BPayment(validationData: any): Promise<{ isValid: boolean; reason?: string }> {
+    const supabase = await this.getSupabase()
     const { BillRefNumber, TransAmount, MSISDN } = validationData
 
     // Check if transaction exists
     if (BillRefNumber) {
-      const { data: transaction } = await this.supabase
+      const { data: transaction } = await supabase
         .from("payment_transactions")
         .select("amount, status")
         .eq("id", BillRefNumber)
@@ -90,6 +100,7 @@ export class MPesaWebhookHandler {
   }
 
   private async handleSuccessfulPayment(transaction: any, stkCallback: any) {
+    const supabase = await this.getSupabase()
     const metadata: any = { ...transaction.metadata }
 
     // Extract callback metadata
@@ -113,7 +124,7 @@ export class MPesaWebhookHandler {
     }
 
     // Update transaction
-    await this.supabase
+    await supabase
       .from("payment_transactions")
       .update({
         status: "completed",
@@ -126,7 +137,7 @@ export class MPesaWebhookHandler {
 
     // Update order
     if (transaction.order_id) {
-      await this.supabase
+      await supabase
         .from("orders")
         .update({
           payment_status: "confirmed",
@@ -139,13 +150,14 @@ export class MPesaWebhookHandler {
   }
 
   private async handleFailedPayment(transaction: any, resultDesc: string, resultCode: number) {
+    const supabase = await this.getSupabase()
     const metadata = {
       ...transaction.metadata,
       failure_reason: resultDesc,
       result_code: resultCode,
     }
 
-    await this.supabase
+    await supabase
       .from("payment_transactions")
       .update({
         status: "failed",
@@ -158,9 +170,10 @@ export class MPesaWebhookHandler {
   }
 
   private async updateExistingTransaction(transaction: any, confirmationData: any) {
+    const supabase = await this.getSupabase()
     const { TransID, TransAmount, MSISDN, FirstName, LastName } = confirmationData
 
-    await this.supabase
+    await supabase
       .from("payment_transactions")
       .update({
         status: "completed",
@@ -180,9 +193,10 @@ export class MPesaWebhookHandler {
   }
 
   private async createUnmatchedTransaction(confirmationData: any) {
+    const supabase = await this.getSupabase()
     const { TransID, TransAmount, MSISDN, FirstName, LastName } = confirmationData
 
-    const { data: newTransaction } = await this.supabase
+    const { data: newTransaction } = await supabase
       .from("payment_transactions")
       .insert({
         external_transaction_id: TransID,

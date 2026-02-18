@@ -19,7 +19,14 @@ export interface TeamMemberPermission {
 }
 
 export class TeamDelegationService {
-  private supabase = createServerClient()
+  private supabase: any | null = null
+
+  private async getSupabase() {
+    if (!this.supabase) {
+      this.supabase = await createServerClient()
+    }
+    return this.supabase
+  }
 
   async setupTeamCredentials(
     teamId: string,
@@ -30,11 +37,12 @@ export class TeamDelegationService {
     expiresAt?: Date,
   ): Promise<boolean> {
     try {
+      const supabase = await this.getSupabase()
       // Encrypt tokens (in production, use proper encryption)
       const encryptedAccessToken = this.encryptToken(accessToken)
       const encryptedRefreshToken = refreshToken ? this.encryptToken(refreshToken) : null
 
-      const { error } = await this.supabase.from("team_exchange_credentials").upsert({
+      const { error } = await supabase.from("team_exchange_credentials").upsert({
         team_id: teamId,
         exchange_provider: exchangeProvider,
         owner_user_id: ownerUserId,
@@ -49,7 +57,7 @@ export class TeamDelegationService {
       if (error) throw error
 
       // Update team to use shared credentials
-      await this.supabase
+      await supabase
         .from("teams")
         .update({
           primary_exchange_provider: exchangeProvider,
@@ -67,7 +75,8 @@ export class TeamDelegationService {
 
   async getTeamCredentials(teamId: string, exchangeProvider: string): Promise<TeamCredentials | null> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { data, error } = await supabase
         .from("team_exchange_credentials")
         .select("*")
         .eq("team_id", teamId)
@@ -111,6 +120,7 @@ export class TeamDelegationService {
 
   async refreshTeamToken(teamId: string, exchangeProvider: string): Promise<boolean> {
     try {
+      const supabase = await this.getSupabase()
       const credentials = await this.getTeamCredentials(teamId, exchangeProvider)
       if (!credentials) return false
 
@@ -119,7 +129,7 @@ export class TeamDelegationService {
       // This method now validates that the credentials exist and are active
       
       // Update the last validated timestamp
-      const { error } = await this.supabase
+      const { error } = await supabase
         .from("team_exchange_credentials")
         .update({
           updated_at: new Date().toISOString(),
@@ -139,6 +149,7 @@ export class TeamDelegationService {
     grantedBy: string,
   ): Promise<boolean> {
     try {
+      const supabase = await this.getSupabase()
       const permissionRecords = permissions.map((perm) => ({
         team_member_id: teamMemberId,
         permission_type: perm.type,
@@ -147,7 +158,7 @@ export class TeamDelegationService {
         is_active: true,
       }))
 
-      const { error } = await this.supabase.from("team_member_permissions").upsert(permissionRecords)
+      const { error } = await supabase.from("team_member_permissions").upsert(permissionRecords)
 
       return !error
     } catch (error) {
@@ -158,7 +169,8 @@ export class TeamDelegationService {
 
   async getMemberPermissions(teamMemberId: string): Promise<TeamMemberPermission[]> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase()
+      const { data, error } = await supabase
         .from("team_member_permissions")
         .select("permission_type, permission_scope, is_active")
         .eq("team_member_id", teamMemberId)
@@ -174,13 +186,14 @@ export class TeamDelegationService {
 
   async canPerformOperation(userId: string, teamId: string, operationType: string, scope = "all"): Promise<boolean> {
     try {
+      const supabase = await this.getSupabase()
       // Check if user is team owner
-      const { data: team } = await this.supabase.from("teams").select("owner_id").eq("id", teamId).single()
+      const { data: team } = await supabase.from("teams").select("owner_id").eq("id", teamId).single()
 
       if (team?.owner_id === userId) return true
 
       // Check team member permissions
-      const { data: member } = await this.supabase
+      const { data: member } = await supabase
         .from("team_members")
         .select("id")
         .eq("team_id", teamId)
@@ -213,7 +226,8 @@ export class TeamDelegationService {
     errorMessage?: string,
   ): Promise<void> {
     try {
-      await this.supabase.from("team_operation_logs").insert({
+      const supabase = await this.getSupabase()
+      await supabase.from("team_operation_logs").insert({
         team_id: teamId,
         performed_by_user_id: performedBy,
         operation_type: operationType,

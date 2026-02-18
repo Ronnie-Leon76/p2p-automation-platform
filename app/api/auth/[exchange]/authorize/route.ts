@@ -51,7 +51,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/auth/${exchange}/callback`
 
       // Store state in session for verification
-      const supabase = createServerClient()
+      const supabase = await createServerClient()
       await supabase.from("oauth_states").insert({
         state,
         exchange,

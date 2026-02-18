@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required setup data" }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Encrypt API credentials
     const encryptionKey = process.env.ENCRYPTION_KEY || "default-key-change-in-production"
