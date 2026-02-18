@@ -1,8 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import {
   BarChart3,
   Bot,
@@ -17,7 +16,6 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 import {
   Sidebar,
@@ -104,34 +102,7 @@ const systemItems = [
 ];
 
 export function AppSidebar() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient();
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-
-        if (session?.user && !error) {
-          setUser(session.user);
-          setIsAuthenticated(true);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        console.error("Sidebar auth check failed:", error);
-        setUser(null);
-        setIsAuthenticated(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
+  const { user, isAuthenticated } = useSupabaseAuth();
 
   return (
     <Sidebar className="border-r border-gray-200/50 bg-white">

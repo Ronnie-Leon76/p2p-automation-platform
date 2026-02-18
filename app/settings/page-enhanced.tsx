@@ -34,8 +34,8 @@ import { VerificationManagement } from "@/components/verification-management";
 import { useExchangeData } from "@/hooks/use-exchange-data";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { getAuthPort } from "@/lib/composition/auth-composer";
 import { getEnvironmentMode, isMockMode } from "@/lib/config/environment";
-import { createClient } from "@/lib/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import {
   Activity,
@@ -94,7 +94,6 @@ function SettingsContent() {
   const [activeTab, setActiveTab] = useState("general");
   const [isSaving, setIsSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const supabase = createClient();
 
   // Use environment-appropriate auth
   const supabaseAuth = useSupabaseAuth();
@@ -199,7 +198,7 @@ function SettingsContent() {
     setIsLoggingOut(true);
     try {
       if (!isMockMode()) {
-        await supabase.auth.signOut();
+        await getAuthPort().signOut();
       }
       // Clear any local storage for mock mode
       if (isMockMode()) {

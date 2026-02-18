@@ -3,8 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { getAuthPort } from "@/lib/composition/auth-composer";
 import { isMockMode } from "@/lib/config/environment";
-import { createClient } from "@/lib/supabase/client";
 import { LogOut, RefreshCw, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -14,20 +14,16 @@ export default function LogoutPage() {
   const [success, setSuccess] = useState("");
   const [isClient, setIsClient] = useState(false);
 
-  // Use environment-appropriate auth
   const supabaseAuth = useSupabaseAuth();
   const router = useRouter();
-  const supabase = createClient();
 
-  // Initialize client state
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Get auth state based on environment
   const { user, isAuthenticated } =
     isClient && isMockMode()
-      ? { user: null, isAuthenticated: false } // Mock mode - handle separately
+      ? { user: null, isAuthenticated: false }
       : supabaseAuth;
 
   const handleClearAllSessions = async () => {
@@ -35,24 +31,17 @@ export default function LogoutPage() {
     setSuccess("");
 
     try {
-      // Clear mock auth if in mock mode
       if (isMockMode() && typeof window !== "undefined") {
         localStorage.removeItem("mock_auth_session");
         localStorage.removeItem("mock_exchange_credentials");
-        console.log("🧹 Cleared mock authentication");
       }
 
-      // Clear Supabase auth
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Supabase signout error:", error);
-      } else {
-        console.log("🧹 Cleared Supabase authentication");
+      if (!isMockMode()) {
+        await getAuthPort().signOut();
       }
 
       setSuccess("All sessions cleared successfully!");
 
-      // Redirect to login after a short delay
       setTimeout(() => {
         router.push("/auth/login");
       }, 2000);
@@ -68,7 +57,6 @@ export default function LogoutPage() {
   };
 
   useEffect(() => {
-    // Auto-clear if no user detected
     if (!isAuthenticated && !user) {
       setTimeout(() => {
         router.push("/auth/login");
@@ -90,9 +78,7 @@ export default function LogoutPage() {
                 <User className="h-5 w-5 text-blue-400" />
                 <div>
                   <p className="text-white font-medium">
-                    {user.user_metadata?.full_name ||
-                      user.email?.split("@")[0] ||
-                      "User"}
+                    {user.user_metadata?.full_name || user.email?.split("@")[0] || "User"}
                   </p>
                   <p className="text-gray-400 text-sm">{user.email}</p>
                   <p className="text-gray-500 text-xs">P2P Trading Account</p>
