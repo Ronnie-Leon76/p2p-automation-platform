@@ -170,6 +170,11 @@ export class SasapayService {
     }
   }
 
+  // Backward-compatible alias used by existing API routes
+  async initiatePayment(request: SasapayC2BRequest): Promise<SasapayC2BResponse> {
+    return this.initiateC2BPayment(request);
+  }
+
   /**
    * B2C: Send payment to user via SASAPAY (M-Pesa, Airtel, or Bank Transfer)
    */
@@ -294,6 +299,25 @@ export class SasapayService {
       console.error('Error validating SASAPAY callback:', error);
       return null;
     }
+  }
+
+  // Backward-compatible callback processor used by existing API routes
+  async processPaymentCallback(callbackData: any): Promise<{
+    success: boolean;
+    transaction_id?: string;
+    error?: string;
+  }> {
+    const parsed = this.validateCallback(callbackData);
+    if (!parsed) {
+      return { success: false, error: "Invalid callback payload" };
+    }
+
+    const success = parsed.result_code === "0";
+    return {
+      success,
+      transaction_id: parsed.transaction_id,
+      error: success ? undefined : parsed.result_desc || "Payment failed",
+    };
   }
 
   /**

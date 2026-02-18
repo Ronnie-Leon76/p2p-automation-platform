@@ -57,6 +57,7 @@ export interface InitiatePaymentRequest {
   currency: string
   payer_phone: string
   payer_name?: string
+  payer_account?: string
   description?: string
   callback_url?: string
 }

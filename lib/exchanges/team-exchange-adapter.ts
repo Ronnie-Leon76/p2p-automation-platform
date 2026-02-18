@@ -209,6 +209,11 @@ export class TeamExchangeAdapter implements P2PExchange {
     return this.baseExchange.getMarketplaceAds(params)
   }
 
+  async getUserAds(): Promise<any> {
+    if (!this.baseExchange) throw new Error("Exchange not initialized")
+    return this.baseExchange.getUserAds()
+  }
+
   async updateAdStatus(adId: string, status: "hidden" | "show"): Promise<any> {
     if (!this.baseExchange) throw new Error("Exchange not initialized")
     if (!(await this.checkPermission("manage_ads"))) {
@@ -248,6 +253,11 @@ export class TeamExchangeAdapter implements P2PExchange {
   async getUserInfo(): Promise<any> {
     if (!this.baseExchange) throw new Error("Exchange not initialized")
     return this.baseExchange.getUserInfo()
+  }
+
+  async getMerchantProfile(): Promise<any> {
+    if (!this.baseExchange) throw new Error("Exchange not initialized")
+    return this.baseExchange.getMerchantProfile()
   }
 
   async getBalance(currency: string): Promise<any> {
