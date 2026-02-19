@@ -64,6 +64,8 @@ model Verification {
 model AppUser {
   id              String           @id
   email           String?          @unique
+  phone           String?
+  emailVerifiedLegacy Boolean      @default(false) @map("email_verified")
   fullName        String?          @map("full_name")
   userType        String?          @map("user_type")
   profileComplete Boolean          @default(false) @map("profile_complete")
