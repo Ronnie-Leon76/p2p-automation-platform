@@ -1,3 +1,6 @@
+import { getAuthenticatedUser } from "@/lib/auth/server-user";
+import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
+import { prisma } from "@/lib/db/prisma";
 import { createServerClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -41,16 +44,62 @@ function mapBasicProfile(userId: string, profileData: any) {
 
 export async function GET() {
   try {
-    const supabase = await createServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const user = await getAuthenticatedUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (isPostgresAdapter()) {
+      const now = new Date();
+      const [merchantData, profileData, userProfile] = await Promise.all([
+        prisma.userExchangeData.findFirst({
+          where: {
+            userId: user.id,
+            exchange: "okx",
+            dataType: "merchant_profile",
+            expiresAt: { gt: now },
+          },
+          select: { data: true },
+        }),
+        prisma.userExchangeData.findFirst({
+          where: {
+            userId: user.id,
+            exchange: "okx",
+            dataType: "profile",
+            expiresAt: { gt: now },
+          },
+          select: { data: true },
+        }),
+        prisma.appUser.findUnique({
+          where: { id: user.id },
+        }),
+      ]);
+
+      let profile: any = null;
+      if (merchantData?.data) {
+        profile = mapMerchantProfile(user.id, merchantData.data);
+      } else if (profileData?.data) {
+        profile = mapBasicProfile(user.id, profileData.data);
+      } else if (userProfile) {
+        profile = {
+          id: userProfile.id,
+          full_name: userProfile.fullName,
+          exchange_provider: userProfile.exchangeProvider,
+          created_at: userProfile.createdAt,
+        };
+      }
+
+      return NextResponse.json(
+        {
+          profile,
+          metrics: [],
+          teams: [],
+        },
+        { status: 200 }
+      );
+    }
+
+    const supabase = await createServerClient();
     const [{ data: merchantData }, { data: profileData }, { data: metricsData }, { data: teamsRaw }] = await Promise.all([
       supabase
         .from("user_exchange_data")

@@ -1,21 +1,12 @@
+import { getAuthenticatedUser } from "@/lib/auth/server-user";
+import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
+import { prisma } from "@/lib/db/prisma";
 import { createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
-async function getAuthenticatedUser() {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error || !user) {
-    return { supabase, user: null };
-  }
-  return { supabase, user };
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const { supabase, user } = await getAuthenticatedUser();
+    const user = await getAuthenticatedUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -23,6 +14,36 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const dataType = searchParams.get("dataType");
     const exchange = searchParams.get("exchange") || "okx";
+
+    if (isPostgresAdapter()) {
+      const records = await prisma.userExchangeData.findMany({
+        where: {
+          userId: user.id,
+          exchange,
+          ...(dataType ? { dataType } : {}),
+        },
+        select: {
+          dataType: true,
+          data: true,
+          createdAt: true,
+          expiresAt: true,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          records: records.map((record) => ({
+            data_type: record.dataType,
+            data: record.data,
+            created_at: record.createdAt,
+            expires_at: record.expiresAt,
+          })),
+        },
+        { status: 200 }
+      );
+    }
+
+    const supabase = await createServerClient();
 
     let query = supabase
       .from("user_exchange_data")
@@ -52,11 +73,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "dataType is required" }, { status: 400 });
     }
 
-    const { supabase, user } = await getAuthenticatedUser();
+    const user = await getAuthenticatedUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (isPostgresAdapter()) {
+      await prisma.userExchangeData.upsert({
+        where: {
+          userId_exchange_dataType: {
+            userId: user.id,
+            exchange,
+            dataType,
+          },
+        },
+        create: {
+          userId: user.id,
+          exchange,
+          dataType,
+          data,
+          expiresAt: new Date(expiresAt),
+        },
+        update: {
+          data,
+          expiresAt: new Date(expiresAt),
+        },
+      });
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+
+    const supabase = await createServerClient();
     const { error } = await supabase.from("user_exchange_data").upsert({
       user_id: user.id,
       exchange,
@@ -78,7 +124,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { supabase, user } = await getAuthenticatedUser();
+    const user = await getAuthenticatedUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -87,6 +133,18 @@ export async function DELETE(request: NextRequest) {
     const exchange = searchParams.get("exchange");
     const dataType = searchParams.get("dataType");
 
+    if (isPostgresAdapter()) {
+      await prisma.userExchangeData.deleteMany({
+        where: {
+          userId: user.id,
+          ...(exchange ? { exchange } : {}),
+          ...(dataType ? { dataType } : {}),
+        },
+      });
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+
+    const supabase = await createServerClient();
     let query = supabase.from("user_exchange_data").delete().eq("user_id", user.id);
     if (exchange) {
       query = query.eq("exchange", exchange);
