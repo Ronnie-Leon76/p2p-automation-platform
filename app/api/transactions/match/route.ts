@@ -1,3 +1,4 @@
+import { isPostgresAdapter } from "@/lib/composition/backend-adapter"
 import { createServerClient } from "@/lib/supabase/server"
 import { type NextRequest, NextResponse } from "next/server"
 
@@ -7,6 +8,13 @@ import { type NextRequest, NextResponse } from "next/server"
  */
 
 export async function POST(request: NextRequest) {
+  if (isPostgresAdapter()) {
+    return NextResponse.json(
+      { error: "Transaction matching routes are not migrated to Postgres yet." },
+      { status: 501 },
+    )
+  }
+
   try {
     const body = await request.json()
     const { order_id, transaction_id, seller_id, confirmed_by_admin = false } = body
@@ -153,6 +161,13 @@ export async function POST(request: NextRequest) {
  * Get unmatched transactions for review
  */
 export async function GET(request: NextRequest) {
+  if (isPostgresAdapter()) {
+    return NextResponse.json(
+      { error: "Transaction matching routes are not migrated to Postgres yet." },
+      { status: 501 },
+    )
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const hours = Number(searchParams.get('hours')) || 24
