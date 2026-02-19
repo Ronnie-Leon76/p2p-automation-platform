@@ -1,15 +1,11 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { getServerAuthPort } from "@/lib/composition/auth-composer";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const supabase = await createServerClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error || !user) {
+    const serverAuthPort = getServerAuthPort();
+    const user = await serverAuthPort.getCurrentUser();
+    if (!user) {
       return NextResponse.json({ authenticated: false, user: null }, { status: 200 });
     }
 
@@ -19,7 +15,7 @@ export async function GET() {
         user: {
           id: user.id,
           email: user.email,
-          user_metadata: user.user_metadata,
+          user_metadata: user.user_metadata ?? {},
         },
       },
       { status: 200 }

@@ -37,6 +37,23 @@ export interface UserSession {
 
 export class SecureAuthService {
   private supabase = getBrowserDbClient();
+  private getSupabaseAuthBaseUrl(): string {
+    return `${process.env.NEXT_PUBLIC_SUPABASE_URL || "unknown"}/auth/v1`;
+  }
+
+  private mapAuthNetworkError(error: unknown): Error {
+    if (error instanceof TypeError && /Failed to fetch/i.test(error.message)) {
+      return new Error(
+        `Cannot reach auth backend at ${this.getSupabaseAuthBaseUrl()}. Check NEXT_PUBLIC_SUPABASE_URL and ensure Supabase is running.`
+      );
+    }
+
+    if (error instanceof Error) {
+      return error;
+    }
+
+    return new Error("Unknown authentication error");
+  }
 
   /**
    * Register a new user with crypto-grade security
@@ -107,8 +124,9 @@ export class SecureAuthService {
         needsEmailVerification: !authData.user.email_confirmed_at,
       };
     } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
+      const mappedError = this.mapAuthNetworkError(error);
+      console.error('Registration error:', mappedError);
+      throw mappedError;
     }
   }
 
@@ -193,8 +211,9 @@ export class SecureAuthService {
         session: authData.session,
       };
     } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      const mappedError = this.mapAuthNetworkError(error);
+      console.error('Login error:', mappedError);
+      throw mappedError;
     }
   }
 

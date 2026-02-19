@@ -84,6 +84,32 @@ npm run dev
 - Cloudinary account for file storage
 - Payment provider accounts (M-Pesa, I&M Bank)
 
+### Postgres + Prisma + Better Auth (PR1 bootstrap)
+
+This repo now includes a first-pass migration scaffold for a local-first Postgres backend and Better Auth integration.
+Supabase remains the default adapter until you opt in with environment variables.
+
+```bash
+# 1) Start local Postgres (Windows)
+npm run dev:db:up
+
+# 2) Or macOS/Linux
+npm run dev:db:up:sh
+
+# 3) Copy Postgres env template
+cp .env.postgres.example .env.local
+
+# 4) Install deps and generate Prisma client
+npm install
+npm run db:generate
+
+# 5) Run migration
+npm run db:migrate
+```
+
+Auth route scaffold for Better Auth is available at `app/api/auth/[...all]/route.ts`.
+Adapter selection is controlled by `NEXT_PUBLIC_BACKEND_ADAPTER` / `BACKEND_ADAPTER` (`supabase` by default).
+
 ### 1. Clone and Install
 
 ```bash
