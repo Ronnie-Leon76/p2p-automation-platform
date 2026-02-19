@@ -60,3 +60,63 @@ model Verification {
 
   @@unique([identifier, value])
 }
+
+model AppUser {
+  id              String           @id
+  email           String?          @unique
+  fullName        String?          @map("full_name")
+  userType        String?          @map("user_type")
+  profileComplete Boolean          @default(false) @map("profile_complete")
+  exchangeProvider String?         @map("exchange_provider")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  preferences     UserPreference[]
+  credentials     ExchangeCredential[]
+  exchangeData    UserExchangeData[]
+
+  @@map("users")
+}
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  data      Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("user_preferences")
+}
+
+model ExchangeCredential {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  exchange  String
+  apiKey    String?  @map("api_key")
+  apiSecret String?  @map("api_secret")
+  passphrase String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exchange])
+  @@map("exchange_credentials")
+}
+
+model UserExchangeData {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  exchange  String
+  dataType  String   @map("data_type")
+  data      Json
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exchange, dataType])
+  @@index([userId, exchange])
+  @@map("user_exchange_data")
+}
