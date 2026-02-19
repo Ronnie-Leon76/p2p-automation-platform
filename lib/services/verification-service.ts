@@ -3,8 +3,6 @@
  * Handles email and phone number verification functionality
  */
 
-import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
-
 export interface VerificationStatus {
   email: {
     verified: boolean;
@@ -26,38 +24,25 @@ export interface VerificationResult {
 }
 
 export class VerificationService {
-  private supabase = getBrowserDbClient();
-
   /**
    * Get current verification status for user
    */
-  async getVerificationStatus(userId: string): Promise<VerificationStatus> {
+  async getVerificationStatus(_userId: string): Promise<VerificationStatus> {
     try {
-      // Get user from Supabase auth
-      const { data: authUser } = await this.supabase.auth.getUser();
-      
-      // Get user profile from database
-      const { data: userProfile, error } = await this.supabase
-        .from('users')
-        .select('email_verified, phone')
-        .eq('id', userId)
-        .single();
+      const response = await fetch("/api/verification/status", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
 
-      if (error) {
-        console.warn('Could not fetch user verification status:', error);
+      if (!response.ok) {
+        return {
+          email: { verified: false, verificationSent: false },
+          phone: { verified: false, verificationSent: false },
+        };
       }
 
-      return {
-        email: {
-          verified: authUser?.user?.email_confirmed_at != null || userProfile?.email_verified || false,
-          verificationSent: false, // This would be tracked in a separate table
-        },
-        phone: {
-          verified: authUser?.user?.phone_confirmed_at != null || false,
-          verificationSent: false, // This would be tracked in a separate table
-          number: authUser?.user?.phone || undefined,
-        },
-      };
+      return await response.json();
     } catch (error) {
       console.error('Error getting verification status:', error);
       return {
@@ -72,16 +57,17 @@ export class VerificationService {
    */
   async sendEmailVerification(): Promise<VerificationResult> {
     try {
-      const { error } = await this.supabase.auth.resend({
-        type: 'signup',
-        email: (await this.supabase.auth.getUser()).data.user?.email || '',
+      const response = await fetch("/api/verification/email", {
+        method: "POST",
+        credentials: "include",
       });
+      const payload = await response.json();
 
-      if (error) {
+      if (!response.ok || !payload?.success) {
         return {
           success: false,
           message: 'Failed to send email verification',
-          error: error.message,
+          error: payload?.error || "Unknown error",
         };
       }
 
@@ -103,15 +89,25 @@ export class VerificationService {
    */
   async sendPhoneVerification(phoneNumber: string): Promise<VerificationResult> {
     try {
-      // In a real implementation, this would use Supabase phone auth
-      // or a third-party service like Twilio
-      
-      // For now, return a placeholder response
-      console.log('Phone verification would be sent to:', phoneNumber);
-      
+      const response = await fetch("/api/verification/phone", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", phoneNumber }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        return {
+          success: false,
+          message: payload?.error || "Phone verification is not yet implemented",
+          error: payload?.error,
+        };
+      }
+
       return {
         success: true,
-        message: `Verification code would be sent to ${phoneNumber} (Feature coming soon)`,
+        message: payload?.message || `Verification code would be sent to ${phoneNumber} (Feature coming soon)`,
       };
     } catch (error: any) {
       return {
@@ -127,13 +123,25 @@ export class VerificationService {
    */
   async verifyPhoneCode(phoneNumber: string, code: string): Promise<VerificationResult> {
     try {
-      // In a real implementation, this would verify the SMS code
-      // For now, return a placeholder response
-      console.log('Phone verification code would be verified:', { phoneNumber, code });
-      
+      const response = await fetch("/api/verification/phone", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", phoneNumber, code }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        return {
+          success: false,
+          message: payload?.error || "Phone verification failed",
+          error: payload?.error,
+        };
+      }
+
       return {
         success: true,
-        message: 'Phone verification successful! (Mock implementation)',
+        message: payload?.message || "Phone verification successful! (Mock implementation)",
       };
     } catch (error: any) {
       return {
@@ -149,15 +157,19 @@ export class VerificationService {
    */
   async updatePhoneNumber(phoneNumber: string): Promise<VerificationResult> {
     try {
-      const { error } = await this.supabase.auth.updateUser({
-        phone: phoneNumber,
+      const response = await fetch("/api/verification/phone", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update", phoneNumber }),
       });
+      const payload = await response.json();
 
-      if (error) {
+      if (!response.ok || !payload?.success) {
         return {
           success: false,
           message: 'Failed to update phone number',
-          error: error.message,
+          error: payload?.error || "Unknown error",
         };
       }
 
