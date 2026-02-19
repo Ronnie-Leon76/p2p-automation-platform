@@ -77,6 +77,7 @@ model AppUser {
   exchangeData    UserExchangeData[]
   ownedTeams      Team[]           @relation("TeamOwner")
   teamMemberships TeamMember[]
+  activityLogs    ActivityLog[]
 
   @@map("users")
 }
@@ -163,4 +164,23 @@ model OAuthState {
 
   @@index([exchange])
   @@map("oauth_states")
+}
+
+model ActivityLog {
+  id           String   @id @default(cuid())
+  teamId       String?  @map("team_id")
+  userId       String   @map("user_id")
+  action       String
+  resourceType String?  @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  details      Json?
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([teamId, userId])
+  @@index([resourceType, resourceId])
+  @@map("activity_logs")
 }

@@ -1,9 +1,12 @@
+import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
+import { prisma } from "@/lib/db/prisma";
 import { createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient();
+    const usePostgres = isPostgresAdapter();
+    const supabase = usePostgres ? null : await createServerClient();
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
 
@@ -19,7 +22,48 @@ export async function GET(request: NextRequest) {
       const dateTo = searchParams.get("dateTo");
       const actions = searchParams.get("actions")?.split(",").filter(Boolean);
 
-      let query = supabase
+      if (usePostgres) {
+        const where: any = {
+          userId,
+        };
+        if (dateFrom || dateTo) {
+          where.createdAt = {};
+          if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+          if (dateTo) where.createdAt.lte = new Date(dateTo);
+        }
+        if (actions && actions.length > 0) {
+          where.action = { in: actions };
+        }
+
+        const [data, count] = await Promise.all([
+          prisma.activityLog.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            skip: offset,
+            take: limit,
+          }),
+          prisma.activityLog.count({ where }),
+        ]);
+
+        return NextResponse.json(
+          {
+            data: data.map((item) => ({
+              id: item.id,
+              action: item.action,
+              resource_type: item.resourceType,
+              resource_id: item.resourceId,
+              details: item.details,
+              created_at: item.createdAt,
+              team_id: item.teamId,
+            })),
+            error: null,
+            count,
+          },
+          { status: 200 }
+        );
+      }
+
+      let query = supabase!
         .from("activity_logs")
         .select(
           `
@@ -64,7 +108,54 @@ export async function GET(request: NextRequest) {
       const dateTo = searchParams.get("dateTo");
       const userId = searchParams.get("userId");
 
-      let query = supabase
+      if (usePostgres) {
+        const where: any = { teamId };
+        if (userId) where.userId = userId;
+        if (dateFrom || dateTo) {
+          where.createdAt = {};
+          if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+          if (dateTo) where.createdAt.lte = new Date(dateTo);
+        }
+
+        const [data, count] = await Promise.all([
+          prisma.activityLog.findMany({
+            where,
+            include: {
+              user: {
+                select: { id: true, fullName: true, email: true },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+            skip: offset,
+            take: limit,
+          }),
+          prisma.activityLog.count({ where }),
+        ]);
+
+        return NextResponse.json(
+          {
+            data: data.map((item) => ({
+              id: item.id,
+              action: item.action,
+              resource_type: item.resourceType,
+              resource_id: item.resourceId,
+              details: item.details,
+              created_at: item.createdAt,
+              users: {
+                id: item.user.id,
+                full_name: item.user.fullName,
+                email: item.user.email,
+                avatar_url: null,
+              },
+            })),
+            error: null,
+            count,
+          },
+          { status: 200 }
+        );
+      }
+
+      let query = supabase!
         .from("activity_logs")
         .select(
           `
@@ -110,7 +201,41 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "resourceType and resourceId are required" }, { status: 400 });
       }
 
-      const { data, error } = await supabase
+      if (usePostgres) {
+        const data = await prisma.activityLog.findMany({
+          where: {
+            resourceType,
+            resourceId,
+          },
+          include: {
+            user: {
+              select: { id: true, fullName: true, email: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: limit,
+        });
+
+        return NextResponse.json(
+          {
+            data: data.map((item) => ({
+              id: item.id,
+              action: item.action,
+              details: item.details,
+              created_at: item.createdAt,
+              users: {
+                id: item.user.id,
+                full_name: item.user.fullName,
+                email: item.user.email,
+              },
+            })),
+            error: null,
+          },
+          { status: 200 }
+        );
+      }
+
+      const { data, error } = await supabase!
         .from("activity_logs")
         .select(
           `
@@ -143,10 +268,28 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const action = body?.action as string | undefined;
-    const supabase = await createServerClient();
+    const usePostgres = isPostgresAdapter();
+    const supabase = usePostgres ? null : await createServerClient();
 
     if (action === "create") {
-      const { data, error } = await supabase
+      if (usePostgres) {
+        const data = await prisma.activityLog.create({
+          data: {
+            teamId: body.log.team_id,
+            userId: body.log.user_id,
+            action: body.log.action,
+            resourceType: body.log.resource_type,
+            resourceId: body.log.resource_id,
+            details: body.log.details,
+            ipAddress: body.log.ip_address,
+            userAgent: body.log.user_agent,
+          },
+          select: { id: true, createdAt: true },
+        });
+        return NextResponse.json({ data: { id: data.id, created_at: data.createdAt }, error: null }, { status: 200 });
+      }
+
+      const { data, error } = await supabase!
         .from("activity_logs")
         .insert([body.log])
         .select("id, created_at")
@@ -155,12 +298,60 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "batch-create") {
-      const { data, error } = await supabase.from("activity_logs").insert(body.logs).select("id");
+      if (usePostgres) {
+        const created = await Promise.all(
+          (body.logs || []).map((log: any) =>
+            prisma.activityLog.create({
+              data: {
+                teamId: log.team_id,
+                userId: log.user_id,
+                action: log.action,
+                resourceType: log.resource_type,
+                resourceId: log.resource_id,
+                details: log.details,
+                ipAddress: log.ip_address,
+                userAgent: log.user_agent,
+              },
+              select: { id: true },
+            })
+          )
+        );
+        return NextResponse.json({ data: created, error: null }, { status: 200 });
+      }
+
+      const { data, error } = await supabase!.from("activity_logs").insert(body.logs).select("id");
       return NextResponse.json({ data, error }, { status: 200 });
     }
 
     if (action === "summary") {
-      const { data, error } = await supabase.rpc("get_activity_summary", {
+      if (usePostgres) {
+        const from = body.dateFrom ? new Date(body.dateFrom) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const grouped = await prisma.activityLog.groupBy({
+          by: ["action"],
+          where: {
+            teamId: body.teamId,
+            createdAt: {
+              gte: from,
+            },
+          },
+          _count: {
+            action: true,
+          },
+        });
+
+        return NextResponse.json(
+          {
+            data: grouped.map((item) => ({
+              action: item.action,
+              count: item._count.action,
+            })),
+            error: null,
+          },
+          { status: 200 }
+        );
+      }
+
+      const { data, error } = await supabase!.rpc("get_activity_summary", {
         team_id: body.teamId,
         date_from: body.dateFrom,
       });
@@ -168,12 +359,37 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "cleanup") {
-      const { data, error } = await supabase.from("activity_logs").delete().lt("created_at", body.cutoffDate);
+      if (usePostgres) {
+        const result = await prisma.activityLog.deleteMany({
+          where: {
+            createdAt: {
+              lt: new Date(body.cutoffDate),
+            },
+          },
+        });
+        return NextResponse.json({ data: { count: result.count }, error: null }, { status: 200 });
+      }
+
+      const { data, error } = await supabase!.from("activity_logs").delete().lt("created_at", body.cutoffDate);
       return NextResponse.json({ data, error }, { status: 200 });
     }
 
     if (action === "performance") {
-      const { data, error } = await supabase.rpc("get_performance_stats");
+      if (usePostgres) {
+        const [total, last24h] = await Promise.all([
+          prisma.activityLog.count(),
+          prisma.activityLog.count({
+            where: {
+              createdAt: {
+                gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+              },
+            },
+          }),
+        ]);
+        return NextResponse.json({ data: { total_logs: total, logs_last_24h: last24h }, error: null }, { status: 200 });
+      }
+
+      const { data, error } = await supabase!.rpc("get_performance_stats");
       return NextResponse.json({ data, error }, { status: 200 });
     }
 
