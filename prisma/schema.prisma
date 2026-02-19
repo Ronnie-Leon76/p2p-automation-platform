@@ -153,3 +153,14 @@ model TeamMember {
   @@index([userId])
   @@map("team_members")
 }
+
+model OAuthState {
+  id        String   @id @default(cuid())
+  state     String   @unique
+  exchange  String
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@index([exchange])
+  @@map("oauth_states")
+}
