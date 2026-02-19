@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
 import { useAuth } from "./use-auth"
 
 interface Team {
@@ -29,7 +28,6 @@ export function useTeam() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
-  const supabase = getBrowserDbClient()
 
   useEffect(() => {
     if (!user) {
@@ -39,27 +37,20 @@ export function useTeam() {
 
     const fetchTeams = async () => {
       try {
-        // Get teams where user is a member
-        const { data: memberData, error: memberError } = await supabase
-          .from("team_members")
-          .select("team_id")
-          .eq("user_id", user.id)
+        const response = await fetch("/api/teams", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        })
+        const payload = await response.json()
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to fetch teams")
+        }
+        const teamsData = (payload?.teams || []) as Team[]
 
-        if (memberError) throw memberError
-
-        const teamIds = memberData.map((m) => m.team_id)
-
-        if (teamIds.length > 0) {
-          const { data: teamsData, error: teamsError } = await supabase.from("teams").select("*").in("id", teamIds)
-
-          if (teamsError) throw teamsError
-
-          setTeams(teamsData || [])
-
-          // Set first team as current if none selected
-          if (!currentTeam && teamsData && teamsData.length > 0) {
-            setCurrentTeam(teamsData[0])
-          }
+        setTeams(teamsData)
+        if (!currentTeam && teamsData.length > 0) {
+          setCurrentTeam(teamsData[0])
         }
       } catch (error) {
         console.error("Error fetching teams:", error)
@@ -69,60 +60,46 @@ export function useTeam() {
     }
 
     fetchTeams()
-  }, [user, supabase])
+  }, [user])
 
   useEffect(() => {
     if (!currentTeam) return
 
     const fetchTeamMembers = async () => {
       try {
-        const { data, error } = await supabase
-          .from("team_members")
-          .select(`
-            *,
-            users:user_id (
-              id,
-              email,
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq("team_id", currentTeam.id)
-
-        if (error) throw error
-        setTeamMembers(data || [])
+        const response = await fetch(`/api/teams/${currentTeam.id}/members`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        })
+        const payload = await response.json()
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to fetch team members")
+        }
+        setTeamMembers(payload?.members || [])
       } catch (error) {
         console.error("Error fetching team members:", error)
       }
     }
 
     fetchTeamMembers()
-  }, [currentTeam, supabase])
+  }, [currentTeam])
 
   const createTeam = async (name: string, description?: string) => {
     if (!user) return null
 
     try {
-      const { data: teamData, error: teamError } = await supabase
-        .from("teams")
-        .insert({
-          name,
-          description,
-          owner_id: user.id,
-        })
-        .select()
-        .single()
-
-      if (teamError) throw teamError
-
-      // Add creator as team member
-      const { error: memberError } = await supabase.from("team_members").insert({
-        team_id: teamData.id,
-        user_id: user.id,
-        role: "owner",
+      const response = await fetch("/api/teams", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description }),
       })
-
-      if (memberError) throw memberError
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to create team")
+      }
+      const teamData = payload.team as Team
 
       setTeams((prev) => [...prev, teamData])
       setCurrentTeam(teamData)

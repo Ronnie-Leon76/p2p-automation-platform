@@ -1,34 +1,64 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import type { User } from "@supabase/supabase-js"
-import { getBrowserDbClient } from "@/lib/composition/browser-db-composer";
+
+type AuthUser = {
+  id: string
+  email?: string
+  user_metadata?: Record<string, any>
+}
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = getBrowserDbClient()
 
   useEffect(() => {
+    let mounted = true
+
     const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setUser(user)
-      setLoading(false)
+      try {
+        const response = await fetch("/api/auth/session", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        })
+        const payload = await response.json()
+        if (!mounted) {
+          return
+        }
+        setUser(payload?.authenticated ? payload.user : null)
+      } catch {
+        if (!mounted) {
+          return
+        }
+        setUser(null)
+      } finally {
+        if (mounted) {
+          setLoading(false)
+        }
+      }
     }
 
-    getUser()
+    void getUser()
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    const onFocus = () => {
+      void getUser()
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void getUser()
+      }
+    }
 
-    return () => subscription.unsubscribe()
-  }, [supabase.auth])
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("visibilitychange", onVisibilityChange)
+
+    return () => {
+      mounted = false
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("visibilitychange", onVisibilityChange)
+    }
+  }, [])
 
   return { user, loading }
 }
