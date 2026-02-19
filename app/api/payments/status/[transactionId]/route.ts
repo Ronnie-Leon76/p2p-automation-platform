@@ -1,8 +1,13 @@
+import { isPostgresAdapter } from "@/lib/composition/backend-adapter"
 import { PaymentService } from "@/lib/payments/payment-service"
 import { createServerClient } from "@/lib/supabase/server"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function GET(request: NextRequest, { params }: { params: { transactionId: string } }) {
+  if (isPostgresAdapter()) {
+    return NextResponse.json({ error: "Payment status route is not migrated to Postgres yet." }, { status: 501 })
+  }
+
   try {
     const supabase = await createServerClient()
     const {

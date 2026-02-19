@@ -3,6 +3,7 @@
  * GET /api/payments/sasapay/status/[transactionId]
  */
 
+import { isPostgresAdapter } from '@/lib/composition/backend-adapter';
 import { sasapayService } from '@/lib/services/sasapay-service';
 import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,6 +15,10 @@ interface RouteParams {
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
+  if (isPostgresAdapter()) {
+    return NextResponse.json({ error: "SasaPay status route is not migrated to Postgres yet." }, { status: 501 });
+  }
+
   try {
     const supabase = await createServerClient();
     

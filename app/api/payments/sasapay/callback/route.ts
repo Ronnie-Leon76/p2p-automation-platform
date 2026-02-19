@@ -3,11 +3,16 @@
  * POST /api/payments/sasapay/callback
  */
 
+import { isPostgresAdapter } from '@/lib/composition/backend-adapter';
 import { sasapayService } from '@/lib/services/sasapay-service';
 import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
+  if (isPostgresAdapter()) {
+    return NextResponse.json({ error: "SasaPay callback route is not migrated to Postgres yet." }, { status: 501 });
+  }
+
   try {
     const supabase = await createServerClient();
     const callbackData = await request.json();

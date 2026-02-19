@@ -1,7 +1,12 @@
+import { isPostgresAdapter } from "@/lib/composition/backend-adapter"
 import { createServerClient } from "@/lib/supabase/server"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
+  if (isPostgresAdapter()) {
+    return NextResponse.json({ error: "I&M webhook route is not migrated to Postgres yet." }, { status: 501 })
+  }
+
   try {
     const body = await request.json()
     const supabase = await createServerClient()

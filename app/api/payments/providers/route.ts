@@ -1,7 +1,12 @@
+import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
 import { createServerClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
+  if (isPostgresAdapter()) {
+    return NextResponse.json({ error: "Payment providers route is not migrated to Postgres yet." }, { status: 501 });
+  }
+
   try {
     const teamId = new URL(request.url).searchParams.get("team_id");
     if (!teamId) {
