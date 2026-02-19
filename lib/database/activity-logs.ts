@@ -2,8 +2,6 @@
 // Production-ready activity logs service with optimized queries
 // No manual SQL patches needed - everything handled automatically
 
-import { getBrowserDbClient } from '@/lib/composition/browser-db-composer';
-
 export interface ActivityLog {
   id: string;
   team_id: string;
@@ -44,7 +42,17 @@ export interface ActivityLogWithUser extends Omit<ActivityLog, 'user_id'> {
  * Optimized for high performance with proper indexing
  */
 export class ActivityLogsService {
-  private supabase = getBrowserDbClient();
+  private async request<T>(url: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(url, {
+      credentials: "include",
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+    });
+    return response.json() as Promise<T>;
+  }
 
   /**
    * Get user activity logs (optimized with proper indexes)
@@ -62,33 +70,25 @@ export class ActivityLogsService {
   ) {
     const { limit = 50, offset = 0, dateFrom, dateTo, actions } = options;
 
-    let query = this.supabase
-      .from('activity_logs')
-      .select(`
-        id,
-        action,
-        resource_type,
-        resource_id,
-        details,
-        created_at,
-        team_id
-      `, { count: 'exact' })
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
+    const params = new URLSearchParams({
+      action: "user",
+      userId,
+      limit: String(limit),
+      offset: String(offset),
+    });
     if (dateFrom) {
-      query = query.gte('created_at', dateFrom.toISOString());
+      params.set("dateFrom", dateFrom.toISOString());
     }
     if (dateTo) {
-      query = query.lte('created_at', dateTo.toISOString());
+      params.set("dateTo", dateTo.toISOString());
     }
     if (actions && actions.length > 0) {
-      query = query.in('action', actions);
+      params.set("actions", actions.join(","));
     }
 
-    query = query.range(offset, offset + limit - 1);
-
-    const { data, error, count } = await query;
+    const { data, error, count } = await this.request<{ data: any; error: any; count: number | null }>(
+      `/api/activity-logs?${params.toString()}`
+    );
 
     return {
       data,
@@ -118,38 +118,25 @@ export class ActivityLogsService {
   }> {
     const { limit = 100, offset = 0, dateFrom, dateTo, userId } = options;
 
-    let query = this.supabase
-      .from('activity_logs')
-      .select(`
-        id,
-        action,
-        resource_type,
-        resource_id,
-        details,
-        created_at,
-        users!inner (
-          id,
-          full_name,
-          email,
-          avatar_url
-        )
-      `, { count: 'exact' })
-      .eq('team_id', teamId)
-      .order('created_at', { ascending: false });
-
+    const params = new URLSearchParams({
+      action: "team",
+      teamId,
+      limit: String(limit),
+      offset: String(offset),
+    });
     if (userId) {
-      query = query.eq('user_id', userId);
+      params.set("userId", userId);
     }
     if (dateFrom) {
-      query = query.gte('created_at', dateFrom.toISOString());
+      params.set("dateFrom", dateFrom.toISOString());
     }
     if (dateTo) {
-      query = query.lte('created_at', dateTo.toISOString());
+      params.set("dateTo", dateTo.toISOString());
     }
 
-    query = query.range(offset, offset + limit - 1);
-
-    const { data, error, count } = await query;
+    const { data, error, count } = await this.request<{ data: any[] | null; error: any; count: number | null }>(
+      `/api/activity-logs?${params.toString()}`
+    );
 
     // Transform data to match interface
     const transformedData = data?.map(item => ({
@@ -170,15 +157,17 @@ export class ActivityLogsService {
    * Create activity log with automatic context
    */
   async createActivityLog(log: CreateActivityLogInput) {
-    const { data, error } = await this.supabase
-      .from('activity_logs')
-      .insert([{
-        ...log,
-        ip_address: log.ip_address || this.getClientIP(),
-        user_agent: log.user_agent || this.getClientUserAgent()
-      }])
-      .select('id, created_at')
-      .single();
+    const { data, error } = await this.request<{ data: any; error: any }>("/api/activity-logs", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "create",
+        log: {
+          ...log,
+          ip_address: log.ip_address || this.getClientIP(),
+          user_agent: log.user_agent || this.getClientUserAgent(),
+        },
+      }),
+    });
 
     return { data, error };
   }
@@ -196,11 +185,14 @@ export class ActivityLogsService {
         ip_address: log.ip_address || this.getClientIP(),
         user_agent: log.user_agent || this.getClientUserAgent()
       }));
-      
-      const { data, error } = await this.supabase
-        .from('activity_logs')
-        .insert(batch)
-        .select('id');
+
+      const { data, error } = await this.request<{ data: any[] | null; error: any }>("/api/activity-logs", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "batch-create",
+          logs: batch,
+        }),
+      });
 
       if (error) {
         return { data: null, error };
@@ -219,11 +211,14 @@ export class ActivityLogsService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysBack);
 
-    const { data, error } = await this.supabase
-      .rpc('get_activity_summary', {
-        team_id: teamId,
-        date_from: cutoffDate.toISOString()
-      });
+    const { data, error } = await this.request<{ data: any; error: any }>("/api/activity-logs", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "summary",
+        teamId,
+        dateFrom: cutoffDate.toISOString(),
+      }),
+    });
 
     return { data, error };
   }
@@ -236,23 +231,13 @@ export class ActivityLogsService {
     resourceId: string,
     limit: number = 20
   ) {
-    const { data, error } = await this.supabase
-      .from('activity_logs')
-      .select(`
-        id,
-        action,
-        details,
-        created_at,
-        users!inner (
-          id,
-          full_name,
-          email
-        )
-      `)
-      .eq('resource_type', resourceType)
-      .eq('resource_id', resourceId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    const params = new URLSearchParams({
+      action: "resource",
+      resourceType,
+      resourceId,
+      limit: String(limit),
+    });
+    const { data, error } = await this.request<{ data: any; error: any }>(`/api/activity-logs?${params.toString()}`);
 
     return { data, error };
   }
@@ -264,10 +249,13 @@ export class ActivityLogsService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-    const { data, error } = await this.supabase
-      .from('activity_logs')
-      .delete()
-      .lt('created_at', cutoffDate.toISOString());
+    const { data, error } = await this.request<{ data: any; error: any }>("/api/activity-logs", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "cleanup",
+        cutoffDate: cutoffDate.toISOString(),
+      }),
+    });
 
     return { data, error };
   }
@@ -276,8 +264,10 @@ export class ActivityLogsService {
    * Get performance metrics for monitoring
    */
   async getPerformanceMetrics() {
-    const { data, error } = await this.supabase
-      .rpc('get_performance_stats');
+    const { data, error } = await this.request<{ data: any; error: any }>("/api/activity-logs", {
+      method: "POST",
+      body: JSON.stringify({ action: "performance" }),
+    });
 
     return { data, error };
   }
