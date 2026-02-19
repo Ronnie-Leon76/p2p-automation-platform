@@ -1,9 +1,17 @@
 import { createServerClient } from "@/lib/supabase/server"
+import { getBackendAdapter } from "@/lib/composition/backend-adapter"
 import crypto from "crypto"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
+    if (getBackendAdapter() === "postgres") {
+      return NextResponse.json(
+        { error: "Legacy exchange setup endpoint is disabled in postgres mode. Use Better Auth + /api/okx/credentials." },
+        { status: 410 }
+      )
+    }
+
     const { address, signature, apiKey, apiSecret, passphrase } = await request.json()
 
     if (!address || !signature || !apiKey || !apiSecret || !passphrase) {
