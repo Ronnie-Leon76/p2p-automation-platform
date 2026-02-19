@@ -1,4 +1,7 @@
 import { decrypt } from "@/lib/crypto/encryption"
+import { getAuthenticatedUser } from "@/lib/auth/server-user"
+import { isPostgresAdapter } from "@/lib/composition/backend-adapter"
+import { prisma } from "@/lib/db/prisma"
 import { OKXExchange } from "@/lib/exchanges/okx-exchange"
 import { createServerClient } from "@/lib/supabase/server"
 import { type NextRequest, NextResponse } from "next/server"
@@ -165,37 +168,64 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get("action")
-
-    // For GET requests, we need to get credentials from the database
-    const supabase = await createServerClient()
-    
-    // Get the authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
+    const user = await getAuthenticatedUser()
+    if (!user) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 })
     }
 
-    // Get user's OKX credentials
-    const { data: credentials, error: credError } = await supabase
-      .from('exchange_credentials')
-      .select('api_key, api_secret, passphrase')
-      .eq('user_id', user.id)
-      .eq('exchange', 'okx')
-      .eq('is_active', true)
-      .single()
+    let encryptedApiKey: string | null = null
+    let encryptedApiSecret: string | null = null
+    let encryptedPassphrase: string | null = null
 
-    if (credError || !credentials) {
-      return NextResponse.json({ 
-        error: "OKX credentials not found. Please set up your OKX API credentials.",
-        action: "setup_required"
-      }, { status: 404 })
+    if (isPostgresAdapter()) {
+      const credentials = await prisma.exchangeCredential.findFirst({
+        where: {
+          userId: user.id,
+          exchange: "okx",
+          isActive: true,
+        },
+        select: {
+          apiKey: true,
+          apiSecret: true,
+          passphrase: true,
+        },
+      })
+
+      encryptedApiKey = credentials?.apiKey ?? null
+      encryptedApiSecret = credentials?.apiSecret ?? null
+      encryptedPassphrase = credentials?.passphrase ?? null
+    } else {
+      const supabase = await createServerClient()
+      const { data: credentials, error: credError } = await supabase
+        .from("exchange_credentials")
+        .select("api_key, api_secret, passphrase")
+        .eq("user_id", user.id)
+        .eq("exchange", "okx")
+        .eq("is_active", true)
+        .single()
+
+      if (credError) {
+        console.error("Failed to load OKX credentials:", credError)
+      }
+
+      encryptedApiKey = credentials?.api_key ?? null
+      encryptedApiSecret = credentials?.api_secret ?? null
+      encryptedPassphrase = credentials?.passphrase ?? null
     }
 
-    // Decrypt the credentials
-    const decryptedApiKey = decrypt(credentials.api_key);
-    const decryptedApiSecret = decrypt(credentials.api_secret);
-    const decryptedPassphrase = decrypt(credentials.passphrase);
+    if (!encryptedApiKey || !encryptedApiSecret || !encryptedPassphrase) {
+      return NextResponse.json(
+        {
+          error: "OKX credentials not found. Please set up your OKX API credentials.",
+          action: "setup_required",
+        },
+        { status: 404 },
+      )
+    }
+
+    const decryptedApiKey = decrypt(encryptedApiKey)
+    const decryptedApiSecret = decrypt(encryptedApiSecret)
+    const decryptedPassphrase = decrypt(encryptedPassphrase)
 
     // Create OKX exchange instance
     const okxExchange = new OKXExchange(
