@@ -73,6 +73,8 @@ model AppUser {
   preferences     UserPreference[]
   credentials     ExchangeCredential[]
   exchangeData    UserExchangeData[]
+  ownedTeams      Team[]           @relation("TeamOwner")
+  teamMemberships TeamMember[]
 
   @@map("users")
 }
@@ -119,4 +121,33 @@ model UserExchangeData {
   @@unique([userId, exchange, dataType])
   @@index([userId, exchange])
   @@map("user_exchange_data")
+}
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String       @map("owner_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  owner       AppUser      @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     TeamMember[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id          String   @id @default(cuid())
+  teamId      String   @map("team_id")
+  userId      String   @map("user_id")
+  role        String
+  permissions Json?
+  invitedBy   String?  @map("invited_by")
+  joinedAt    DateTime @default(now()) @map("joined_at")
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user        AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@map("team_members")
 }
