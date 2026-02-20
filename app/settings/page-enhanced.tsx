@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { DataRefreshControl } from "@/components/data-refresh-control";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -341,17 +340,6 @@ function SettingsContent() {
               </Button>
             </div>
           </div>
-
-          {/* Data Refresh Control */}
-          <DataRefreshControl
-            isRefreshing={exchangeData.isRefreshing}
-            lastRefresh={exchangeData.lastRefresh}
-            onRefresh={exchangeData.refreshData}
-            onRefreshDataType={exchangeData.refreshDataType}
-            onClearCache={exchangeData.clearCacheAndReload}
-            getDataStatus={exchangeData.getDataStatus}
-            errors={exchangeData.errors}
-          />
 
           {/* Environment Info */}
           <Alert>

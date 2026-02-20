@@ -1,6 +1,5 @@
 "use client";
 
-import { DataRefreshControl } from "@/components/data-refresh-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -791,17 +790,6 @@ export function PaymentsOverview() {
           Add Payment Method
         </Button>
       </div>
-
-      {/* Data Refresh Control */}
-      <DataRefreshControl
-        isRefreshing={exchangeData.isRefreshing}
-        lastRefresh={exchangeData.lastRefresh}
-        onRefresh={exchangeData.refreshData}
-        onRefreshDataType={exchangeData.refreshDataType}
-        onClearCache={exchangeData.clearCacheAndReload}
-        getDataStatus={exchangeData.getDataStatus}
-        errors={exchangeData.errors}
-      />
 
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-4">

@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { DataRefreshControl } from "@/components/data-refresh-control";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -177,17 +176,6 @@ function AnalyticsContent() {
           </p>
         </div>
       </div>
-
-      {/* Data Refresh Control */}
-      <DataRefreshControl
-        isRefreshing={exchangeData.isRefreshing}
-        lastRefresh={exchangeData.lastRefresh}
-        onRefresh={exchangeData.refreshData}
-        onRefreshDataType={exchangeData.refreshDataType}
-        onClearCache={exchangeData.clearCacheAndReload}
-        getDataStatus={exchangeData.getDataStatus}
-        errors={exchangeData.errors}
-      />
 
       {/* Performance Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
