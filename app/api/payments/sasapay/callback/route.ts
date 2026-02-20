@@ -5,7 +5,7 @@
 
 import { isPostgresAdapter } from '@/lib/composition/backend-adapter';
 import { sasapayService } from '@/lib/services/sasapay-service';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/database/server-client';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -132,3 +132,4 @@ export async function GET(request: NextRequest) {
     timestamp: new Date().toISOString(),
   });
 }
+

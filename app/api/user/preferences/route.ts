@@ -1,7 +1,7 @@
 import { getAuthenticatedUser } from "@/lib/auth/server-user";
 import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
 import { prisma } from "@/lib/db/prisma";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/database/server-client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
@@ -91,3 +91,4 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Failed to save preferences" }, { status: 500 });
   }
 }
+

@@ -1,6 +1,6 @@
 import { ExchangeAPIService } from "@/lib/auth/exchange-api"
 import { ExchangeOAuthService } from "@/lib/auth/exchange-oauth"
-import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient } from "@/lib/database/server-client"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function GET(request: NextRequest, { params }: { params: { exchange: string } }) {

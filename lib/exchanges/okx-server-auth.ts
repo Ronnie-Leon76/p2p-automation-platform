@@ -3,7 +3,7 @@ import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
 import { decrypt } from "@/lib/crypto/encryption";
 import { prisma } from "@/lib/db/prisma";
 import { OKXExchange } from "@/lib/exchanges/okx-exchange";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/database/server-client";
 
 type OkxAuthError = {
   ok: false;
@@ -102,3 +102,4 @@ export async function getOkxExchangeForAuthenticatedUser(): Promise<OkxAuthResul
     okxExchange,
   };
 }
+

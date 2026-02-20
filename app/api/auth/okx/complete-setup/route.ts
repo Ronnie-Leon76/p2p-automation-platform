@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient } from "@/lib/database/server-client"
 import { getBackendAdapter } from "@/lib/composition/backend-adapter"
 import crypto from "crypto"
 import { type NextRequest, NextResponse } from "next/server"
@@ -86,3 +86,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to complete setup" }, { status: 500 })
   }
 }
+

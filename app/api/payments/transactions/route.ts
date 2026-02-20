@@ -1,5 +1,5 @@
 import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/database/server-client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -30,3 +30,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
   }
 }
+

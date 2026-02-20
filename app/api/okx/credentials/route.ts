@@ -3,7 +3,7 @@ import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
 import { prisma } from "@/lib/db/prisma";
 import { encrypt } from "@/lib/crypto/encryption";
 import { OKXExchange } from "@/lib/exchanges/okx-exchange";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/database/server-client";
 import { NextRequest, NextResponse } from "next/server";
 
 async function cacheOkxData(supabase: Awaited<ReturnType<typeof createServerClient>>, userId: string, okx: OKXExchange) {
@@ -293,3 +293,4 @@ export async function DELETE() {
     return NextResponse.json({ error: "Failed to delete credentials" }, { status: 500 });
   }
 }
+

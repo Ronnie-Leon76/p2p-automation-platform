@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient } from "@/lib/database/server-client"
 
 export class MPesaWebhookHandler {
   private supabase: any | null = null
@@ -219,3 +219,4 @@ export class MPesaWebhookHandler {
     return { success: true, transactionId: newTransaction?.id, unmatched: true }
   }
 }
+

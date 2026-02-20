@@ -1,5 +1,5 @@
 import { TeamCredentialsSetup } from "@/components/team-credentials-setup";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/database/server-client";
 import { redirect } from "next/navigation";
 
 export default async function TeamCredentialsPage() {
@@ -45,3 +45,4 @@ export default async function TeamCredentialsPage() {
     </div>
   );
 }
+

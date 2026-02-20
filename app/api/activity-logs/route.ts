@@ -1,6 +1,6 @@
 import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
 import { prisma } from "@/lib/db/prisma";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/database/server-client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -398,3 +398,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to process activity logs request" }, { status: 500 });
   }
 }
+

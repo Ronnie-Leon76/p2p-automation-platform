@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { getBackendAdapter } from "@/lib/composition/backend-adapter"
 import { prisma } from "@/lib/db/prisma"
-import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient } from "@/lib/database/server-client"
 
 const EXCHANGE_CONFIGS = {
   okx: {

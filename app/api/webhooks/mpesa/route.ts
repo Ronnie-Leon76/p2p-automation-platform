@@ -1,6 +1,6 @@
 import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
 import { handleMPesaWebhookGet, handleMPesaWebhookPost } from "@/lib/domain/payments/mpesa-webhook-use-cases";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/database/server-client";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -15,3 +15,4 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return handleMPesaWebhookGet();
 }
+

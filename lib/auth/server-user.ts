@@ -1,6 +1,5 @@
 import { getBackendAdapter } from "@/lib/composition/backend-adapter";
 import { getServerAuthPort } from "@/lib/composition/auth-composer.server";
-import { createServerClient } from "@/lib/supabase/server";
 
 export type AuthenticatedUser = {
   id: string;
@@ -23,20 +22,6 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> 
       user_metadata: user.user_metadata,
     };
   }
-
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return null;
-  }
-
-  return {
-    id: user.id,
-    email: user.email,
-    user_metadata: user.user_metadata ?? {},
-  };
+  return null;
 }
+

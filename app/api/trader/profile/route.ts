@@ -1,7 +1,7 @@
 import { getAuthenticatedUser } from "@/lib/auth/server-user";
 import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
 import { prisma } from "@/lib/db/prisma";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/database/server-client";
 import { NextResponse } from "next/server";
 
 function mapMerchantProfile(userId: string, merchantData: any) {
@@ -156,3 +156,4 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to load trader profile" }, { status: 500 });
   }
 }
+

@@ -1,6 +1,6 @@
 import { getAuthenticatedUser } from "@/lib/auth/server-user";
 import { getBackendAdapter } from "@/lib/composition/backend-adapter";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/database/server-client";
 import { NextResponse } from "next/server";
 
 export async function POST() {
@@ -32,3 +32,4 @@ export async function POST() {
     return NextResponse.json({ error: "Failed to send email verification" }, { status: 500 });
   }
 }
+

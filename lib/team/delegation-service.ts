@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient } from "@/lib/database/server-client"
 
 export interface TeamCredentials {
   id: string
@@ -254,3 +254,4 @@ export class TeamDelegationService {
     return Buffer.from(encryptedToken, "base64").toString()
   }
 }
+
