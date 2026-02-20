@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useAuth } from "./use-auth"
+import { useAuth } from "@/hooks/use-auth"
 
 interface Team {
   id: string
