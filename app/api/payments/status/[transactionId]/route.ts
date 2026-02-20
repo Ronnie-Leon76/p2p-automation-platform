@@ -1,29 +1,24 @@
-import { isPostgresAdapter } from "@/lib/composition/backend-adapter"
-import { PaymentService } from "@/lib/payments/payment-service"
-import { createServerClient } from "@/lib/database/server-client"
+import { getAuthenticatedUser } from "@/lib/auth/server-user"
+import { getPaymentStatusUseCase } from "@/lib/domain/payments/payment-status-use-cases"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ transactionId: string }> },
 ) {
-  if (isPostgresAdapter()) {
-    return NextResponse.json({ error: "Payment status route is not migrated to Postgres yet." }, { status: 501 })
-  }
-
   try {
-    const supabase = await createServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getAuthenticatedUser()
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { transactionId } = await params
-    const paymentService = new PaymentService()
-    const status = await paymentService.checkPaymentStatus(transactionId)
+    const status = await getPaymentStatusUseCase(transactionId)
+
+    if (!status) {
+      return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
+    }
 
     return NextResponse.json(status)
   } catch (error) {
