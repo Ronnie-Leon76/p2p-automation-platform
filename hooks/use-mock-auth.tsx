@@ -22,6 +22,19 @@ interface MockAuthContextType {
 }
 
 const MockAuthContext = createContext<MockAuthContextType | null>(null);
+const FALLBACK_MOCK_AUTH_CONTEXT: MockAuthContextType = {
+  user: null,
+  isLoading: false,
+  isAuthenticated: false,
+  login: async () => {
+    throw new Error("Mock auth is disabled in this environment.");
+  },
+  signup: async () => {
+    throw new Error("Mock auth is disabled in this environment.");
+  },
+  logout: () => {},
+  getExchangeCredentials: () => null,
+};
 
 export function MockAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<MockUser | null>(null);
@@ -132,7 +145,12 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
 export function useMockAuth() {
   const context = useContext(MockAuthContext);
   if (!context) {
-    throw new Error("useMockAuth must be used within a MockAuthProvider");
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "useMockAuth called without MockAuthProvider. Returning disabled fallback context."
+      );
+    }
+    return FALLBACK_MOCK_AUTH_CONTEXT;
   }
   return context;
 }
@@ -145,6 +163,6 @@ export function useAuthUser() {
     return mockAuth.user;
   }
 
-  // TODO: Return real Supabase user in production
+  // TODO: Return real authenticated user in production
   return null;
 }

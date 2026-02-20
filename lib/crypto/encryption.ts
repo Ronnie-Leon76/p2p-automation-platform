@@ -2,7 +2,7 @@
  * Encryption utilities for sensitive data like API credentials
  */
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'fallback-key-for-dev';
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || process.env.BETTER_AUTH_SECRET || 'fallback-key-for-dev';
 
 // Simple encryption using built-in crypto (replace with more robust solution for production)
 export const encrypt = (text: string): string => {

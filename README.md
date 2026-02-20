@@ -2,7 +2,7 @@
 
 A high-performance cryptocurrency P2P trading automation platform with team delegation, multi-exchange integration, and optimized database performance.
 
-## ⚡ Quick Start for Team Members
+## Quick Start for Team Members
 
 ### 1. **Setup (2 minutes)**
 
@@ -11,15 +11,18 @@ git clone <repo-url>
 cd p2p-automation-platform
 npm install
 cp .env.example .env.local
-# Add your Supabase credentials to .env.local
+# For local Postgres auth/data development:
+# cp .env.postgres.example .env.local
 ```
 
-### 2. **Database Optimization (1 minute)**
+### 2. **Backend**
 
-- Open your **Supabase SQL Editor**
-- Copy/paste the SQL from [`QUICK_DB_SETUP.md`](QUICK_DB_SETUP.md)
-- Run it once
-- ✅ **10-100x faster database performance applied!**
+- `postgres` (default): use `.env.postgres.example` and run:
+```bash
+npm run dev:db:up
+npm run db:generate
+npm run db:migrate
+```
 
 ### 3. **Start Development**
 
@@ -29,6 +32,19 @@ npm run dev
 ```
 
 **That's it!** No complex configurations, no manual patches needed.
+
+---
+
+## Security Baseline (Required)
+
+- Set `BETTER_AUTH_SECRET` to a random value of at least 32 characters for every environment.
+- Never reuse the same secret across `local`, `staging`, and `production`.
+- Do not commit secrets; keep them only in `.env.local` (or your deployment secret manager).
+- Generate a secure secret with:
+```bash
+npx @better-auth/cli secret
+```
+- Rotating `BETTER_AUTH_SECRET` invalidates active sessions; plan rotations accordingly.
 
 ---
 
@@ -63,31 +79,29 @@ npm run dev
 - **Compliance Tools** - Built-in reporting and audit features
 - **Rate Limiting** - API protection and abuse prevention
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes, Server Actions
-- **Database**: Supabase (PostgreSQL with RLS)
-- **Authentication**: Exchange OAuth (OKX, Binance, Bybit)
+- **Database**: Postgres + Prisma
+- **Authentication**: Better Auth, Exchange OAuth (OKX, Binance, Bybit)
 - **File Storage**: Cloudinary
 - **Payment Processing**: M-Pesa, I&M Bank, Airtel Money
 - **UI Components**: shadcn/ui
 - **State Management**: React Server Components, Suspense
 
-## 🚀 Quick Start
+## Full Setup
 
 ### Prerequisites
 
 - Node.js 18+ and npm/yarn
-- Supabase account and project
 - Exchange API credentials (OKX, Binance, Bybit)
 - Cloudinary account for file storage
 - Payment provider accounts (M-Pesa, I&M Bank)
 
 ### Postgres + Prisma + Better Auth (PR1 bootstrap)
 
-This repo now includes a first-pass migration scaffold for a local-first Postgres backend and Better Auth integration.
-Supabase remains the default adapter until you opt in with environment variables.
+This repo uses Postgres + Prisma + Better Auth for local-first and production deployments.
 
 ```bash
 # 1) Start local Postgres (Windows)
@@ -108,7 +122,29 @@ npm run db:migrate
 ```
 
 Auth route scaffold for Better Auth is available at `app/api/auth/[...all]/route.ts`.
-Adapter selection is controlled by `NEXT_PUBLIC_BACKEND_ADAPTER` / `BACKEND_ADAPTER` (`supabase` by default).
+Adapter selection is controlled by `NEXT_PUBLIC_BACKEND_ADAPTER` / `BACKEND_ADAPTER` (`postgres` default).
+
+### Common Error: `DATABASE_URL` Not Found
+
+If signup/login fails with:
+
+```text
+Environment variable not found: DATABASE_URL
+```
+
+you are running the `postgres` adapter without Postgres env configuration.
+
+Use this fix path:
+
+```bash
+npm run dev:db:up
+cp .env.postgres.example .env.local
+npm run db:generate
+npm run db:migrate
+npm run dev
+```
+
+Full guide: `LOCAL_POSTGRES_SETUP.md`
 
 ### 1. Clone and Install
 
@@ -123,10 +159,12 @@ npm install
 Create `.env.local`:
 
 ```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+# Postgres + Better Auth
+NEXT_PUBLIC_BACKEND_ADAPTER=postgres
+BACKEND_ADAPTER=postgres
+DATABASE_URL=postgresql://p2p:p2p_dev_password@localhost:5432/p2p_automation?schema=public
+BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_SECRET=replace_with_random_secret
 
 # Exchange API Keys
 OKX_API_KEY=your_okx_api_key
@@ -433,9 +471,8 @@ npm install
 
 3. **Setup Database**
 
-   - Create a Supabase project
-   - Run the SQL migration scripts in order
-   - Configure Row Level Security policies
+   - Start local Postgres
+   - Run Prisma migrations
 
 4. **Configure OAuth Applications**
 
@@ -1003,7 +1040,7 @@ For enterprise support and custom development:
 
 ## 🙏 Acknowledgments
 
-- **Supabase** - Database and authentication platform
+- **PostgreSQL** - Relational database
 - **Vercel** - Deployment and hosting platform
 - **shadcn/ui** - Beautiful UI components
 - **OKX, Binance, Bybit** - Exchange APIs and documentation
@@ -1014,3 +1051,4 @@ For enterprise support and custom development:
 Built with ❤️ by the P2P Automation Platform team.
 
 **Ready to scale your P2P trading operations?** Get started with our comprehensive platform today!
+

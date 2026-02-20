@@ -7,15 +7,10 @@ import { MockAdService } from './mock/mock-ad-service';
 import { MockTeamService } from './mock/mock-team-service';
 import { MockUserService } from './mock/mock-user-service';
 
-// Supabase service imports
-import { SupabaseAdService } from './supabase/supabase-ad-service';
-import { SupabaseTeamService } from './supabase/supabase-team-service';
-import { SupabaseUserService } from './supabase/supabase-user-service';
-
 // Environment management
 import { environmentManager, getEnvironmentMode, isMockMode } from "../config/environment";
 
-export type BackendAdapter = "mock" | "supabase" | "postgres";
+export type BackendAdapter = "mock" | "postgres";
 
 type ServiceBundle = {
   adService: AdServiceInterface;
@@ -41,7 +36,7 @@ export class ServiceFactory {
 
   private getConfiguredBackendAdapter(): BackendAdapter {
     const configured = process.env.NEXT_PUBLIC_BACKEND_ADAPTER?.toLowerCase();
-    if (configured === "mock" || configured === "supabase" || configured === "postgres") {
+    if (configured === "mock" || configured === "postgres") {
       return configured;
     }
 
@@ -49,7 +44,7 @@ export class ServiceFactory {
       return "mock";
     }
 
-    return "supabase";
+    return "postgres";
   }
 
   private createServicesForAdapter(adapter: BackendAdapter): ServiceBundle {
@@ -60,14 +55,13 @@ export class ServiceFactory {
           teamService: new MockTeamService(),
           userService: new MockUserService(),
         };
-      case "supabase":
-        return {
-          adService: new SupabaseAdService(),
-          teamService: new SupabaseTeamService(),
-          userService: new SupabaseUserService(),
-        };
       case "postgres":
-        throw new Error("Postgres adapter is not implemented yet. Set NEXT_PUBLIC_BACKEND_ADAPTER to 'supabase' or 'mock'.");
+        // Temporary bridge: use existing mock services until postgres domain services are fully implemented.
+        return {
+          adService: new MockAdService(),
+          teamService: new MockTeamService(),
+          userService: new MockUserService(),
+        };
       default:
         throw new Error(`Unknown backend adapter: ${adapter}`);
     }
@@ -162,7 +156,7 @@ export class ServiceFactory {
     }
     
     environmentManager.switchMode('local');
-    console.log('🏠 Switched to local Supabase services');
+    console.log('🏠 Switched to local Postgres services');
   }
 
   public async switchToLocalMode(): Promise<void> {
@@ -171,7 +165,7 @@ export class ServiceFactory {
     }
     
     environmentManager.switchMode('local');
-    console.log('🏠 Switched to local Supabase services');
+    console.log('🏠 Switched to local Postgres services');
   }
 
   public async switchToProductionMode(): Promise<void> {

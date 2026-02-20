@@ -125,7 +125,7 @@ export function DevModeToggle() {
         <div>
           <h2 className="text-2xl font-bold">Development Mode Control</h2>
           <p className="text-gray-600">
-            Switch between mock data and live Supabase testing
+            Switch between mock data and live backend testing
           </p>
         </div>
         <Badge variant={useMockData ? "secondary" : "default"}>
@@ -137,7 +137,7 @@ export function DevModeToggle() {
           ) : (
             <>
               <Server className="w-4 h-4 mr-1" />
-              Live Supabase
+              Live Backend
             </>
           )}
         </Badge>
@@ -333,15 +333,15 @@ export function DevModeToggle() {
         </CardHeader>
         <CardContent className="text-sm text-blue-800 space-y-2">
           <div>
-            1. <code>node scripts/dev-helper.js --start-supabase</code>
+            1. <code>npm run dev:db:up</code>
           </div>
           <div>
-            2. Update <code>.env.local</code> with Supabase keys
+            2. Update <code>.env.local</code> with Postgres/Better Auth values
           </div>
           <div>
             3. <code>node scripts/dev-helper.js --apply-schema</code>
           </div>
-          <div>4. Toggle to "Live Supabase" mode above</div>
+          <div>4. Toggle to "Live Backend" mode above</div>
           <div>5. Run service tests to verify everything works</div>
         </CardContent>
       </Card>

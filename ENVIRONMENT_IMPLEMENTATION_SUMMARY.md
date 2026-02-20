@@ -16,7 +16,7 @@ Successfully implemented a comprehensive environment management system that hand
 
 - **`.env.local`** - Updated with new environment variables
 - **`.env.mock.example`** - Template for mock data development
-- **`.env.local.example`** - Template for local Supabase development
+- **`.env.local.example`** - Template for local Postgres development
 - **`.env.production.example`** - Template for production deployment
 
 ### 3. Documentation
@@ -35,14 +35,14 @@ Successfully implemented a comprehensive environment management system that hand
 ### Local Mode
 
 - Triggered by: `NEXT_PUBLIC_ENVIRONMENT=local` OR localhost URL detection
-- Behavior: Uses local Supabase instance, full authentication
-- Services: Real Supabase services pointing to localhost:55321
+- Behavior: Uses local Postgres instance, full authentication
+- Services: Real Postgres/Prisma services pointing to local database
 
 ### Production Mode
 
 - Triggered by: `NEXT_PUBLIC_ENVIRONMENT=production` OR `NODE_ENV=production`
-- Behavior: Uses production Supabase instance, full security
-- Services: Real Supabase services pointing to production URLs
+- Behavior: Uses production Postgres instance, full security
+- Services: Real Postgres/Prisma services pointing to production database
 
 ## Service Factory Enhancement
 
@@ -87,7 +87,7 @@ import {
 if (isMockMode()) {
   // Skip auth for mock mode
 } else {
-  // Full Supabase authentication for local/production
+  // Full Better Auth authentication for local/production
 }
 ```
 
@@ -109,7 +109,7 @@ console.log("Current mode:", serviceFactory.getEnvironmentMode());
 // Switch to mock data for UI development
 await serviceFactory.switchToMockData();
 
-// Switch to local Supabase for integration testing
+// Switch to local Postgres for integration testing
 await serviceFactory.switchToLocalMode();
 ```
 
@@ -136,11 +136,11 @@ npm run dev
 # ✅ Authentication bypassed, mock data available, rapid UI development
 ```
 
-### 2. Local Supabase Development
+### 2. Local Postgres Development
 
 ```bash
-# Start Supabase
-npx supabase start
+# Start Postgres
+npm run dev:db:up
 
 # Set to local mode
 echo "NEXT_PUBLIC_ENVIRONMENT=local" > .env.local
@@ -173,7 +173,7 @@ NEXT_PUBLIC_ENVIRONMENT=production npm run build
 ### ✅ Authentication Handling
 
 - Mock authentication bypass for development
-- Full Supabase auth for local/production
+- Full Better Auth for local/production
 - Proper middleware protection
 
 ### ✅ Debugging and Monitoring

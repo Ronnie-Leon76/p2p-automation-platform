@@ -78,9 +78,8 @@ class EnvironmentManager {
       return 'mock';
     }
 
-    // Check if we have local Supabase URLs
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (supabaseUrl && (supabaseUrl.includes('localhost') || supabaseUrl.includes('127.0.0.1'))) {
+    // Check if postgres adapter is explicitly enabled
+    if (process.env.NEXT_PUBLIC_BACKEND_ADAPTER === 'postgres' || process.env.BACKEND_ADAPTER === 'postgres') {
       return 'local';
     }
 
@@ -122,15 +121,14 @@ class EnvironmentManager {
   }
 
   /**
-   * Local Supabase environment configuration
+   * Local Postgres environment configuration
    */
   private getLocalConfig(): EnvironmentConfig {
     return {
       mode: 'local',
       database: {
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:55321',
-        anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        url: process.env.DATABASE_URL || '',
+        anonKey: process.env.BETTER_AUTH_SECRET || '',
       },
       features: {
         mockAuth: false,
@@ -157,9 +155,8 @@ class EnvironmentManager {
     return {
       mode: 'production',
       database: {
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        url: process.env.DATABASE_URL || '',
+        anonKey: process.env.BETTER_AUTH_SECRET || '',
       },
       features: {
         mockAuth: false,
@@ -201,7 +198,7 @@ class EnvironmentManager {
   }
 
   /**
-   * Check if using local Supabase
+   * Check if using local data backend
    */
   public isLocalMode(): boolean {
     return this.currentConfig.mode === 'local';
@@ -280,7 +277,7 @@ class EnvironmentManager {
       nodeEnv: process.env.NODE_ENV,
       explicitEnv: process.env.NEXT_PUBLIC_ENVIRONMENT,
       useMockData: process.env.NEXT_PUBLIC_USE_MOCK_DATA,
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
+      backendAdapter: process.env.NEXT_PUBLIC_BACKEND_ADAPTER || process.env.BACKEND_ADAPTER,
       appUrl: process.env.NEXT_PUBLIC_APP_URL,
       features: this.currentConfig.features,
       validation: this.validateConfig(),
