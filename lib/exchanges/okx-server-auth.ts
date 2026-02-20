@@ -1,9 +1,7 @@
 import { getAuthenticatedUser } from "@/lib/auth/server-user";
-import { isPostgresAdapter } from "@/lib/composition/backend-adapter";
 import { decrypt } from "@/lib/crypto/encryption";
 import { prisma } from "@/lib/db/prisma";
 import { OKXExchange } from "@/lib/exchanges/okx-exchange";
-import { createServerClient } from "@/lib/database/server-client";
 
 type OkxAuthError = {
   ok: false;
@@ -36,40 +34,21 @@ export async function getOkxExchangeForAuthenticatedUser(): Promise<OkxAuthResul
   let encryptedApiSecret: string | null = null;
   let encryptedPassphrase: string | null = null;
 
-  if (isPostgresAdapter()) {
-    const credentials = await prisma.exchangeCredential.findFirst({
-      where: {
-        userId: user.id,
-        exchange: "okx",
-        isActive: true,
-      },
-      select: {
-        apiKey: true,
-        apiSecret: true,
-        passphrase: true,
-      },
-    });
-    encryptedApiKey = credentials?.apiKey ?? null;
-    encryptedApiSecret = credentials?.apiSecret ?? null;
-    encryptedPassphrase = credentials?.passphrase ?? null;
-  } else {
-    const supabase = await createServerClient();
-    const { data: credentials, error } = await supabase
-      .from("exchange_credentials")
-      .select("api_key, api_secret, passphrase")
-      .eq("user_id", user.id)
-      .eq("exchange", "okx")
-      .eq("is_active", true)
-      .single();
-
-    if (error) {
-      console.error("Failed to load OKX credentials:", error);
-    }
-
-    encryptedApiKey = credentials?.api_key ?? null;
-    encryptedApiSecret = credentials?.api_secret ?? null;
-    encryptedPassphrase = credentials?.passphrase ?? null;
-  }
+  const credentials = await prisma.exchangeCredential.findFirst({
+    where: {
+      userId: user.id,
+      exchange: "okx",
+      isActive: true,
+    },
+    select: {
+      apiKey: true,
+      apiSecret: true,
+      passphrase: true,
+    },
+  });
+  encryptedApiKey = credentials?.apiKey ?? null;
+  encryptedApiSecret = credentials?.apiSecret ?? null;
+  encryptedPassphrase = credentials?.passphrase ?? null;
 
   if (!encryptedApiKey || !encryptedApiSecret || !encryptedPassphrase) {
     return {

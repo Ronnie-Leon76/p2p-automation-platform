@@ -1,235 +1,149 @@
-import { ExchangeAPIService } from "@/lib/auth/exchange-api"
-import { ExchangeOAuthService } from "@/lib/auth/exchange-oauth"
-import { createServerClient } from "@/lib/database/server-client"
-import { type NextRequest, NextResponse } from "next/server"
+import { ExchangeAPIService } from "@/lib/auth/exchange-api";
+import { ExchangeOAuthService } from "@/lib/auth/exchange-oauth";
+import { getAuthenticatedUser } from "@/lib/auth/server-user";
+import { prisma } from "@/lib/db/prisma";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ exchange: string }> },
 ) {
   try {
-    const { exchange } = await params
-    const { searchParams } = new URL(request.url)
-    const code = searchParams.get("code")
-    const state = searchParams.get("state")
-    const error = searchParams.get("error")
+    const { exchange } = await params;
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
+    const error = searchParams.get("error");
 
     if (error) {
-      return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=${encodeURIComponent(error)}`)
+      return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=${encodeURIComponent(error)}`);
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=missing_parameters`)
+      return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=missing_parameters`);
     }
 
-    const supabase = await createServerClient()
-    const oauthService = new ExchangeOAuthService()
-    const apiService = new ExchangeAPIService()
+    const authUser = await getAuthenticatedUser();
+    if (!authUser) {
+      return NextResponse.redirect(`${request.nextUrl.origin}/auth/login?error=auth_required`);
+    }
 
-    // Get OAuth config
-    const config = await oauthService.getOAuthConfig(exchange)
+    const stateRecord = await prisma.oAuthState.findUnique({
+      where: { state },
+    });
+
+    if (!stateRecord || stateRecord.exchange !== exchange || stateRecord.expiresAt < new Date()) {
+      return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=invalid_oauth_state`);
+    }
+
+    await prisma.oAuthState.delete({ where: { state } });
+
+    const oauthService = new ExchangeOAuthService();
+    const apiService = new ExchangeAPIService();
+
+    const config = await oauthService.getOAuthConfig(exchange);
     if (!config) {
-      return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=oauth_not_configured`)
+      return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=oauth_not_configured`);
     }
 
-    // Exchange code for token
-    const tokenData = await oauthService.exchangeCodeForToken(exchange, code, config)
+    const tokenData = await oauthService.exchangeCodeForToken(exchange, code, config);
+    const userInfo = await apiService.getUserInfo(exchange, tokenData.access_token);
 
-    // Get user info from exchange
-    const userInfo = await apiService.getUserInfo(exchange, tokenData.access_token)
+    await prisma.appUser.upsert({
+      where: { id: authUser.id },
+      create: {
+        id: authUser.id,
+        email: authUser.email ?? userInfo.email ?? null,
+        fullName: userInfo.username ?? authUser.user_metadata?.full_name ?? null,
+        userType: (authUser.user_metadata?.user_type as string | undefined) ?? "merchant",
+        exchangeProvider: exchange,
+      },
+      update: {
+        email: authUser.email ?? userInfo.email ?? undefined,
+        fullName: userInfo.username ?? authUser.user_metadata?.full_name ?? undefined,
+        exchangeProvider: exchange,
+      },
+    });
 
-    // Check if user exists
-    const { data: existingUser, error: userError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("exchange_provider", exchange)
-      .eq("exchange_user_id", userInfo.userId)
-      .single()
-
-    let userId: string
-
-    if (userError && userError.code === "PGRST116") {
-      // User doesn't exist, create new user
-      const { data: newUser, error: createError } = await supabase
-        .from("users")
-        .insert({
-          email: userInfo.email || `${userInfo.userId}@${exchange}.local`,
-          full_name: userInfo.username,
-          provider: exchange,
-          exchange_provider: exchange,
-          exchange_user_id: userInfo.userId,
-          exchange_access_token: tokenData.access_token,
-          exchange_refresh_token: tokenData.refresh_token,
-          exchange_token_expires_at: tokenData.expires_in
-            ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-            : null,
-          exchange_permissions: userInfo.permissions,
-          trader_info: {
-            username: userInfo.username,
-            traderType: userInfo.traderType,
-            isVerified: userInfo.isVerified,
-          },
-          kyc_level: userInfo.kycLevel,
-          completion_rate: userInfo.completionRate,
-          completed_orders: userInfo.completedOrders,
-          is_verified_trader: userInfo.isVerified,
-          email_verified: true,
-        })
-        .select()
-        .single()
-
-      if (createError) {
-        console.error("Error creating user:", createError)
-        return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=user_creation_failed`)
-      }
-
-      userId = newUser.id
-    } else if (userError) {
-      console.error("Error fetching user:", userError)
-      return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=database_error`)
-    } else {
-      // User exists, update tokens and info
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({
-          exchange_access_token: tokenData.access_token,
-          exchange_refresh_token: tokenData.refresh_token,
-          exchange_token_expires_at: tokenData.expires_in
-            ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-            : null,
-          exchange_permissions: userInfo.permissions,
-          trader_info: {
-            username: userInfo.username,
-            traderType: userInfo.traderType,
-            isVerified: userInfo.isVerified,
-          },
-          kyc_level: userInfo.kycLevel,
-          completion_rate: userInfo.completionRate,
-          completed_orders: userInfo.completedOrders,
-          is_verified_trader: userInfo.isVerified,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existingUser.id)
-
-      if (updateError) {
-        console.error("Error updating user:", updateError)
-        return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=user_update_failed`)
-      }
-
-      userId = existingUser.id
-    }
-
-    // Create OAuth session
-    await supabase.from("oauth_sessions").insert({
-      user_id: userId,
-      exchange_name: exchange,
-      access_token_encrypted: tokenData.access_token, // In production, encrypt this
-      refresh_token_encrypted: tokenData.refresh_token,
-      token_type: tokenData.token_type || "Bearer",
-      expires_at: tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString() : null,
-      scopes: config.scopes,
-      session_data: tokenData,
-    })
-
-    // Handle team info if available
-    if (userInfo.teamInfo) {
-      // Check if exchange team exists
-      let { data: exchangeTeam, error: teamError } = await supabase
-        .from("exchange_teams")
-        .select("*")
-        .eq("exchange_name", exchange)
-        .eq("external_team_id", userInfo.teamInfo.teamId)
-        .single()
-
-      if (teamError && teamError.code === "PGRST116") {
-        // Create new exchange team
-        const { data: newTeam, error: createTeamError } = await supabase
-          .from("exchange_teams")
-          .insert({
-            exchange_name: exchange,
-            external_team_id: userInfo.teamInfo.teamId,
-            team_name: userInfo.teamInfo.teamName,
-            team_type: "exchange_team",
-            team_permissions: userInfo.teamInfo.permissions,
-            owner_user_id: userId,
-          })
-          .select()
-          .single()
-
-        if (!createTeamError) {
-          exchangeTeam = newTeam
-        }
-      }
-
-      // Add user to exchange team
-      if (exchangeTeam) {
-        await supabase
-          .from("exchange_team_members")
-          .upsert({
-            exchange_team_id: exchangeTeam.id,
-            user_id: userId,
-            exchange_role: userInfo.teamInfo.role,
-            permissions: userInfo.teamInfo.permissions,
-          })
-          .select()
-      }
-    }
-
-    // Get trader metrics and store them
-    try {
-      const metrics = await apiService.getTraderMetrics(exchange, tokenData.access_token, userInfo.userId)
-      if (metrics) {
-        await supabase.from("trader_metrics").upsert({
-          user_id: userId,
-          exchange_name: exchange,
-          metric_date: new Date().toISOString().split("T")[0],
-          total_orders: metrics.totalOrders || 0,
-          completed_orders: metrics.completedOrders || 0,
-          cancelled_orders: metrics.cancelledOrders || 0,
-          total_volume: metrics.totalVolume || 0,
-          completion_rate: metrics.completionRate || 0,
-          average_completion_time: metrics.averageCompletionTime || 0,
-          rating: metrics.rating || 0,
-          positive_feedback: metrics.positiveFeedback || 0,
-          negative_feedback: metrics.negativeFeedback || 0,
-          metrics_data: metrics,
-        })
-      }
-    } catch (error) {
-      console.warn("Failed to fetch trader metrics:", error)
-    }
-
-    // Sign in the user with Supabase
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: userInfo.email || `${userInfo.userId}@${exchange}.local`,
-      password: userInfo.userId, // Use exchange user ID as password
-    })
-
-    if (signInError) {
-      // If sign in fails, create auth user
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: userInfo.email || `${userInfo.userId}@${exchange}.local`,
-        password: userInfo.userId,
-        options: {
-          data: {
-            exchange_provider: exchange,
-            exchange_user_id: userInfo.userId,
-            full_name: userInfo.username,
-          },
+    await prisma.userExchangeData.upsert({
+      where: {
+        userId_exchange_dataType: {
+          userId: authUser.id,
+          exchange,
+          dataType: "oauth_token",
         },
-      })
+      },
+      create: {
+        userId: authUser.id,
+        exchange,
+        dataType: "oauth_token",
+        data: tokenData as any,
+        expiresAt: tokenData.expires_in
+          ? new Date(Date.now() + tokenData.expires_in * 1000)
+          : new Date(Date.now() + 60 * 60 * 1000),
+      },
+      update: {
+        data: tokenData as any,
+        expiresAt: tokenData.expires_in
+          ? new Date(Date.now() + tokenData.expires_in * 1000)
+          : new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
 
-      if (signUpError) {
-        console.error("Auth error:", signUpError)
-        return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=auth_failed`)
+    await prisma.userExchangeData.upsert({
+      where: {
+        userId_exchange_dataType: {
+          userId: authUser.id,
+          exchange,
+          dataType: "profile",
+        },
+      },
+      create: {
+        userId: authUser.id,
+        exchange,
+        dataType: "profile",
+        data: userInfo as any,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+      update: {
+        data: userInfo as any,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+
+    try {
+      const metrics = await apiService.getTraderMetrics(exchange, tokenData.access_token, userInfo.userId);
+      if (metrics) {
+        await prisma.userExchangeData.upsert({
+          where: {
+            userId_exchange_dataType: {
+              userId: authUser.id,
+              exchange,
+              dataType: "trader_metrics",
+            },
+          },
+          create: {
+            userId: authUser.id,
+            exchange,
+            dataType: "trader_metrics",
+            data: metrics as any,
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          },
+          update: {
+            data: metrics as any,
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          },
+        });
       }
+    } catch (metricsError) {
+      console.warn("Failed to fetch trader metrics:", metricsError);
     }
 
-    return NextResponse.redirect(`${request.nextUrl.origin}/dashboard`)
+    return NextResponse.redirect(`${request.nextUrl.origin}/dashboard`);
   } catch (error) {
-    console.error("OAuth callback error:", error)
+    console.error("OAuth callback error:", error);
     return NextResponse.redirect(
       `${request.nextUrl.origin}/auth?error=${encodeURIComponent(error instanceof Error ? error.message : "oauth_failed")}`,
-    )
+    );
   }
 }
