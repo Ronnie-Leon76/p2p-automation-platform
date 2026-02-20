@@ -3,7 +3,10 @@ import { PaymentService } from "@/lib/payments/payment-service"
 import { createServerClient } from "@/lib/database/server-client"
 import { type NextRequest, NextResponse } from "next/server"
 
-export async function GET(request: NextRequest, { params }: { params: { transactionId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ transactionId: string }> },
+) {
   if (isPostgresAdapter()) {
     return NextResponse.json({ error: "Payment status route is not migrated to Postgres yet." }, { status: 501 })
   }
@@ -18,8 +21,9 @@ export async function GET(request: NextRequest, { params }: { params: { transact
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { transactionId } = await params
     const paymentService = new PaymentService()
-    const status = await paymentService.checkPaymentStatus(params.transactionId)
+    const status = await paymentService.checkPaymentStatus(transactionId)
 
     return NextResponse.json(status)
   } catch (error) {

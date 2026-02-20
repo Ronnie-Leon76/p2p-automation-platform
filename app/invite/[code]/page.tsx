@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useParams } from "next/navigation";
 
 const InviteAcceptancePage = dynamic(
   () => import("@/components/invite-acceptance-page").then((mod) => ({ default: mod.InviteAcceptancePage })),
@@ -10,12 +11,7 @@ const InviteAcceptancePage = dynamic(
   }
 );
 
-interface InvitePageProps {
-  params: {
-    code: string;
-  };
-}
-
-export default function InvitePage({ params }: InvitePageProps) {
+export default function InvitePage() {
+  const params = useParams<{ code: string }>();
   return <InviteAcceptancePage inviteCode={params.code} />;
 }

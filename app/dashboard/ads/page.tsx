@@ -1,23 +1,15 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import { AdManagementClient } from "@/components/ad-management-client";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { createServerClient } from "@/lib/database/server-client";
-import dynamic from "next/dynamic";
 import { redirect } from "next/navigation";
 
-const AdManagement = dynamic(
-  () => import("@/components/ad-management-enhanced").then((mod) => ({ default: mod.AdManagement })),
-  {
-    ssr: false,
-    loading: () => <div className="p-8">Loading ad management...</div>,
-  },
-);
-
 export default async function AdsPage() {
-  // In development mode, bypass Supabase auth check
+  // In development mode, bypass auth check
   if (process.env.NODE_ENV !== "development") {
     const supabase = await createServerClient();
 
@@ -41,7 +33,7 @@ export default async function AdsPage() {
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
-          <AdManagement />
+          <AdManagementClient />
         </div>
       </SidebarInset>
     </SidebarProvider>

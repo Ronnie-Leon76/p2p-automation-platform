@@ -9,9 +9,9 @@ import { createServerClient } from '@/lib/database/server-client';
 import { NextRequest, NextResponse } from 'next/server';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     transactionId: string;
-  };
+  }>;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { transactionId } = params;
+    const { transactionId } = await params;
 
     // Get transaction details from database
     const { data: transaction, error: transactionError } = await supabase

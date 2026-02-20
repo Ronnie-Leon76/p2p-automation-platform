@@ -18,8 +18,9 @@ import { redirect } from "next/navigation";
 export default async function OrderDetailsPage({
   params,
 }: {
-  params: { orderId: string };
+  params: Promise<{ orderId: string }>;
 }) {
+  const { orderId } = await params;
   const supabase = await createServerClient();
 
   const {
@@ -39,7 +40,7 @@ export default async function OrderDetailsPage({
       ads(*)
     `
     )
-    .eq("id", params.orderId)
+    .eq("id", orderId)
     .single();
 
   if (error || !order) {
@@ -102,7 +103,7 @@ export default async function OrderDetailsPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PaymentIntegration orderId={params.orderId} />
+              <PaymentIntegration orderId={orderId} />
             </CardContent>
           </Card>
         </div>

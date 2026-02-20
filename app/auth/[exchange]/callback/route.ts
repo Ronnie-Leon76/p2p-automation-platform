@@ -3,8 +3,12 @@ import { ExchangeOAuthService } from "@/lib/auth/exchange-oauth"
 import { createServerClient } from "@/lib/database/server-client"
 import { type NextRequest, NextResponse } from "next/server"
 
-export async function GET(request: NextRequest, { params }: { params: { exchange: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ exchange: string }> },
+) {
   try {
+    const { exchange } = await params
     const { searchParams } = new URL(request.url)
     const code = searchParams.get("code")
     const state = searchParams.get("state")
@@ -23,22 +27,22 @@ export async function GET(request: NextRequest, { params }: { params: { exchange
     const apiService = new ExchangeAPIService()
 
     // Get OAuth config
-    const config = await oauthService.getOAuthConfig(params.exchange)
+    const config = await oauthService.getOAuthConfig(exchange)
     if (!config) {
       return NextResponse.redirect(`${request.nextUrl.origin}/auth?error=oauth_not_configured`)
     }
 
     // Exchange code for token
-    const tokenData = await oauthService.exchangeCodeForToken(params.exchange, code, config)
+    const tokenData = await oauthService.exchangeCodeForToken(exchange, code, config)
 
     // Get user info from exchange
-    const userInfo = await apiService.getUserInfo(params.exchange, tokenData.access_token)
+    const userInfo = await apiService.getUserInfo(exchange, tokenData.access_token)
 
     // Check if user exists
     const { data: existingUser, error: userError } = await supabase
       .from("users")
       .select("*")
-      .eq("exchange_provider", params.exchange)
+      .eq("exchange_provider", exchange)
       .eq("exchange_user_id", userInfo.userId)
       .single()
 
@@ -49,10 +53,10 @@ export async function GET(request: NextRequest, { params }: { params: { exchange
       const { data: newUser, error: createError } = await supabase
         .from("users")
         .insert({
-          email: userInfo.email || `${userInfo.userId}@${params.exchange}.local`,
+          email: userInfo.email || `${userInfo.userId}@${exchange}.local`,
           full_name: userInfo.username,
-          provider: params.exchange,
-          exchange_provider: params.exchange,
+          provider: exchange,
+          exchange_provider: exchange,
           exchange_user_id: userInfo.userId,
           exchange_access_token: tokenData.access_token,
           exchange_refresh_token: tokenData.refresh_token,
@@ -118,7 +122,7 @@ export async function GET(request: NextRequest, { params }: { params: { exchange
     // Create OAuth session
     await supabase.from("oauth_sessions").insert({
       user_id: userId,
-      exchange_name: params.exchange,
+      exchange_name: exchange,
       access_token_encrypted: tokenData.access_token, // In production, encrypt this
       refresh_token_encrypted: tokenData.refresh_token,
       token_type: tokenData.token_type || "Bearer",
@@ -133,7 +137,7 @@ export async function GET(request: NextRequest, { params }: { params: { exchange
       let { data: exchangeTeam, error: teamError } = await supabase
         .from("exchange_teams")
         .select("*")
-        .eq("exchange_name", params.exchange)
+        .eq("exchange_name", exchange)
         .eq("external_team_id", userInfo.teamInfo.teamId)
         .single()
 
@@ -142,7 +146,7 @@ export async function GET(request: NextRequest, { params }: { params: { exchange
         const { data: newTeam, error: createTeamError } = await supabase
           .from("exchange_teams")
           .insert({
-            exchange_name: params.exchange,
+            exchange_name: exchange,
             external_team_id: userInfo.teamInfo.teamId,
             team_name: userInfo.teamInfo.teamName,
             team_type: "exchange_team",
@@ -173,11 +177,11 @@ export async function GET(request: NextRequest, { params }: { params: { exchange
 
     // Get trader metrics and store them
     try {
-      const metrics = await apiService.getTraderMetrics(params.exchange, tokenData.access_token, userInfo.userId)
+      const metrics = await apiService.getTraderMetrics(exchange, tokenData.access_token, userInfo.userId)
       if (metrics) {
         await supabase.from("trader_metrics").upsert({
           user_id: userId,
-          exchange_name: params.exchange,
+          exchange_name: exchange,
           metric_date: new Date().toISOString().split("T")[0],
           total_orders: metrics.totalOrders || 0,
           completed_orders: metrics.completedOrders || 0,
@@ -197,18 +201,18 @@ export async function GET(request: NextRequest, { params }: { params: { exchange
 
     // Sign in the user with Supabase
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: userInfo.email || `${userInfo.userId}@${params.exchange}.local`,
+      email: userInfo.email || `${userInfo.userId}@${exchange}.local`,
       password: userInfo.userId, // Use exchange user ID as password
     })
 
     if (signInError) {
       // If sign in fails, create auth user
       const { error: signUpError } = await supabase.auth.signUp({
-        email: userInfo.email || `${userInfo.userId}@${params.exchange}.local`,
+        email: userInfo.email || `${userInfo.userId}@${exchange}.local`,
         password: userInfo.userId,
         options: {
           data: {
-            exchange_provider: params.exchange,
+            exchange_provider: exchange,
             exchange_user_id: userInfo.userId,
             full_name: userInfo.username,
           },
