@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { DataRefreshControl } from "@/components/data-refresh-control";
@@ -17,6 +17,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { useExchangeData } from "@/hooks/use-exchange-data";
+import { useDashboardBootstrap } from "@/hooks/use-dashboard-bootstrap";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { useAuth } from "@/hooks/use-auth";
 import { isMockMode } from "@/lib/config/environment";
@@ -45,16 +46,16 @@ function AnalyticsContent() {
   const { user, isAuthenticated, isLoading } = isMockMode()
     ? mockAuth
     : supabaseAuth;
+  useDashboardBootstrap("okx", ["profile", "merchant_profile", "balance", "orders"]);
 
   // Use the new exchange data hook
   const exchangeData = useExchangeData(user?.id || null, "okx", {
-    autoRefresh: true,
+    autoRefresh: false,
     refreshInterval: 10, // 10 minutes for analytics
     includeTypes: ["profile", "merchant_profile", "balance", "orders"],
-    onRefreshStart: () => console.log("🔄 Analytics data refresh started"),
-    onRefreshComplete: () => console.log("✅ Analytics data refresh completed"),
-    onRefreshError: (error) =>
-      console.error("❌ Analytics data refresh failed:", error),
+    onRefreshStart: () => undefined,
+    onRefreshComplete: () => undefined,
+    onRefreshError: (error) => console.error("Analytics data refresh failed:", error),
   });
 
   useEffect(() => {
@@ -374,7 +375,7 @@ function AnalyticsContent() {
                   Exchange Connection
                 </span>
               </div>
-              <p className="text-sm text-green-700">🟡 OKX - Connected</p>
+              <p className="text-sm text-green-700">ðŸŸ¡ OKX - Connected</p>
               <p className="text-xs text-green-600 mt-1">
                 Data source:{" "}
                 {exchangeData.merchantProfile?.data
@@ -442,4 +443,5 @@ export default function AnalyticsPage() {
     </SidebarProvider>
   );
 }
+
 

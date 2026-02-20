@@ -1,6 +1,5 @@
 "use client";
 
-import { DataRefreshControl } from "@/components/data-refresh-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -149,14 +148,12 @@ export function AdManagement() {
 
   // Use the new exchange data hook (fetch ads, balances and payment methods)
   const exchangeData = useExchangeData(user?.id || null, "okx", {
-    autoRefresh: true,
-    refreshInterval: 5, // 5 minutes for ads (more frequent)
+    autoRefresh: false,
+    refreshInterval: 15,
     includeTypes: ["balance", "payment_methods", "ads"],
-    onRefreshStart: () => console.log("🔄 Ad management data refresh started"),
-    onRefreshComplete: () =>
-      console.log("✅ Ad management data refresh completed"),
-    onRefreshError: (error) =>
-      console.error("❌ Ad management data refresh failed:", error),
+    onRefreshStart: () => undefined,
+    onRefreshComplete: () => undefined,
+    onRefreshError: (error) => console.error("Ad management refresh failed:", error),
   });
 
   useEffect(() => {
@@ -619,17 +616,6 @@ export function AdManagement() {
         </div>
       </div>
 
-      {/* Data Refresh Control */}
-      <DataRefreshControl
-        isRefreshing={exchangeData.isRefreshing}
-        lastRefresh={exchangeData.lastRefresh}
-        onRefresh={exchangeData.refreshData}
-        onRefreshDataType={exchangeData.refreshDataType}
-        onClearCache={exchangeData.clearCacheAndReload}
-        getDataStatus={exchangeData.getDataStatus}
-        errors={exchangeData.errors}
-      />
-
       {/* API Status & Permissions removed */}
 
       {/* Debug info removed */}
@@ -1006,5 +992,6 @@ export function AdManagement() {
     </div>
   );
 }
+
 
 

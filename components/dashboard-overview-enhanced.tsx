@@ -1,6 +1,5 @@
 "use client";
 
-import { DataRefreshControl } from "@/components/data-refresh-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,8 +48,8 @@ export function DashboardOverview() {
 
   // Use the new exchange data hook
   const exchangeData = useExchangeData(user?.id || null, "okx", {
-    autoRefresh: true, // Re-enabled with proper GET requests
-    refreshInterval: 15, // 15 minutes for dashboard
+    autoRefresh: false,
+    refreshInterval: 30,
     includeTypes: [
       "profile",
       "merchant_profile",
@@ -58,10 +57,9 @@ export function DashboardOverview() {
       "payment_methods",
       "orders",
     ],
-    onRefreshStart: () => console.log("🔄 Dashboard data refresh started"),
-    onRefreshComplete: () => console.log("✅ Dashboard data refresh completed"),
-    onRefreshError: (error) =>
-      console.error("❌ Dashboard data refresh failed:", error),
+    onRefreshStart: () => undefined,
+    onRefreshComplete: () => undefined,
+    onRefreshError: (error) => console.error("Dashboard data refresh failed:", error),
   });
 
   useEffect(() => {
@@ -74,14 +72,6 @@ export function DashboardOverview() {
       exchangeData.merchantProfile?.data || exchangeData.profile?.data;
     const balance = exchangeData.balance?.data;
     const orders = exchangeData.orders?.data;
-
-    console.log("🔍 Dashboard metrics debug:", {
-      profile,
-      balance,
-      orders,
-      merchantInfo30Day: profile?.merchantInfo30DayOrderInfo,
-    });
-
     // Calculate total balance
     let totalBalance = 0;
     if (balance) {
@@ -135,6 +125,13 @@ export function DashboardOverview() {
   };
 
   const metrics = getDashboardMetrics();
+  const profileData = exchangeData.merchantProfile?.data || exchangeData.profile?.data;
+  const merchantNickname =
+    profileData?.nickName ||
+    profileData?.nickname ||
+    (user as any)?.user_metadata?.name ||
+    (user as any)?.email?.split("@")[0] ||
+    "Trader";
 
   // Show loading state
   if (!isClient || isLoading || exchangeData.isLoading) {
@@ -187,7 +184,7 @@ export function DashboardOverview() {
               P2P Trading Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              Welcome back! Here's your trading overview
+              Welcome back {merchantNickname}, here's your trading overview
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -201,18 +198,6 @@ export function DashboardOverview() {
             </Button>
           </div>
         </div>
-
-        {/* Data Refresh Control */}
-        <DataRefreshControl
-          isRefreshing={exchangeData.isRefreshing}
-          lastRefresh={exchangeData.lastRefresh}
-          onRefresh={exchangeData.refreshData}
-          onRefreshDataType={exchangeData.refreshDataType}
-          onClearCache={exchangeData.clearCacheAndReload}
-          getDataStatus={exchangeData.getDataStatus}
-          errors={exchangeData.errors}
-          className="mb-6"
-        />
 
         {/* Key Metrics */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -464,4 +449,6 @@ export function DashboardOverview() {
     </div>
   );
 }
+
+
 

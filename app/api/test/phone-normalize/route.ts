@@ -1,4 +1,3 @@
-import { sasaPayService } from "@/lib/payments/sasapay-service"
 import { type NextRequest, NextResponse } from "next/server"
 
 /**
@@ -24,8 +23,12 @@ export async function POST(request: NextRequest) {
     
     console.log(`Testing phone normalization for: ${phone}`)
     
-    // Test phone number normalization
-    const normalizedPhone = sasaPayService.testPhoneNormalization(phone)
+    // Kenya phone normalization for local testing
+    const digits = String(phone).replace(/\D/g, "")
+    let normalizedPhone = digits
+    if (digits.startsWith("0")) normalizedPhone = `254${digits.slice(1)}`
+    if (digits.startsWith("7") && digits.length === 9) normalizedPhone = `254${digits}`
+    if (digits.startsWith("254") && digits.length > 12) normalizedPhone = digits.slice(0, 12)
     
     return NextResponse.json({
       success: true,

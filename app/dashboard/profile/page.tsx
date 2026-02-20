@@ -7,7 +7,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const TraderProfile = dynamic(
@@ -25,27 +24,14 @@ const TraderProfile = dynamic(
 
 export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      if (process.env.NODE_ENV === "development") {
-        setIsLoading(false);
-        return;
-      }
-
-      const response = await fetch("/api/auth/session", { cache: "no-store" });
-      const data = await response.json();
-      if (!data.authenticated) {
-        router.push("/auth");
-        return;
-      }
-
+    const finishLoading = async () => {
       setIsLoading(false);
     };
 
-    checkAuth();
-  }, [router]);
+    void finishLoading();
+  }, []);
 
   if (isLoading) {
     return (

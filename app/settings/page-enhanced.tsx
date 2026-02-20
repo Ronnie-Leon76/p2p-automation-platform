@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { DataRefreshControl } from "@/components/data-refresh-control";
@@ -32,6 +32,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VerificationManagement } from "@/components/verification-management";
 import { useExchangeData } from "@/hooks/use-exchange-data";
+import { useDashboardBootstrap } from "@/hooks/use-dashboard-bootstrap";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { useAuth } from "@/hooks/use-auth";
 import { getAuthPort } from "@/lib/composition/auth-composer";
@@ -105,16 +106,16 @@ function SettingsContent() {
   const { user, isAuthenticated, isLoading } = isMockMode()
     ? mockAuth
     : supabaseAuth;
+  useDashboardBootstrap("okx", ["profile", "balance"]);
 
   // Use the new exchange data hook
   const exchangeData = useExchangeData(user?.id || null, "okx", {
-    autoRefresh: true,
+    autoRefresh: false,
     refreshInterval: 10, // 10 minutes for settings
     includeTypes: ["profile", "balance"],
-    onRefreshStart: () => console.log("🔄 Settings data refresh started"),
-    onRefreshComplete: () => console.log("✅ Settings data refresh completed"),
-    onRefreshError: (error) =>
-      console.error("❌ Settings data refresh failed:", error),
+    onRefreshStart: () => undefined,
+    onRefreshComplete: () => undefined,
+    onRefreshError: (error) => console.error("Settings data refresh failed:", error),
   });
 
   // Mock settings data
@@ -790,7 +791,7 @@ function SettingsContent() {
                                 {log.action}
                               </p>
                               <p className="text-xs text-gray-600">
-                                {log.ip_address} •{" "}
+                                {log.ip_address} â€¢{" "}
                                 {formatDistanceToNow(new Date(log.timestamp), {
                                   addSuffix: true,
                                 })}
@@ -897,4 +898,5 @@ function SettingsContent() {
 export default function SettingsPage() {
   return <SettingsContent />;
 }
+
 

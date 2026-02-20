@@ -20,6 +20,8 @@ export interface ExchangeDataResult<T = any> {
   is_stale?: boolean;
 }
 
+export type DashboardBootstrapPayload = ClientDashboardBootstrapPayload;
+
 export interface DataRefreshEvent {
   type: "refresh_started" | "refresh_completed" | "refresh_failed";
   exchange: string;
@@ -41,6 +43,7 @@ export class ExchangeDataService {
   private refreshListeners: Set<(event: DataRefreshEvent) => void> = new Set();
   private refreshPromises: Map<string, Promise<any>> = new Map();
   private fetchPromises: Map<string, Promise<any>> = new Map();
+  private cacheSnapshot: Map<string, { records: CacheRecord[]; expiresAt: number }> = new Map();
 
   static getInstance(): ExchangeDataService {
     if (!ExchangeDataService.instance) {
@@ -82,6 +85,26 @@ export class ExchangeDataService {
     return payload as T;
   }
 
+  async getDashboardBootstrap(
+    exchange: string,
+    includeTypes: DataType[]
+  ): Promise<DashboardBootstrapPayload> {
+    const payload = await getDashboardBootstrapCached({
+      exchange,
+      types: includeTypes,
+      minimal: false,
+      ttlMs: 10_000,
+    });
+
+    // Seed cache snapshot used by getCachedData to avoid extra round-trips.
+    this.cacheSnapshot.set(`cache:${exchange}`, {
+      records: (payload.exchange.records || []) as unknown as CacheRecord[],
+      expiresAt: Date.now() + 10_000,
+    });
+
+    return payload;
+  }
+
   async getExchangeData<T = any>(
     userId: string,
     exchange: string,
@@ -109,6 +132,15 @@ export class ExchangeDataService {
 
       if (this.fetchPromises.has(fetchKey)) {
         return await this.fetchPromises.get(fetchKey)!;
+      }
+
+      // Avoid expensive live API calls during page navigation.
+      if (!forceRefresh) {
+        return {
+          data: null,
+          error: "No cached data available",
+          source: "cache",
+        };
       }
 
       const fetchPromise = this.fetchFreshData<T>(exchange, dataType);
@@ -212,11 +244,25 @@ export class ExchangeDataService {
   }
 
   private async getCachedData<T>(exchange: string, dataType: DataType): Promise<ExchangeDataResult<T>> {
-    const payload = await this.request<{ records: CacheRecord[] }>(
-      `/api/okx/cache?exchange=${encodeURIComponent(exchange)}&dataType=${encodeURIComponent(dataType)}`
-    );
+    const snapshotKey = `cache:${exchange}`;
+    const now = Date.now();
+    const cachedSnapshot = this.cacheSnapshot.get(snapshotKey);
 
-    const record = payload.records?.[0];
+    let records: CacheRecord[];
+    if (cachedSnapshot && cachedSnapshot.expiresAt > now) {
+      records = cachedSnapshot.records;
+    } else {
+      const payload = await this.request<{ records: CacheRecord[] }>(
+        `/api/okx/cache?exchange=${encodeURIComponent(exchange)}`
+      );
+      records = payload.records || [];
+      this.cacheSnapshot.set(snapshotKey, {
+        records,
+        expiresAt: now + 5_000,
+      });
+    }
+
+    const record = records.find((r) => r.data_type === dataType);
     if (!record) {
       return {
         data: null,
@@ -225,7 +271,7 @@ export class ExchangeDataService {
       };
     }
 
-    const now = new Date();
+    const current = new Date();
     const expiresAt = new Date(record.expires_at);
 
     return {
@@ -234,7 +280,7 @@ export class ExchangeDataService {
       source: "cache",
       cached_at: record.created_at,
       expires_at: record.expires_at,
-      is_stale: now > expiresAt,
+      is_stale: current > expiresAt,
     };
   }
 
@@ -303,6 +349,10 @@ export class ExchangeDataService {
         expiresAt,
       }),
     });
+
+    // Invalidate local snapshot cache after writes.
+    this.cacheSnapshot.delete(`cache:${exchange}`);
+    invalidateDashboardBootstrapCache();
   }
 
   async clearCache(_userId: string, exchange?: string, dataType?: DataType): Promise<void> {
@@ -318,6 +368,12 @@ export class ExchangeDataService {
     await this.request<{ success: boolean }>(`/api/okx/cache${suffix}`, {
       method: "DELETE",
     });
+    if (exchange) {
+      this.cacheSnapshot.delete(`cache:${exchange}`);
+    } else {
+      this.cacheSnapshot.clear();
+    }
+    invalidateDashboardBootstrapCache();
   }
 
   async getDataStatus(
@@ -351,3 +407,8 @@ export class ExchangeDataService {
 }
 
 export const exchangeDataService = ExchangeDataService.getInstance();
+import {
+  getDashboardBootstrapCached,
+  type ClientDashboardBootstrapPayload,
+  invalidateDashboardBootstrapCache,
+} from "@/lib/client/dashboard-bootstrap-cache";

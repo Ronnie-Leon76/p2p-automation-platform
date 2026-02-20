@@ -36,6 +36,7 @@ export async function GET() {
         hasCredentials: credentialsCount > 0,
         hasExchangeData: exchangeDataCount > 0,
         profileComplete: Boolean(userProfile?.profileComplete),
+        preferredExchange: userProfile?.exchangeProvider ?? "okx",
       },
       { status: 200 }
     );

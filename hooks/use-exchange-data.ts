@@ -26,6 +26,7 @@ export interface ExchangeDataState {
   isRefreshing: boolean;
   lastRefresh: string | null;
   errors: Record<DataType, string | null>;
+  bootstrapPreferences: Record<string, any> | null;
 }
 
 export function useExchangeData(
@@ -52,6 +53,7 @@ export function useExchangeData(
     isLoading: false,
     isRefreshing: false,
     lastRefresh: null,
+    bootstrapPreferences: null,
     errors: {
       profile: null,
       merchant_profile: null,
@@ -75,37 +77,69 @@ export function useExchangeData(
    * Load initial data with deduplication and debouncing
    */
   const loadData = useCallback(async (forceRefresh = false) => {
-    console.log('🔍 loadData called', { userId, forceRefresh, loading: loadingRef.current });
-    
     if (!userId || loadingRef.current) {
-      console.log('⏭️ Skipping loadData - no user or already loading');
       return; // Skip if no user or already loading
     }
 
     // Debounce: prevent calls within 1 second
     const now = Date.now();
     if (!forceRefresh && now - lastLoadTimeRef.current < 1000) {
-      console.log('⏭️ Skipping loadData - debounced');
       return;
     }
-    
-    console.log('✅ Starting loadData execution');
+
     lastLoadTimeRef.current = now;
     loadingRef.current = true;
     setState(prev => ({ ...prev, isLoading: true }));
 
     try {
-      const results = await Promise.all(
-        stableIncludeTypes.map(async (dataType) => {
-          const result = await exchangeDataService.getExchangeData(
-            userId,
-            exchange,
+      let results: Array<{ dataType: DataType; result: ExchangeDataResult }>;
+      let bootstrapPreferences: Record<string, any> | null = null;
+
+      if (!forceRefresh) {
+        const bootstrap = await exchangeDataService.getDashboardBootstrap(exchange, stableIncludeTypes);
+        bootstrapPreferences = (bootstrap.preferences?.data as Record<string, any> | null) ?? null;
+        const recordMap = new Map(
+          (bootstrap.exchange.records || []).map((record) => [record.data_type, record])
+        );
+        results = stableIncludeTypes.map((dataType) => {
+          const record = recordMap.get(dataType);
+          if (!record) {
+            return {
+              dataType,
+              result: {
+                data: null,
+                error: "No cached data found",
+                source: "cache",
+              } as ExchangeDataResult,
+            };
+          }
+
+          const isStale = new Date(record.expires_at) < new Date();
+          return {
             dataType,
-            { forceRefresh }
-          );
-          return { dataType, result };
-        })
-      );
+            result: {
+              data: record.data,
+              error: null,
+              source: "cache",
+              cached_at: record.created_at,
+              expires_at: record.expires_at,
+              is_stale: isStale,
+            } as ExchangeDataResult,
+          };
+        });
+      } else {
+        results = await Promise.all(
+          stableIncludeTypes.map(async (dataType) => {
+            const result = await exchangeDataService.getExchangeData(
+              userId,
+              exchange,
+              dataType,
+              { forceRefresh }
+            );
+            return { dataType, result };
+          })
+        );
+      }
 
       setState(prev => {
         const newState = { ...prev, isLoading: false };
@@ -121,13 +155,13 @@ export function useExchangeData(
         });
 
         newState.errors = newErrors;
+        if (bootstrapPreferences) {
+          newState.bootstrapPreferences = bootstrapPreferences;
+        }
         return newState;
       });
-
-      console.log('✅ loadData completed successfully');
-
     } catch (error) {
-      console.error('❌ loadData failed:', error);
+      console.error('loadData failed:', error);
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -359,16 +393,13 @@ export function useExchangeData(
 
   // Load initial data once with request deduplication
   useEffect(() => {
-    console.log('🎯 Initial load effect triggered', { userId, exchange, loading: loadingRef.current });
     let mounted = true;
     
     if (userId && !loadingRef.current && mounted) {
-      console.log('🚀 Initial data load triggered for user:', userId);
       loadData();
     }
 
     return () => {
-      console.log('🧹 Initial load effect cleanup');
       mounted = false;
     };
   }, [userId, exchange]); // Minimal stable dependencies only
@@ -393,3 +424,4 @@ export function useExchangeData(
     forceReload: () => loadData(true)
   };
 }
+

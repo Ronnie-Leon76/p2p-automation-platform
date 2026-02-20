@@ -30,6 +30,13 @@ interface OnboardingStep {
   icon: any;
 }
 
+interface OnboardingStatusResponse {
+  hasCredentials: boolean;
+  hasExchangeData: boolean;
+  profileComplete: boolean;
+  preferredExchange?: string;
+}
+
 export function UserOnboarding() {
   const [steps, setSteps] = useState<OnboardingStep[]>([]);
   const [completionPercentage, setCompletionPercentage] = useState(0);
@@ -44,7 +51,8 @@ export function UserOnboarding() {
     try {
       const response = await fetch("/api/onboarding/status", { cache: "no-store" });
       if (!response.ok) return;
-      const status = await response.json();
+      const status = (await response.json()) as OnboardingStatusResponse;
+      const preferredExchange = (status.preferredExchange || "okx").toLowerCase();
 
       const onboardingSteps: OnboardingStep[] = [
         {
@@ -54,7 +62,7 @@ export function UserOnboarding() {
             "Connect your exchange account to enable automated trading",
           completed: Boolean(status.hasCredentials),
           action: "Set up Exchange",
-          href: "/dashboard/exchanges/okx",
+          href: `/auth/${preferredExchange}/setup`,
           icon: Wallet,
         },
         {
@@ -63,7 +71,7 @@ export function UserOnboarding() {
           description: "Import your trading data and account information",
           completed: Boolean(status.hasExchangeData),
           action: "Sync Data",
-          href: "/dashboard/exchanges/okx",
+          href: `/dashboard/exchanges/${preferredExchange}`,
           icon: TrendingUp,
         },
         {

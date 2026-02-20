@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { DataRefreshControl } from "@/components/data-refresh-control";
@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useExchangeData } from "@/hooks/use-exchange-data";
+import { useDashboardBootstrap } from "@/hooks/use-dashboard-bootstrap";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { useAuth } from "@/hooks/use-auth";
 import { isMockMode } from "@/lib/config/environment";
@@ -124,16 +125,16 @@ export default function BotsPage() {
   const { user, isAuthenticated, isLoading } = isMockMode()
     ? mockAuth
     : supabaseAuth;
+  useDashboardBootstrap("okx", ["balance", "orders", "merchant_profile"]);
 
   // Use the new exchange data hook
   const exchangeData = useExchangeData(user?.id || null, "okx", {
-    autoRefresh: true,
+    autoRefresh: false,
     refreshInterval: 5, // 5 minutes for bots (frequent updates)
     includeTypes: ["balance", "orders", "merchant_profile"],
-    onRefreshStart: () => console.log("🔄 Bots data refresh started"),
-    onRefreshComplete: () => console.log("✅ Bots data refresh completed"),
-    onRefreshError: (error) =>
-      console.error("❌ Bots data refresh failed:", error),
+    onRefreshStart: () => undefined,
+    onRefreshComplete: () => undefined,
+    onRefreshError: (error) => console.error("Bots data refresh failed:", error),
   });
 
   useEffect(() => {
@@ -575,7 +576,7 @@ export default function BotsPage() {
                             <div>
                               <p className="font-medium">{bot.name}</p>
                               <p className="text-sm text-gray-600">
-                                {bot.currency_pair} • {bot.exchange} • Last
+                                {bot.currency_pair} â€¢ {bot.exchange} â€¢ Last
                                 active{" "}
                                 {formatDistanceToNow(
                                   new Date(bot.last_activity),
@@ -791,4 +792,5 @@ export default function BotsPage() {
     </SidebarProvider>
   );
 }
+
 

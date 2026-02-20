@@ -1,4 +1,5 @@
 import type { AuthPort, AuthPortUser } from "@/lib/ports/auth-port";
+import { getDashboardBootstrapCached } from "@/lib/client/dashboard-bootstrap-cache";
 
 function mapSessionUser(payload: any): AuthPortUser | null {
   const user = payload?.user;
@@ -10,43 +11,66 @@ function mapSessionUser(payload: any): AuthPortUser | null {
     id: user.id,
     email: user.email,
     user_metadata: {
-      name: user.name,
+      name: user.name || user.full_name,
       image: user.image,
     },
   };
 }
 
 export class PostgresAuthPort implements AuthPort {
-  async getCurrentUser(): Promise<AuthPortUser | null> {
-    const response = await fetch("/api/auth/session", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
+  private static sessionCache: { user: AuthPortUser | null; expiresAt: number } | null = null;
+  private static inFlight: Promise<AuthPortUser | null> | null = null;
+  private static subscribers = new Set<(user: AuthPortUser | null) => void>();
+  private static listenersAttached = false;
+
+  private static notifySubscribers(user: AuthPortUser | null) {
+    PostgresAuthPort.subscribers.forEach((callback) => {
+      callback(user);
     });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const payload = await response.json();
-    if (!payload?.authenticated) {
-      return null;
-    }
-
-    return mapSessionUser(payload);
   }
 
-  onAuthStateChange(callback: (user: AuthPortUser | null) => void): () => void {
-    let disposed = false;
+  private static async fetchSession(forceRefresh: boolean): Promise<AuthPortUser | null> {
+    const now = Date.now();
+    if (!forceRefresh && PostgresAuthPort.sessionCache && PostgresAuthPort.sessionCache.expiresAt > now) {
+      return PostgresAuthPort.sessionCache.user;
+    }
+
+    if (PostgresAuthPort.inFlight) {
+      return PostgresAuthPort.inFlight;
+    }
+
+    PostgresAuthPort.inFlight = (async () => {
+      try {
+        const payload = await getDashboardBootstrapCached({
+          exchange: "okx",
+          minimal: true,
+          types: ["profile"],
+          ttlMs: 60_000,
+        });
+        const user = mapSessionUser(payload);
+        PostgresAuthPort.sessionCache = { user, expiresAt: now + 60_000 };
+        return user;
+      } catch {
+        PostgresAuthPort.sessionCache = { user: null, expiresAt: now + 10_000 };
+        return null;
+      } finally {
+        PostgresAuthPort.inFlight = null;
+      }
+    })();
+
+    return PostgresAuthPort.inFlight;
+  }
+
+  private static attachGlobalListeners() {
+    if (PostgresAuthPort.listenersAttached) {
+      return;
+    }
+    PostgresAuthPort.listenersAttached = true;
 
     const syncUser = async () => {
-      if (disposed) {
-        return;
-      }
-      callback(await this.getCurrentUser());
+      const user = await PostgresAuthPort.fetchSession(true);
+      PostgresAuthPort.notifySubscribers(user);
     };
-
-    void syncUser();
 
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -60,11 +84,19 @@ export class PostgresAuthPort implements AuthPort {
 
     window.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("focus", onFocus);
+  }
+
+  async getCurrentUser(): Promise<AuthPortUser | null> {
+    return PostgresAuthPort.fetchSession(false);
+  }
+
+  onAuthStateChange(callback: (user: AuthPortUser | null) => void): () => void {
+    PostgresAuthPort.attachGlobalListeners();
+    PostgresAuthPort.subscribers.add(callback);
+    void this.getCurrentUser().then((user) => callback(user));
 
     return () => {
-      disposed = true;
-      window.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("focus", onFocus);
+      PostgresAuthPort.subscribers.delete(callback);
     };
   }
 

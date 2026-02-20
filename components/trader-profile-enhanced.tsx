@@ -1,6 +1,5 @@
 "use client";
 
-import { DataRefreshControl } from "@/components/data-refresh-control";
 import { EnhancedTeamManagement } from "@/components/team-management";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -152,12 +151,12 @@ export function TraderProfile() {
 
   // Use the new exchange data hook
   const exchangeData = useExchangeData(user?.id || null, "okx", {
-    autoRefresh: true, // Re-enable to test profile update
+    autoRefresh: false,
     refreshInterval: 30, // 30 minutes
     includeTypes: ["profile", "merchant_profile", "balance", "payment_methods"],
     onRefreshStart: () => {}, // Data refresh started
     onRefreshComplete: () => {}, // Data refresh completed
-    onRefreshError: (error) => console.error("❌ Data refresh failed:", error),
+    onRefreshError: (error) => console.error("Data refresh failed:", error),
   });
 
   // Check if we're on client side
@@ -387,6 +386,18 @@ export function TraderProfile() {
   const loadPreferences = useCallback(async () => {
     if (!user?.id) return;
 
+    if (exchangeData.bootstrapPreferences) {
+      const bootstrapPrefs = exchangeData.bootstrapPreferences;
+      setPreferences((prev) => ({
+        ...prev,
+        ...bootstrapPrefs,
+        notification_settings:
+          bootstrapPrefs.notification_settings || prev.notification_settings,
+        risk_management: bootstrapPrefs.risk_management || prev.risk_management,
+      }));
+      return;
+    }
+
     try {
       const response = await fetch("/api/user/preferences", { cache: "no-store" });
       if (!response.ok) return;
@@ -404,7 +415,7 @@ export function TraderProfile() {
     } catch (error) {
       console.error("Error loading preferences:", error);
     }
-  }, [user?.id]);
+  }, [user?.id, exchangeData.bootstrapPreferences]);
 
   // Save user preferences
   const savePreferences = async () => {
@@ -530,17 +541,6 @@ export function TraderProfile() {
             </Button>
           </div>
         </div>
-
-        {/* Data Refresh Control */}
-        <DataRefreshControl
-          isRefreshing={exchangeData.isRefreshing}
-          lastRefresh={exchangeData.lastRefresh}
-          onRefresh={exchangeData.refreshData}
-          onRefreshDataType={exchangeData.refreshDataType}
-          onClearCache={exchangeData.clearCacheAndReload}
-          getDataStatus={exchangeData.getDataStatus}
-          errors={exchangeData.errors}
-        />
 
         {/* Profile Header */}
         <Card className="border-0 shadow-sm bg-white">
@@ -1274,4 +1274,5 @@ export function TraderProfile() {
     </div>
   );
 }
+
 

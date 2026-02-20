@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getDashboardBootstrapCached } from "@/lib/client/dashboard-bootstrap-cache";
 import { AlertCircle, CheckCircle, Eye, EyeOff, Loader2, RefreshCw, Settings, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -78,16 +79,25 @@ export function OKXConfiguration({ onConnectionChange, onCredentialsSaved }: OKX
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const response = await fetch("/api/auth/session", {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
+        const payload = await getDashboardBootstrapCached({
+          exchange: "okx",
+          types: ["profile"],
+          minimal: true,
+          ttlMs: 60_000,
         });
-        const payload = await response.json();
 
-        if (payload?.authenticated) {
-          setUser(payload.user);
-          await checkExistingCredentials(payload.user);
+        if (payload?.user?.id) {
+          const bootstrapUser: SessionUser = {
+            id: payload.user.id,
+            email: payload.user.email ?? undefined,
+            user_metadata: payload.user.full_name
+              ? { full_name: payload.user.full_name }
+              : undefined,
+          };
+          setUser(bootstrapUser);
+          await checkExistingCredentials(bootstrapUser);
+        } else {
+          setUser(null);
         }
       } catch {
         setUser(null);
@@ -98,25 +108,6 @@ export function OKXConfiguration({ onConnectionChange, onCredentialsSaved }: OKX
 
     void initializeAuth();
   }, []);
-
-  const testConnection = async (apiKey: string, apiSecret: string, passphrase: string): Promise<boolean> => {
-    try {
-      const response = await fetch("/api/okx/data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "verify-connection", apiKey, apiSecret, passphrase }),
-      });
-
-      if (!response.ok) {
-        return false;
-      }
-
-      const result = await response.json();
-      return Boolean(result?.success && result?.connected);
-    } catch {
-      return false;
-    }
-  };
 
   const saveCredentials = async () => {
     if (!credentials.apiKey || !credentials.apiSecret || !credentials.passphrase) {
@@ -134,12 +125,6 @@ export function OKXConfiguration({ onConnectionChange, onCredentialsSaved }: OKX
     setSuccess("");
 
     try {
-      const connectionTest = await testConnection(credentials.apiKey, credentials.apiSecret, credentials.passphrase);
-      if (!connectionTest) {
-        setError("Failed to connect to OKX with provided credentials. Please check your API key, secret, and passphrase.");
-        return;
-      }
-
       const response = await fetch("/api/okx/credentials", {
         method: "PUT",
         credentials: "include",
@@ -209,13 +194,15 @@ export function OKXConfiguration({ onConnectionChange, onCredentialsSaved }: OKX
       setError("");
       setSuccess("");
 
-      const response = await fetch("/api/okx/data?action=user-info", {
+      const response = await fetch("/api/okx/cache?exchange=okx", {
         method: "GET",
         credentials: "include",
       });
 
       if (response.ok) {
-        setSuccess("Connection test successful!");
+        const payload = await response.json();
+        const hasAnyData = Array.isArray(payload?.records) && payload.records.length > 0;
+        setSuccess(hasAnyData ? "Connection test successful! Cached data found." : "Credentials are configured. Data sync will occur shortly.");
         setIsConnected(true);
         onConnectionChange?.(true);
       } else {

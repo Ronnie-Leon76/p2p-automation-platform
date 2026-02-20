@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { OKXConfiguration } from "@/components/okx-configuration";
@@ -27,6 +27,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useDashboardBootstrap } from "@/hooks/use-dashboard-bootstrap";
 
 interface OKXCredentials {
   apiKey: string;
@@ -42,17 +43,12 @@ interface OKXUserData {
 }
 
 export default function OKXExchangePage() {
-  const [credentials, setCredentials] = useState<OKXCredentials>({
-    apiKey: "",
-    apiSecret: "",
-    passphrase: "",
-  });
-
   const [userData, setUserData] = useState<OKXUserData>({
     isConnected: false,
   });
 
   const [loading, setLoading] = useState(false);
+  useDashboardBootstrap("okx", ["profile", "merchant_profile", "balance", "payment_methods"]);
 
   useEffect(() => {
     loadCachedData();
@@ -60,89 +56,35 @@ export default function OKXExchangePage() {
 
   const loadCachedData = async () => {
     try {
-      const response = await fetch("/api/okx/client-state", { cache: "no-store" });
-      if (!response.ok) {
-        return;
-      }
-      const payload = await response.json();
-      if (payload?.state) {
-        setUserData(payload.state);
-      }
+      const [credentialsRes, cacheRes] = await Promise.all([
+        fetch("/api/okx/credentials", { cache: "no-store", credentials: "include" }),
+        fetch("/api/okx/cache?exchange=okx", { cache: "no-store", credentials: "include" }),
+      ]);
+
+      const credentialsPayload = credentialsRes.ok ? await credentialsRes.json() : null;
+      const cachePayload = cacheRes.ok ? await cacheRes.json() : null;
+      const records = (cachePayload?.records || []) as Array<{ data_type: string; data: any }>;
+
+      const profile = records.find((r) => r.data_type === "merchant_profile")?.data
+        || records.find((r) => r.data_type === "profile")?.data;
+      const balance = records.find((r) => r.data_type === "balance")?.data;
+      const paymentMethods = records.find((r) => r.data_type === "payment_methods")?.data;
+
+      setUserData({
+        userInfo: profile,
+        balance,
+        paymentMethods,
+        isConnected: Boolean(credentialsPayload?.credential?.is_active),
+      });
     } catch (error) {
       console.error("Error loading cached data:", error);
     }
   };
 
-  const loadUserData = async (creds?: OKXCredentials) => {
-    const activeCredentials = creds || credentials;
-
-    if (
-      !activeCredentials.apiKey ||
-      !activeCredentials.apiSecret ||
-      !activeCredentials.passphrase
-    ) {
-      return;
-    }
-
+  const loadUserData = async (_creds?: OKXCredentials) => {
     setLoading(true);
-
     try {
-      // Get user information, balances, and payment methods via API
-      const [userInfoResponse, balancesResponse, paymentMethodsResponse] =
-        await Promise.all([
-          fetch("/api/okx/data", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "user-info",
-              apiKey: activeCredentials.apiKey,
-              apiSecret: activeCredentials.apiSecret,
-              passphrase: activeCredentials.passphrase,
-            }),
-          }),
-          fetch("/api/okx/data", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "balances",
-              apiKey: activeCredentials.apiKey,
-              apiSecret: activeCredentials.apiSecret,
-              passphrase: activeCredentials.passphrase,
-            }),
-          }),
-          fetch("/api/okx/data", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "payment-methods",
-              apiKey: activeCredentials.apiKey,
-              apiSecret: activeCredentials.apiSecret,
-              passphrase: activeCredentials.passphrase,
-            }),
-          }),
-        ]);
-
-      if (
-        !userInfoResponse.ok ||
-        !balancesResponse.ok ||
-        !paymentMethodsResponse.ok
-      ) {
-        console.error("Failed to load OKX data");
-        return;
-      }
-
-      const [userInfo, balance, paymentMethods] = await Promise.all([
-        userInfoResponse.json(),
-        balancesResponse.json(),
-        paymentMethodsResponse.json(),
-      ]);
-
-      setUserData({
-        userInfo,
-        balance,
-        paymentMethods,
-        isConnected: true,
-      });
+      await loadCachedData();
     } catch (error) {
       console.error("Failed to load user data:", error);
     } finally {
@@ -154,9 +96,8 @@ export default function OKXExchangePage() {
     setUserData((prev) => ({ ...prev, isConnected }));
   };
 
-  const handleCredentialsSaved = (newCredentials: OKXCredentials) => {
-    setCredentials(newCredentials);
-    loadUserData(newCredentials);
+  const handleCredentialsSaved = (_newCredentials: OKXCredentials) => {
+    void loadUserData();
   };
 
   return (
@@ -568,5 +509,6 @@ export default function OKXExchangePage() {
     </div>
   );
 }
+
 
 
