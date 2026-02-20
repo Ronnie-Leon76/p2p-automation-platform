@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { MockAuthService } from "@/lib/auth/mock-auth";
 import {
@@ -69,7 +69,7 @@ export function ExchangeSettings() {
   
   // Environment-aware auth
   const mockAuth = useMockAuth();
-  const supabaseAuth = useSupabaseAuth();
+  const supabaseAuth = useAuth();
   
   const user = isDevelopment ? mockAuth.user : supabaseAuth.user;
   
@@ -641,3 +641,4 @@ export function ExchangeSettings() {
     </div>
   );
 }
+

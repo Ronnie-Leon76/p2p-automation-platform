@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
 import {
   BarChart3,
   Bot,
@@ -102,7 +102,7 @@ const systemItems = [
 ];
 
 export function AppSidebar() {
-  const { user, isAuthenticated } = useSupabaseAuth();
+  const { user, isAuthenticated } = useAuth();
 
   return (
     <Sidebar className="border-r border-gray-200/50 bg-white">
@@ -228,3 +228,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+

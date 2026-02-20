@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { MockEmailService } from "@/lib/auth/mock-email-service";
 import { MockInvitationStorage } from "@/lib/auth/mock-invitation-storage";
@@ -67,7 +67,7 @@ export function EnhancedTeamManagement() {
 
   // Environment-aware auth
   const mockAuth = useMockAuth();
-  const supabaseAuth = useSupabaseAuth();
+  const supabaseAuth = useAuth();
 
   const user = isDevelopment ? mockAuth.user : supabaseAuth.user;
   const isAuthenticated = isDevelopment
@@ -1046,3 +1046,4 @@ export function EnhancedTeamManagement() {
     </div>
   );
 }
+

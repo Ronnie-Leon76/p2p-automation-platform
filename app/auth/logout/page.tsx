@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { getAuthPort } from "@/lib/composition/auth-composer";
 import { isMockMode } from "@/lib/config/environment";
 import { LogOut, RefreshCw, User } from "lucide-react";
@@ -14,7 +14,7 @@ export default function LogoutPage() {
   const [success, setSuccess] = useState("");
   const [isClient, setIsClient] = useState(false);
 
-  const supabaseAuth = useSupabaseAuth();
+  const supabaseAuth = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -129,3 +129,4 @@ export default function LogoutPage() {
     </div>
   );
 }
+

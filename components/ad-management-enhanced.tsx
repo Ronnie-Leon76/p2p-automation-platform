@@ -11,14 +11,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -27,7 +19,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -35,10 +26,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useExchangeData } from "@/hooks/use-exchange-data";
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
+import type { Ad, CreateAdFormData } from "@/lib/ads/ad-management-types";
+import {
+  OKX_SASAPAY_COMPATIBILITY,
+  convertOKXAdsToAds,
+  getRecommendedSasaPayMethod,
+  getSasaPayCompatibility,
+  type OKXPaymentCompatibility,
+} from "@/lib/ads/okx-ad-compatibility";
 import { isMockMode } from "@/lib/config/environment";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -56,216 +54,30 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 
-// Mock ad data structure with OKX integration
-interface Ad {
-  id: string;
-  type: "buy" | "sell";
-  cryptoCurrency: string;
-  fiatCurrency: string;
-  unitPrice: number;
-  cryptoAmount: number;
-  minOrderLimit: number;
-  maxOrderLimit: number;
-  availableAmount: number;
-  status: "active" | "paused" | "completed" | "cancelled";
-  paymentMethods: string[];
-  completionRate: number;
-  totalOrders: number;
-  createdAt: string;
-  updatedAt: string;
-  priceType: "limit" | "floating_market";
-  priceMargin?: number;
-  targetGroup?: "common" | "certified" | "diamond" | "all";
-  minKycLevel?: string;
-  minCompletedOrders?: string;
-  minCompletionRate?: string;
-  remark?: string;
-  automatedMessage?: string;
-  okx_integration?: {
-    adId: string;
-    supported_payment_types: string[];
-    sasapay_compatible: boolean;
-    auto_payment_routing: boolean;
-  };
-}
-
-// Create Ad Form Data
-interface CreateAdFormData {
-  side: "buy" | "sell";
-  cryptoCurrency: string;
-  fiatCurrency: string;
-  cryptoAmount: string;
-  minOrderLimit: string;
-  maxOrderLimit: string;
-  unitPrice?: string;
-  priceMargin?: string;
-  type: "limit" | "floating_market";
-  paymentMethods: string[];
-  targetGroup: "common" | "certified" | "diamond" | "all";
-  minKycLevel: string;
-  minCompletedOrders: string;
-  minCompletionRate: string;
-  remark: string;
-  automatedMessage: string;
-}
-
-// OKX Payment Method Types that SasaPay can handle
-interface OKXPaymentCompatibility {
-  okx_type: string;
-  sasapay_method: string;
-  compatibility_score: number;
-  auto_selectable: boolean;
-}
-
-const OKX_SASAPAY_COMPATIBILITY: OKXPaymentCompatibility[] = [
-  {
-    okx_type: "MPESA",
-    sasapay_method: "sasapay_mpesa",
-    compatibility_score: 100,
-    auto_selectable: true,
-  },
-  {
-    okx_type: "AIRTEL_MONEY",
-    sasapay_method: "sasapay_airtel",
-    compatibility_score: 100,
-    auto_selectable: true,
-  },
-  {
-    okx_type: "BANK",
-    sasapay_method: "sasapay_bank",
-    compatibility_score: 95,
-    auto_selectable: true,
-  },
-  {
-    okx_type: "SWIFT",
-    sasapay_method: "sasapay_bank",
-    compatibility_score: 90,
-    auto_selectable: true,
-  },
-  {
-    okx_type: "PAY_NOW",
-    sasapay_method: "sasapay_mpesa",
-    compatibility_score: 75,
-    auto_selectable: true,
-  },
-  {
-    okx_type: "ALIPAY",
-    sasapay_method: "sasapay_mpesa",
-    compatibility_score: 60,
-    auto_selectable: false,
-  },
-  {
-    okx_type: "WXPAY",
-    sasapay_method: "sasapay_mpesa",
-    compatibility_score: 60,
-    auto_selectable: false,
-  },
-];
-
-// Enhanced conversion with SasaPay compatibility detection
-const convertOKXAdsToAds = (adsData: any[]): Ad[] => {
-  return adsData.map((ad: any) => {
-    const supportedPaymentTypes = ad.paymentMethods || [];
-    const sasapayCompatible = supportedPaymentTypes.some((method: string) =>
-      OKX_SASAPAY_COMPATIBILITY.some(
-        (comp) => comp.okx_type === method && comp.auto_selectable
-      )
-    );
-
-    return {
-      id: ad.adId || ad.id || Math.random().toString(),
-      type: ad.side === "buy" ? "sell" : "buy", // OKX side is from their perspective, so reverse it
-      cryptoCurrency: ad.cryptoCurrency || "USDT",
-      fiatCurrency: ad.fiatCurrency || "KES",
-      unitPrice: parseFloat(ad.unitPrice) || 0,
-      cryptoAmount: parseFloat(ad.availableAmount) || 0,
-      availableAmount: parseFloat(ad.availableAmount) || 0,
-      minOrderLimit: parseFloat(ad.minOrderSize) || 0,
-      maxOrderLimit: parseFloat(ad.maxOrderSize) || 0,
-      status:
-        ad.status === "online"
-          ? "active"
-          : ad.status === "offline"
-          ? "paused"
-          : "active",
-      paymentMethods: supportedPaymentTypes,
-      completionRate: parseFloat(ad.creator?.completionRate) || 0,
-      totalOrders: parseInt(ad.creator?.completedOrders) || 0,
-      createdAt: ad.createdTimestamp
-        ? new Date(parseInt(ad.createdTimestamp)).toISOString()
-        : new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      priceType: "limit", // Default, should be determined from API
-      targetGroup: "all",
-      okx_integration: {
-        adId: ad.adId || ad.id,
-        supported_payment_types: supportedPaymentTypes,
-        sasapay_compatible: sasapayCompatible,
-        auto_payment_routing:
-          sasapayCompatible && supportedPaymentTypes.length > 1,
-      },
-    };
-  });
-};
-
-// Helper function to get SasaPay compatibility for an ad
-const getSasaPayCompatibility = (ad: Ad) => {
-  if (!ad.okx_integration) return { compatible: false, methods: [], score: 0 };
-
-  const compatibleMethods = ad.okx_integration.supported_payment_types
-    .map((okxType) =>
-      OKX_SASAPAY_COMPATIBILITY.find((comp) => comp.okx_type === okxType)
-    )
-    .filter(Boolean) as OKXPaymentCompatibility[];
-
-  const averageScore =
-    compatibleMethods.length > 0
-      ? compatibleMethods.reduce(
-          (sum, method) => sum + method.compatibility_score,
-          0
-        ) / compatibleMethods.length
-      : 0;
-
-  return {
-    compatible: compatibleMethods.length > 0,
-    methods: compatibleMethods,
-    score: averageScore,
-    auto_selectable: compatibleMethods.some((method) => method.auto_selectable),
-  };
-};
-
-// Helper function to get recommended SasaPay method for order amount
-const getRecommendedSasaPayMethod = (
-  amount: number,
-  availableMethods: OKXPaymentCompatibility[]
-): string => {
-  if (amount > 50000) {
-    // Large amounts - prefer bank transfer
-    const bankMethod = availableMethods.find(
-      (m) => m.sasapay_method === "sasapay_bank"
-    );
-    if (bankMethod) return bankMethod.sasapay_method;
-  }
-
-  if (amount < 1000) {
-    // Small amounts - prefer mobile money
-    const mobileMethod = availableMethods.find(
-      (m) =>
-        m.sasapay_method === "sasapay_mpesa" ||
-        m.sasapay_method === "sasapay_airtel"
-    );
-    if (mobileMethod) return mobileMethod.sasapay_method;
-  }
-
-  // Default to highest compatibility score
-  const bestMethod = availableMethods.reduce((best, current) =>
-    current.compatibility_score > best.compatibility_score ? current : best
-  );
-
-  return bestMethod?.sasapay_method || "sasapay_mpesa";
-};
+const CreateAdDialog = dynamic(
+  () =>
+    import("@/components/ad-management-enhanced/create-ad-dialog").then((mod) => ({
+      default: mod.CreateAdDialog,
+    })),
+  { ssr: false },
+);
+const EditAdDialog = dynamic(
+  () =>
+    import("@/components/ad-management-enhanced/edit-ad-dialog").then((mod) => ({
+      default: mod.EditAdDialog,
+    })),
+  { ssr: false },
+);
+const ViewAdDialog = dynamic(
+  () =>
+    import("@/components/ad-management-enhanced/view-ad-dialog").then((mod) => ({
+      default: mod.ViewAdDialog,
+    })),
+  { ssr: false },
+);
 
 export function AdManagement() {
   const [isClient, setIsClient] = useState(false);
@@ -310,7 +122,7 @@ export function AdManagement() {
   const availableFiatCurrencies = ["KES", "USD", "EUR", "GBP"];
 
   // Use environment-appropriate auth
-  const supabaseAuth = useSupabaseAuth();
+  const supabaseAuth = useAuth();
   const mockAuth = isMockMode()
     ? useMockAuth()
     : { user: null, isAuthenticated: false, isLoading: false };
@@ -435,8 +247,11 @@ export function AdManagement() {
       } catch (error) {
         console.error("❌ Failed to convert ads data:", error);
         console.error("📦 Raw data that failed:", exchangeData.ads.data);
-        // Fall back to mock data if conversion fails
-        generateMockAds();
+        if (isMockMode()) {
+          void generateMockAds();
+        } else {
+          setAds([]);
+        }
       }
     } else if (isClient && isAuthenticated && !exchangeData.isLoading) {
       console.log("📋 No live ads data available, using mock data. Reason:", {
@@ -445,8 +260,11 @@ export function AdManagement() {
         isLoading: exchangeData.isLoading,
         lastRefresh: exchangeData.lastRefresh,
       });
-      // Fall back to mock data if no live data available
-      generateMockAds();
+      if (isMockMode()) {
+        void generateMockAds();
+      } else {
+        setAds([]);
+      }
     }
   }, [
     isClient,
@@ -643,111 +461,9 @@ export function AdManagement() {
     }
   };
 
-  const generateMockAds = () => {
-    const mockAds: Ad[] = [
-      {
-        id: "1",
-        type: "buy",
-        cryptoCurrency: "USDT",
-        fiatCurrency: "KES",
-        unitPrice: 129.5,
-        cryptoAmount: 10000,
-        availableAmount: 7500,
-        minOrderLimit: 1000,
-        maxOrderLimit: 5000,
-        status: "active",
-        paymentMethods: ["MPESA", "BANK"],
-        completionRate: 98.5,
-        totalOrders: 234,
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        updatedAt: new Date().toISOString(),
-        priceType: "limit",
-        targetGroup: "all",
-        okx_integration: {
-          adId: "OKX-AD-001",
-          supported_payment_types: ["MPESA", "BANK"],
-          sasapay_compatible: true,
-          auto_payment_routing: true,
-        },
-      },
-      {
-        id: "2",
-        type: "sell",
-        cryptoCurrency: "USDT",
-        fiatCurrency: "KES",
-        unitPrice: 131.2,
-        cryptoAmount: 15000,
-        availableAmount: 12000,
-        minOrderLimit: 500,
-        maxOrderLimit: 3000,
-        status: "active",
-        paymentMethods: ["MPESA", "AIRTEL_MONEY"],
-        completionRate: 96.8,
-        totalOrders: 189,
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-        updatedAt: new Date(Date.now() - 3600000).toISOString(),
-        priceType: "limit",
-        targetGroup: "all",
-        okx_integration: {
-          adId: "OKX-AD-002",
-          supported_payment_types: ["MPESA", "AIRTEL_MONEY"],
-          sasapay_compatible: true,
-          auto_payment_routing: true,
-        },
-      },
-      {
-        id: "3",
-        type: "buy",
-        cryptoCurrency: "BTC",
-        fiatCurrency: "KES",
-        unitPrice: 6450000,
-        cryptoAmount: 1,
-        availableAmount: 0.5,
-        minOrderLimit: 0.001,
-        maxOrderLimit: 0.1,
-        status: "paused",
-        paymentMethods: ["BANK", "SWIFT"],
-        completionRate: 94.2,
-        totalOrders: 67,
-        createdAt: new Date(Date.now() - 259200000).toISOString(),
-        updatedAt: new Date(Date.now() - 7200000).toISOString(),
-        priceType: "floating_market",
-        priceMargin: -0.5,
-        targetGroup: "certified",
-        okx_integration: {
-          adId: "OKX-AD-003",
-          supported_payment_types: ["BANK", "SWIFT"],
-          sasapay_compatible: true,
-          auto_payment_routing: false,
-        },
-      },
-      {
-        id: "4",
-        type: "sell",
-        cryptoCurrency: "ETH",
-        fiatCurrency: "KES",
-        unitPrice: 285000,
-        cryptoAmount: 2,
-        availableAmount: 1.8,
-        minOrderLimit: 0.01,
-        maxOrderLimit: 0.5,
-        status: "active",
-        paymentMethods: ["MPESA", "ALIPAY", "WXPAY"],
-        completionRate: 89.3,
-        totalOrders: 156,
-        createdAt: new Date(Date.now() - 345600000).toISOString(),
-        updatedAt: new Date(Date.now() - 1800000).toISOString(),
-        priceType: "limit",
-        targetGroup: "diamond",
-        okx_integration: {
-          adId: "OKX-AD-004",
-          supported_payment_types: ["MPESA", "ALIPAY", "WXPAY"],
-          sasapay_compatible: true,
-          auto_payment_routing: false, // Mixed compatibility
-        },
-      },
-    ];
-    setAds(mockAds);
+  const generateMockAds = async () => {
+    const { buildEnhancedMockAds } = await import("@/lib/mock-data/ad-management-enhanced");
+    setAds(buildEnhancedMockAds() as Ad[]);
   };
 
   const getStatusIcon = (status: string) => {
@@ -1264,472 +980,31 @@ export function AdManagement() {
         </CardContent>
       </Card>
 
-      {/* Create Ad Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create P2P Advertisement</DialogTitle>
-            <DialogDescription>
-              Configure your P2P trading advertisement on OKX
-            </DialogDescription>
-          </DialogHeader>
+      <CreateAdDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        isLoading={isLoading}
+        createFormData={createFormData}
+        setCreateFormData={setCreateFormData}
+        availablePaymentMethods={availablePaymentMethods}
+        availableCryptoCurrencies={availableCryptoCurrencies}
+        availableFiatCurrencies={availableFiatCurrencies}
+        onCreateAd={handleCreateAd}
+      />
 
-          {/* Permission requirements info removed from create dialog */}
+      <EditAdDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        selectedAd={selectedAd}
+      />
 
-          <div className="grid gap-6 py-4">
-            {/* Trade Configuration */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-gray-900 border-b pb-2">
-                Trade Configuration
-              </h4>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="side" className="text-sm font-medium">
-                    Trade Type *
-                  </Label>
-                  <Select
-                    value={createFormData.side}
-                    onValueChange={(value: "buy" | "sell") =>
-                      setCreateFormData((prev) => ({ ...prev, side: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select trade type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="buy">
-                        Buy (I want to buy crypto)
-                      </SelectItem>
-                      <SelectItem value="sell">
-                        Sell (I want to sell crypto)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="type" className="text-sm font-medium">
-                    Pricing Type *
-                  </Label>
-                  <Select
-                    value={createFormData.type}
-                    onValueChange={(value: "limit" | "floating_market") =>
-                      setCreateFormData((prev) => ({ ...prev, type: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select pricing type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="limit">Fixed Price</SelectItem>
-                      <SelectItem value="floating_market">
-                        Market Price + Margin
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="cryptoCurrency"
-                    className="text-sm font-medium"
-                  >
-                    Cryptocurrency *
-                  </Label>
-                  <Select
-                    value={createFormData.cryptoCurrency}
-                    onValueChange={(value) =>
-                      setCreateFormData((prev) => ({
-                        ...prev,
-                        cryptoCurrency: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select crypto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableCryptoCurrencies.map((crypto) => (
-                        <SelectItem key={crypto} value={crypto}>
-                          {crypto}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="fiatCurrency" className="text-sm font-medium">
-                    Fiat Currency *
-                  </Label>
-                  <Select
-                    value={createFormData.fiatCurrency}
-                    onValueChange={(value) =>
-                      setCreateFormData((prev) => ({
-                        ...prev,
-                        fiatCurrency: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select fiat" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableFiatCurrencies.map((fiat) => (
-                        <SelectItem key={fiat} value={fiat}>
-                          {fiat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Amount & Pricing */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-gray-900 border-b pb-2">
-                Amount & Pricing
-              </h4>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cryptoAmount" className="text-sm font-medium">
-                    Total {createFormData.cryptoCurrency} Amount *
-                  </Label>
-                  <Input
-                    id="cryptoAmount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={createFormData.cryptoAmount}
-                    onChange={(e) =>
-                      setCreateFormData((prev) => ({
-                        ...prev,
-                        cryptoAmount: e.target.value,
-                      }))
-                    }
-                    placeholder="0.00"
-                    className="text-sm"
-                  />
-                </div>
-
-                {createFormData.type === "limit" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="unitPrice" className="text-sm font-medium">
-                      Price per {createFormData.cryptoCurrency} (
-                      {createFormData.fiatCurrency}) *
-                    </Label>
-                    <Input
-                      id="unitPrice"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={createFormData.unitPrice}
-                      onChange={(e) =>
-                        setCreateFormData((prev) => ({
-                          ...prev,
-                          unitPrice: e.target.value,
-                        }))
-                      }
-                      placeholder="0.00"
-                      className="text-sm"
-                    />
-                  </div>
-                )}
-
-                {createFormData.type === "floating_market" && (
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="priceMargin"
-                      className="text-sm font-medium"
-                    >
-                      Price Margin (%) *
-                    </Label>
-                    <Input
-                      id="priceMargin"
-                      type="number"
-                      step="0.1"
-                      value={createFormData.priceMargin}
-                      onChange={(e) =>
-                        setCreateFormData((prev) => ({
-                          ...prev,
-                          priceMargin: e.target.value,
-                        }))
-                      }
-                      placeholder="±0.0"
-                      className="text-sm"
-                    />
-                    <p className="text-xs text-gray-500">
-                      Positive for premium, negative for discount
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="minOrderLimit"
-                    className="text-sm font-medium"
-                  >
-                    Min Order ({createFormData.fiatCurrency}) *
-                  </Label>
-                  <Input
-                    id="minOrderLimit"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={createFormData.minOrderLimit}
-                    onChange={(e) =>
-                      setCreateFormData((prev) => ({
-                        ...prev,
-                        minOrderLimit: e.target.value,
-                      }))
-                    }
-                    placeholder="0.00"
-                    className="text-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="maxOrderLimit"
-                    className="text-sm font-medium"
-                  >
-                    Max Order ({createFormData.fiatCurrency}) *
-                  </Label>
-                  <Input
-                    id="maxOrderLimit"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={createFormData.maxOrderLimit}
-                    onChange={(e) =>
-                      setCreateFormData((prev) => ({
-                        ...prev,
-                        maxOrderLimit: e.target.value,
-                      }))
-                    }
-                    placeholder="0.00"
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Methods */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-gray-900 border-b pb-2">
-                Payment Methods *
-              </h4>
-              <div className="grid grid-cols-2 gap-3">
-                {availablePaymentMethods.map((method) => (
-                  <div
-                    key={method}
-                    className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
-                  >
-                    <input
-                      type="checkbox"
-                      id={method}
-                      aria-label={`Select ${method} payment method`}
-                      title={`Select ${method} payment method`}
-                      checked={createFormData.paymentMethods.includes(method)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setCreateFormData((prev) => ({
-                            ...prev,
-                            paymentMethods: [...prev.paymentMethods, method],
-                          }));
-                        } else {
-                          setCreateFormData((prev) => ({
-                            ...prev,
-                            paymentMethods: prev.paymentMethods.filter(
-                              (pm) => pm !== method
-                            ),
-                          }));
-                        }
-                      }}
-                      className="w-4 h-4 text-blue-600 rounded"
-                    />
-                    <Label
-                      htmlFor={method}
-                      className="text-sm font-medium cursor-pointer"
-                    >
-                      {method.replace("_", " ")}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Optional Settings */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm text-gray-900 border-b pb-2">
-                Optional Settings
-              </h4>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="targetGroup" className="text-sm font-medium">
-                    Target Traders
-                  </Label>
-                  <Select
-                    value={createFormData.targetGroup}
-                    onValueChange={(
-                      value: "common" | "certified" | "diamond" | "all"
-                    ) =>
-                      setCreateFormData((prev) => ({
-                        ...prev,
-                        targetGroup: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select target group" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Traders</SelectItem>
-                      <SelectItem value="common">Standard Traders</SelectItem>
-                      <SelectItem value="certified">
-                        Verified Traders
-                      </SelectItem>
-                      <SelectItem value="diamond">Premium Traders</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="minCompletionRate"
-                    className="text-sm font-medium"
-                  >
-                    Min Completion Rate (%)
-                  </Label>
-                  <Input
-                    id="minCompletionRate"
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="100"
-                    value={createFormData.minCompletionRate}
-                    onChange={(e) =>
-                      setCreateFormData((prev) => ({
-                        ...prev,
-                        minCompletionRate: e.target.value,
-                      }))
-                    }
-                    placeholder="90"
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="remark" className="text-sm font-medium">
-                  Ad Description
-                </Label>
-                <Textarea
-                  id="remark"
-                  value={createFormData.remark}
-                  onChange={(e) =>
-                    setCreateFormData((prev) => ({
-                      ...prev,
-                      remark: e.target.value,
-                    }))
-                  }
-                  placeholder="Add any special instructions or requirements for traders..."
-                  rows={3}
-                  className="text-sm resize-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="automatedMessage"
-                  className="text-sm font-medium"
-                >
-                  Auto-Reply Message
-                </Label>
-                <Textarea
-                  id="automatedMessage"
-                  value={createFormData.automatedMessage}
-                  onChange={(e) =>
-                    setCreateFormData((prev) => ({
-                      ...prev,
-                      automatedMessage: e.target.value,
-                    }))
-                  }
-                  placeholder="Message sent automatically when someone responds to your ad..."
-                  rows={2}
-                  className="text-sm resize-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setIsCreateDialogOpen(false)}
-              disabled={isLoading}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateAd}
-              disabled={
-                isLoading ||
-                !createFormData.cryptoAmount ||
-                !createFormData.minOrderLimit ||
-                !createFormData.maxOrderLimit ||
-                createFormData.paymentMethods.length === 0 ||
-                (createFormData.type === "limit" &&
-                  !createFormData.unitPrice) ||
-                (createFormData.type === "floating_market" &&
-                  !createFormData.priceMargin)
-              }
-              className="flex-1"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating...
-                </>
-              ) : (
-                "Create Advertisement"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Ad Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Ad</DialogTitle>
-            <DialogDescription>
-              Modify your existing advertisement
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {selectedAd && (
-              <p className="text-sm text-gray-600">
-                Editing ad: {selectedAd.type.toUpperCase()}{" "}
-                {selectedAd.cryptoCurrency}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsEditDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ViewAdDialog
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        selectedAd={selectedAd}
+      />
     </div>
   );
 }
+
+

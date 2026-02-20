@@ -39,7 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { MockAdStorage, type Ad } from "@/lib/auth/mock-ad-storage";
 import { MockTeamStorage, type Team } from "@/lib/auth/mock-team-storage";
 import {
@@ -83,159 +83,10 @@ interface UserRole {
   permissions: string[];
 }
 
-/**
- * Represents a P2P advertisement across multiple exchanges
- */
-// Mock data
-const mockTeams: Team[] = [
-  {
-    id: "team_001",
-    name: "Primary Trading Team",
-    description: "Main team handling all P2P operations across major exchanges",
-    owner: {
-      id: "user_001",
-      name: "John Doe",
-      email: "john@example.com",
-      avatar: "/placeholder-user.jpg",
-      role: "owner",
-      permissions: ["all"],
-      joinedAt: "2024-01-01T00:00:00Z",
-      isActive: true,
-      lastActive: "2024-01-15T10:30:00Z",
-    },
-    members: [
-      {
-        id: "user_002",
-        name: "Jane Smith",
-        email: "jane@example.com",
-        avatar: "/placeholder-user.jpg",
-        role: "admin",
-        permissions: ["manage_ads", "manage_orders", "view_analytics"],
-        joinedAt: "2024-01-02T00:00:00Z",
-        isActive: true,
-        lastActive: "2024-01-15T09:45:00Z",
-      },
-      {
-        id: "user_003",
-        name: "Mike Johnson",
-        email: "mike@example.com",
-        avatar: "/placeholder-user.jpg",
-        role: "manager",
-        permissions: ["manage_orders", "dispute_resolution"],
-        joinedAt: "2024-01-05T00:00:00Z",
-        isActive: true,
-        lastActive: "2024-01-15T08:20:00Z",
-      },
-    ],
-    exchanges: {
-      okx: { connected: true, accountId: "okx_main_001" },
-      binance: { connected: true, accountId: "bnc_primary_001" },
-      bybit: { connected: false },
-    },
-    createdAt: "2024-01-01T00:00:00Z",
-    totalAds: 15,
-    activeAds: 12,
-    totalVolume: "2,450,000",
-    isActive: true,
-  },
-];
-
-const mockAds: Ad[] = [
-  {
-    id: "ad_001",
-    exchange: "okx",
-    side: "sell",
-    cryptocurrency: "USDT",
-    fiatCurrency: "KES",
-    unitPrice: "150.00",
-    availableAmount: "10,000.00",
-    minOrderSize: "100",
-    maxOrderSize: "5,000",
-    status: "active",
-    isHidden: false,
-    createdAt: "2024-01-15T10:30:00Z",
-    updatedAt: "2024-01-15T10:30:00Z",
-    completedOrders: 45,
-    totalVolume: "675,000",
-    successRate: 98.5,
-    currentOrders: 3,
-    teamId: "team_001",
-    createdBy: "user_001",
-    paymentMethods: ["SasaPay"],
-    autoReply: true,
-    priceMargin: 2.5,
-    requirements: {
-      minKycLevel: 2,
-      minCompletionRate: 95,
-      remarks: "Fast SasaPay transfers only, instant processing",
-    },
-  },
-  {
-    id: "ad_002",
-    exchange: "binance",
-    side: "buy",
-    cryptocurrency: "USDT",
-    fiatCurrency: "KES",
-    unitPrice: "149.50",
-    availableAmount: "15,000.00",
-    minOrderSize: "200",
-    maxOrderSize: "8,000",
-    status: "active",
-    isHidden: false,
-    createdAt: "2024-01-14T15:45:00Z",
-    updatedAt: "2024-01-15T08:20:00Z",
-    completedOrders: 32,
-    totalVolume: "480,000",
-    successRate: 100,
-    currentOrders: 2,
-    teamId: "team_001",
-    createdBy: "user_002",
-    paymentMethods: ["SasaPay"],
-    autoReply: true,
-    priceMargin: 1.0,
-    requirements: {
-      minKycLevel: 1,
-      minCompletionRate: 90,
-      remarks: "SasaPay payments processed within 2 minutes",
-    },
-  },
-  {
-    id: "ad_003",
-    exchange: "bybit",
-    side: "sell",
-    cryptocurrency: "USDT",
-    fiatCurrency: "KES",
-    unitPrice: "151.25",
-    availableAmount: "5,000.00",
-    minOrderSize: "500",
-    maxOrderSize: "2,500",
-    status: "paused",
-    isHidden: true,
-    createdAt: "2024-01-13T09:20:00Z",
-    updatedAt: "2024-01-14T16:30:00Z",
-    completedOrders: 18,
-    totalVolume: "270,000",
-    successRate: 94.4,
-    currentOrders: 0,
-    teamId: "team_001",
-    createdBy: "user_003",
-    paymentMethods: ["SasaPay"],
-    autoReply: false,
-    priceMargin: 3.0,
-    requirements: {
-      minKycLevel: 2,
-      minCompletionRate: 95,
-      remarks: "Manual verification required for large orders",
-    },
-  },
-];
-
-// Mock current user role - this would come from authentication context
+// Current user role - this would come from authentication/authorization context
 const getCurrentUserRole = (): UserRole => {
-  // This would be determined by actual authentication/authorization
-  // For now, we'll simulate a team member
   return {
-    type: "team_member", // or "main_user"
+    type: "team_member",
     permissions: ["view_ads", "manage_orders", "dispute_resolution"],
   };
 };
@@ -1402,7 +1253,7 @@ export function AdManagement() {
 
   // Always call hooks (React requirement), but use environment-aware logic
   const mockAuth = useMockAuth();
-  const supabaseAuth = useSupabaseAuth();
+  const supabaseAuth = useAuth();
 
   useEffect(() => {
     setIsClient(true);
@@ -2361,3 +2212,4 @@ export function AdManagement() {
     </div>
   );
 }
+

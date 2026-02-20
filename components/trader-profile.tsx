@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { getUserDisplayName, useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { getUserDisplayName, useAuth } from "@/hooks/use-auth";
 import { isMockMode } from "@/lib/config/environment";
 import { Activity, BarChart3, Calendar, Clock, Shield, TrendingUp, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -59,7 +59,7 @@ export function TraderProfile() {
   const [teams, setTeams] = useState<ExchangeTeam[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const supabaseAuth = useSupabaseAuth();
+  const supabaseAuth = useAuth();
   const mockAuth = isMockMode() ? useMockAuth() : { user: null, isAuthenticated: false, isLoading: false };
   const { user, isLoading } = isMockMode() ? mockAuth : supabaseAuth;
 
@@ -301,3 +301,4 @@ export function TraderProfile() {
     </div>
   );
 }
+

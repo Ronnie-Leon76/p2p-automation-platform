@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { isMockMode } from "@/lib/config/environment";
 import { CheckCircle, Clock, ExternalLink, Plus, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -55,7 +55,7 @@ export function ExchangeSelector() {
   const router = useRouter();
 
   // Use environment-appropriate auth
-  const supabaseAuth = useSupabaseAuth();
+  const supabaseAuth = useAuth();
   const mockAuth = isMockMode()
     ? useMockAuth()
     : { user: null, isAuthenticated: false, isLoading: false };
@@ -279,3 +279,4 @@ export function ExchangeSelector() {
     </div>
   );
 }
+

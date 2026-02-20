@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { MockEmailService } from "@/lib/auth/mock-email-service";
 import {
@@ -51,7 +51,7 @@ export function InviteAcceptancePage({ inviteCode }: InvitePageProps) {
   
   // Environment-aware auth
   const mockAuth = useMockAuth();
-  const supabaseAuth = useSupabaseAuth();
+  const supabaseAuth = useAuth();
   
   const { user, signup } = isDevelopment 
     ? mockAuth 
@@ -687,3 +687,4 @@ export function InviteAcceptancePage({ inviteCode }: InvitePageProps) {
     </div>
   );
 }
+

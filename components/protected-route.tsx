@@ -1,7 +1,7 @@
 "use client";
 
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { isMockMode } from "@/lib/config/environment";
 
 interface ProtectedRouteProps {
@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const mockAuth = useMockAuth();
-  const liveAuth = useSupabaseAuth();
+  const liveAuth = useAuth();
 
   const authState = isMockMode()
     ? { isLoading: false, isAuthenticated: mockAuth.isAuthenticated }
@@ -40,3 +40,4 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   return <>{children}</>;
 }
+

@@ -33,7 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VerificationManagement } from "@/components/verification-management";
 import { useExchangeData } from "@/hooks/use-exchange-data";
 import { useMockAuth } from "@/hooks/use-mock-auth";
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { getAuthPort } from "@/lib/composition/auth-composer";
 import { getEnvironmentMode, isMockMode } from "@/lib/config/environment";
 import { formatDistanceToNow } from "date-fns";
@@ -96,7 +96,7 @@ function SettingsContent() {
   const [showApiKey, setShowApiKey] = useState(false);
 
   // Use environment-appropriate auth
-  const supabaseAuth = useSupabaseAuth();
+  const supabaseAuth = useAuth();
   const mockAuth = isMockMode()
     ? useMockAuth()
     : { user: null, isAuthenticated: false, isLoading: false };
@@ -897,3 +897,4 @@ function SettingsContent() {
 export default function SettingsPage() {
   return <SettingsContent />;
 }
+
