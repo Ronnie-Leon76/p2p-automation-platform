@@ -1,4 +1,4 @@
-import { getServerAuthPort } from "@/lib/composition/auth-composer";
+import { getServerAuthPort } from "@/lib/composition/auth-composer.server";
 import { NextResponse } from "next/server";
 
 export async function GET() {
