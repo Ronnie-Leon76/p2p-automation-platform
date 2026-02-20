@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
-import { getBackendAdapter } from "@/lib/composition/backend-adapter"
 import { prisma } from "@/lib/db/prisma"
-import { createServerClient } from "@/lib/database/server-client"
 
 const EXCHANGE_CONFIGS = {
   okx: {
@@ -54,23 +52,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/auth/${exchange}/callback`
 
       // Store state in session for verification
-      if (getBackendAdapter() === "postgres") {
-        await prisma.oAuthState.create({
-          data: {
-            state,
-            exchange,
-            expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-          },
-        })
-      } else {
-        const supabase = await createServerClient()
-        await supabase.from("oauth_states").insert({
+      await prisma.oAuthState.create({
+        data: {
           state,
           exchange,
-          created_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-        })
-      }
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        },
+      })
 
       // Build OAuth URL
       const authUrl = new URL(oauthConfig.authUrl)

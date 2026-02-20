@@ -5,19 +5,14 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { createServerClient } from "@/lib/database/server-client";
+import { getAuthenticatedUser } from "@/lib/auth/server-user";
 import { redirect } from "next/navigation";
 
 export default async function AdsPage() {
   // In development mode, bypass auth check
   if (process.env.NODE_ENV !== "development") {
-    const supabase = await createServerClient();
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
+    const user = await getAuthenticatedUser();
+    if (!user) {
       redirect("/auth/login");
     }
   }

@@ -1,10 +1,15 @@
-import { createClient } from "@/lib/database/browser-client";
-
-let cachedClient: ReturnType<typeof createClient> | null = null;
+let cachedClient: any | null = null;
 
 export function getBrowserDbClient() {
   if (!cachedClient) {
-    cachedClient = createClient();
+    cachedClient = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("Browser DB client is not migrated to Prisma yet.");
+        },
+      }
+    );
   }
   return cachedClient;
 }

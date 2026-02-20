@@ -1,4 +1,3 @@
-import { MockAuthProvider } from "@/hooks/use-mock-auth";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -15,17 +14,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const isMockMode = process.env.NEXT_PUBLIC_ENVIRONMENT === "mock";
-
   return (
     <html lang="en">
-      <body suppressHydrationWarning={true}>
-        {isMockMode ? (
-          <MockAuthProvider>{children}</MockAuthProvider>
-        ) : (
-          children
-        )}
-      </body>
+      <body suppressHydrationWarning={true}>{children}</body>
     </html>
   );
 }

@@ -1,36 +1,24 @@
 import { TeamCredentialsSetup } from "@/components/team-credentials-setup";
-import { createServerClient } from "@/lib/database/server-client";
+import { getAuthenticatedUser } from "@/lib/auth/server-user";
+import { prisma } from "@/lib/db/prisma";
 import { redirect } from "next/navigation";
 
 export default async function TeamCredentialsPage() {
-  const supabase = await createServerClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getAuthenticatedUser();
   if (!user) {
     redirect("/auth");
   }
 
-  // Get user's current team
-  const { data: teamMember } = await supabase
-    .from("team_members")
-    .select(
-      `
-      team_id,
-      role,
-      teams(*)
-    `
-    )
-    .eq("user_id", user.id)
-    .single();
+  const teamMember = await prisma.teamMember.findFirst({
+    where: { userId: user.id },
+    include: { team: { select: { ownerId: true } } },
+  });
 
   if (!teamMember) {
     redirect("/dashboard");
   }
 
-  const isOwner = teamMember.teams[0]?.owner_id === user.id;
+  const isOwner = teamMember.team.ownerId === user.id;
 
   return (
     <div className="space-y-6">
@@ -41,7 +29,7 @@ export default async function TeamCredentialsPage() {
         </p>
       </div>
 
-      <TeamCredentialsSetup teamId={teamMember.team_id} isOwner={isOwner} />
+      <TeamCredentialsSetup teamId={teamMember.teamId} isOwner={isOwner} />
     </div>
   );
 }
