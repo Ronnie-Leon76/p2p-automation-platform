@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         try {
           // Get recent orders with pagination
           const orders = await okxExchange.getOrders({ 
-            pageIndex: "0",
+            pageIndex: "1",
             pageSize: "50" // Get last 50 orders
           })
           return NextResponse.json(orders)
@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
         try {
           // Get recent orders with pagination
           const orders = await okxExchange.getOrders({ 
-            pageIndex: "0",
+            pageIndex: "1",
             pageSize: "50" // Get last 50 orders
           })
           return NextResponse.json(orders)

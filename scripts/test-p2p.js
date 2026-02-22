@@ -57,37 +57,19 @@ async function mockApiCall(endpoint, data) {
   await new Promise(resolve => setTimeout(resolve, delay));
   
   // Simulate different responses based on endpoint
-  if (endpoint.includes('match_order')) {
+  if (endpoint.includes('status_group=pending')) {
     return {
-      success: true,
-      message: "Order matched successfully",
-      order_id: data.order_id,
-      matched_at: new Date().toISOString()
+      orders: [],
+      pending_count: 0,
+      completed_count: 0
     };
   }
-  
-  if (endpoint.includes('request_payment')) {
+
+  if (endpoint.includes('status_group=completed')) {
     return {
-      success: true,
-      transaction_id: `TX_${Date.now()}`,
-      checkout_request_id: `REQ_${Date.now()}`,
-      customer_message: "Payment request sent to customer"
-    };
-  }
-  
-  if (endpoint.includes('initiate_buy_order')) {
-    return {
-      success: true,
-      message: "B2C payment initiated",
-      order_id: data.buy_order_id,
-      transaction_id: `B2C_TX_${Date.now()}`
-    };
-  }
-  
-  if (endpoint.includes('webhooks/sasapay')) {
-    return {
-      status: "success",
-      message: "Webhook processed successfully"
+      orders: [],
+      pending_count: 0,
+      completed_count: 0
     };
   }
   
@@ -105,36 +87,27 @@ async function testSellOrderFlow() {
   const orderId = `test-sell-${Date.now()}`;
   
   try {
-    logStep('1.', 'Matching sell order...');
-    const matchResult = await mockApiCall('/api/orders/p2p?action=match_order', {
-      order_id: orderId,
-      buyer_id: 'test-buyer-001',
-      seller_id: 'test-seller-001',
-      buyer_phone: '254701234567'
-    });
-    logSuccess(`Order matched: ${matchResult.order_id}`);
-    
-    logStep('2.', 'Requesting C2B payment...');
-    const paymentResult = await mockApiCall('/api/orders/p2p?action=request_payment', {
-      order_id: orderId,
-      buyer_phone: '254701234567',
-      amount: 3500
-    });
-    logSuccess(`Payment requested: ${paymentResult.transaction_id}`);
-    
-    logStep('3.', 'Finding matching transactions...');
+    logStep('1.', 'Reading pending orders...');
+    const pending = await mockApiCall('/api/orders/p2p?status_group=pending', {});
+    logSuccess(`Pending count: ${pending.pending_count}`);
+
+    logStep('2.', 'Finding matching transactions...');
     const transactionResult = await mockApiCall('/api/orders/p2p?action=find_matching_transactions', {
       order_id: orderId,
       expected_amount: 3500
     });
     logSuccess('Matching transactions found');
     
-    logStep('4.', 'Confirming payment received...');
+    logStep('3.', 'Confirming payment received...');
     const confirmResult = await mockApiCall('/api/orders/p2p?action=confirm_payment_received', {
       order_id: orderId,
       seller_id: 'test-seller-001'
     });
     logSuccess('Payment confirmed by seller');
+
+    logStep('4.', 'Reading completed orders...');
+    const completed = await mockApiCall('/api/orders/p2p?status_group=completed', {});
+    logSuccess(`Completed count: ${completed.completed_count}`);
     
     logSuccess('Sell order flow completed successfully!');
     return true;
@@ -148,21 +121,12 @@ async function testSellOrderFlow() {
 async function testBuyOrderFlow() {
   log('\n🧪 Testing Buy Order Flow...', 'cyan');
   
-  const orderId = `test-buy-${Date.now()}`;
+  const transactionId = `test-tx-${Date.now()}`;
   
   try {
-    logStep('1.', 'Initiating buy order...');
-    const buyResult = await mockApiCall('/api/orders/p2p?action=initiate_buy_order', {
-      buy_order_id: orderId,
-      buyer_id: 'test-buyer-002',
-      seller_phone_number: '254723456789',
-      amount: 5000
-    });
-    logSuccess(`B2C payment initiated: ${buyResult.transaction_id}`);
-    
-    logStep('2.', 'Checking payment status...');
+    logStep('1.', 'Checking payment status...');
     const statusResult = await mockApiCall('/api/orders/p2p?action=check_payment_status', {
-      order_id: orderId
+      transaction_id: transactionId
     });
     logSuccess('Payment status checked');
     
@@ -171,36 +135,6 @@ async function testBuyOrderFlow() {
     
   } catch (error) {
     logError(`Buy order flow failed: ${error.message}`);
-    return false;
-  }
-}
-
-async function testWebhookProcessing() {
-  log('\n🧪 Testing Webhook Processing...', 'cyan');
-  
-  try {
-    logStep('1.', 'Testing C2B webhook...');
-    const c2bResult = await mockApiCall('/api/webhooks/sasapay', {
-      MerchantRequestID: "29115-34620561-1",
-      CheckoutRequestID: "ws_CO_test",
-      ResultCode: 0,
-      ResultDesc: "Success"
-    });
-    logSuccess('C2B webhook processed');
-    
-    logStep('2.', 'Testing B2C webhook...');
-    const b2cResult = await mockApiCall('/api/webhooks/sasapay', {
-      MerchantCode: "MERCHANT123",
-      ResultCode: "0",
-      SasaPayTransactionID: "TX123456"
-    });
-    logSuccess('B2C webhook processed');
-    
-    logSuccess('Webhook processing test completed!');
-    return true;
-    
-  } catch (error) {
-    logError(`Webhook test failed: ${error.message}`);
     return false;
   }
 }
@@ -256,7 +190,6 @@ async function runAllTests() {
   // Run all test scenarios
   results.push(await testSellOrderFlow());
   results.push(await testBuyOrderFlow());
-  results.push(await testWebhookProcessing());
   results.push(await testPhoneNormalization());
   
   const endTime = Date.now();
@@ -281,7 +214,6 @@ async function runAllTests() {
   const testNames = [
     'Sell Order Flow',
     'Buy Order Flow', 
-    'Webhook Processing',
     'Phone Normalization'
   ];
   
@@ -305,7 +237,6 @@ function showHelp() {
   log('\nCommands:');
   log('  sell      Test sell order flow (C2B payments)');
   log('  buy       Test buy order flow (B2C payments)');
-  log('  webhooks  Test webhook processing');
   log('  phone     Test phone number normalization');
   log('  all       Run all tests (default)');
   log('  help      Show this help message');
@@ -326,9 +257,6 @@ async function main() {
       break;
     case 'buy':
       await testBuyOrderFlow();
-      break;
-    case 'webhooks':
-      await testWebhookProcessing();
       break;
     case 'phone':
       await testPhoneNormalization();
@@ -370,7 +298,6 @@ if (require.main === module) {
 module.exports = {
   testSellOrderFlow,
   testBuyOrderFlow,
-  testWebhookProcessing,
   testPhoneNormalization,
   runAllTests
 };

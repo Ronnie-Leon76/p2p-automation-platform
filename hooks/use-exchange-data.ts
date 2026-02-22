@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 export interface UseExchangeDataOptions {
   autoRefresh?: boolean;
   refreshInterval?: number; // in minutes
+  bootstrapSyncIntervalMs?: number; // lightweight cache/bootstrap polling
   includeTypes?: DataType[];
   onRefreshStart?: () => void;
   onRefreshComplete?: () => void;
@@ -37,6 +38,7 @@ export function useExchangeData(
   const {
     autoRefresh = false,
     refreshInterval = 30, // 30 minutes default
+    bootstrapSyncIntervalMs = 30_000,
     includeTypes = ['profile', 'merchant_profile', 'balance', 'payment_methods'],
     onRefreshStart,
     onRefreshComplete,
@@ -127,6 +129,44 @@ export function useExchangeData(
             } as ExchangeDataResult,
           };
         });
+
+        // Background revalidation for stale/missing records so UI updates without manual refresh.
+        const staleOrMissingTypes = results
+          .filter(({ result }) => !result.data || result.is_stale)
+          .map(({ dataType }) => dataType);
+        if (staleOrMissingTypes.length > 0) {
+          void Promise.all(
+            staleOrMissingTypes.map(async (dataType) => {
+              const refreshed = await exchangeDataService.getExchangeData(userId, exchange, dataType, {
+                forceRefresh: true,
+              });
+              return { dataType, result: refreshed };
+            })
+          )
+            .then((refreshedResults) => {
+              setState((prev) => {
+                const next = { ...prev, lastRefresh: new Date().toISOString() };
+                const nextErrors = { ...prev.errors };
+                refreshedResults.forEach(({ dataType, result }) => {
+                  const stateKey =
+                    dataType === "merchant_profile"
+                      ? "merchantProfile"
+                      : dataType === "payment_methods"
+                        ? "paymentMethods"
+                        : dataType === "ads"
+                          ? "ads"
+                          : dataType;
+                  (next as any)[stateKey] = result;
+                  nextErrors[dataType] = result.error;
+                });
+                next.errors = nextErrors;
+                return next;
+              });
+            })
+            .catch((error) => {
+              console.error("Background revalidation failed:", error);
+            });
+        }
       } else {
         results = await Promise.all(
           stableIncludeTypes.map(async (dataType) => {
@@ -390,6 +430,21 @@ export function useExchangeData(
       };
     }
   }, [autoRefresh, refreshInterval, userId]); // Stable dependencies only
+
+  // Lightweight bootstrap/cache re-sync for non-auto-refresh screens.
+  useEffect(() => {
+    if (!userId || autoRefresh || bootstrapSyncIntervalMs <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      if (!loadingRef.current) {
+        void loadData(false);
+      }
+    }, bootstrapSyncIntervalMs);
+
+    return () => clearInterval(timer);
+  }, [userId, autoRefresh, bootstrapSyncIntervalMs, loadData]);
 
   // Load initial data once with request deduplication
   useEffect(() => {

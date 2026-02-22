@@ -3,6 +3,29 @@ import { listPaymentTransactions, markTransactionCompleted } from "@/lib/domain/
 import { prisma } from "@/lib/db/prisma";
 import { getOkxExchangeForAuthenticatedUser } from "@/lib/exchanges/okx-server-auth";
 import { NextResponse, type NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
+
+const OKX_LIVE_COOLDOWN_MS = 60_000;
+const okxLiveCooldownByUser = new Map<string, number>();
+
+function getUserKey(user: unknown): string {
+  const record = user as Record<string, unknown> | null;
+  return String(record?.id ?? record?.userId ?? "anonymous");
+}
+
+function isSystemError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("OKX_SYSTEM_ERROR") || message.includes("50026");
+}
+
+function isLiveCooldownActive(userKey: string): boolean {
+  const until = okxLiveCooldownByUser.get(userKey) ?? 0;
+  return Date.now() < until;
+}
+
+function markLiveCooldown(userKey: string): void {
+  okxLiveCooldownByUser.set(userKey, Date.now() + OKX_LIVE_COOLDOWN_MS);
+}
 
 async function findCandidateMatches(orderId: string) {
   const order = await prisma.order.findUnique({
@@ -70,11 +93,12 @@ function toApiOrder(order: {
     amount_fiat: order.amountFiat != null ? Number(order.amountFiat) : null,
     crypto_currency: order.cryptoCurrency,
     fiat_currency: order.fiatCurrency,
-    unit_price: order.unitPrice != null ? Number(order.unitPrice) : null,
-    counterparty_nickname: order.counterpartyNickname,
-    external_order_id: order.externalOrderId,
-    created_at: order.createdAt,
-    updated_at: order.updatedAt,
+            unit_price: order.unitPrice != null ? Number(order.unitPrice) : null,
+            counterparty_nickname: order.counterpartyNickname,
+            counterparty_user_id: null,
+            external_order_id: order.externalOrderId,
+            created_at: order.createdAt,
+            updated_at: order.updatedAt,
   };
 }
 
@@ -90,14 +114,37 @@ function mapLiveOrderToApi(order: {
   paymentStatus: string;
   createdTimestamp: string;
   counterpartyDetail: { nickName: string };
-}) {
+}, statusGroup?: string | null) {
   const createdTs = Number(order.createdTimestamp);
   const createdAt = Number.isFinite(createdTs) && createdTs > 0 ? new Date(createdTs) : new Date();
+  const rawStatus = String(order.orderStatus || "").toLowerCase();
+  const normalizedPaymentStatus = String(order.paymentStatus || "").toLowerCase();
+  const normalizedStatus = (() => {
+    const isDispute =
+      rawStatus.includes("dispute") ||
+      rawStatus.includes("appeal") ||
+      normalizedPaymentStatus.includes("dispute") ||
+      normalizedPaymentStatus.includes("appeal");
+    const isCanceled = rawStatus.includes("cancel");
+    const isCompleted =
+      rawStatus.includes("complete") ||
+      rawStatus.includes("fulfilled") ||
+      rawStatus.includes("release") ||
+      rawStatus.includes("confirm") ||
+      rawStatus.includes("done");
+
+    if (statusGroup === "completed") return isCanceled ? "canceled" : "fulfilled";
+    if (statusGroup === "pending") return isDispute ? "in_dispute" : "in_progress";
+    if (isCanceled) return "canceled";
+    if (isCompleted) return "fulfilled";
+    if (isDispute) return "in_dispute";
+    return "in_progress";
+  })();
   return {
     id: order.orderId,
     side: order.side,
-    status: order.orderStatus,
-    payment_status: order.paymentStatus,
+    status: normalizedStatus,
+    payment_status: normalizedPaymentStatus,
     seller_id: null,
     buyer_id: null,
     amount_crypto: Number(order.cryptoAmount || 0),
@@ -109,6 +156,114 @@ function mapLiveOrderToApi(order: {
     external_order_id: order.orderId,
     created_at: createdAt,
     updated_at: new Date(),
+  };
+}
+
+function maskAccountNumber(accountNumber: string | null | undefined): string | null {
+  const value = String(accountNumber || "").trim();
+  if (!value) return null;
+  if (value.length <= 4) return value;
+  return `${"*".repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
+}
+
+function mapLiveOrderDetailToApi(order: {
+  orderId: string;
+  side: string;
+  cryptoCurrency: string;
+  fiatCurrency: string;
+  cryptoAmount: string;
+  fiatAmount: string;
+  unitPrice: string;
+  orderStatus: string;
+  paymentStatus: string;
+  createdTimestamp: string;
+  paymentMethodName?: string;
+  accountName?: string;
+  accountNumber?: string;
+  bankName?: string;
+  paymentTimestamp?: string;
+  counterpartyDetail: { userId: string; nickName: string; completionRate: string };
+  pendingOrderDetails?: Record<string, unknown>;
+}) {
+  const raw = (order.pendingOrderDetails || {}) as Record<string, unknown>;
+  const firstString = (...values: unknown[]): string | null => {
+    for (const value of values) {
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return null;
+  };
+  const firstTimestamp = (...values: unknown[]): string | null => {
+    for (const value of values) {
+      if (typeof value === "number" && Number.isFinite(value) && value > 0) return new Date(value).toISOString();
+      if (typeof value === "string" && value.trim()) {
+        const asNum = Number(value);
+        if (Number.isFinite(asNum) && asNum > 0) return new Date(asNum).toISOString();
+        const asDate = new Date(value);
+        if (!Number.isNaN(asDate.getTime())) return asDate.toISOString();
+      }
+    }
+    return null;
+  };
+  const completionRateImpactRaw =
+    raw.affectCompletionRate ?? raw.completionRateAffected ?? raw.cancelAffectsCompletionRate ?? null;
+
+  const createdTs = Number(order.createdTimestamp);
+  const paymentTs = Number(order.paymentTimestamp || "");
+  const createdAt = Number.isFinite(createdTs) && createdTs > 0 ? new Date(createdTs) : null;
+  const paymentAt = Number.isFinite(paymentTs) && paymentTs > 0 ? new Date(paymentTs) : null;
+  const status = String(order.orderStatus || "").toLowerCase();
+  const side = String(order.side || "").toLowerCase();
+
+  const cancellationReason = firstString(
+    raw.cancelReason,
+    raw.cancelReasonDesc,
+    raw.cancelReasonDescription,
+    raw.cancelMessage,
+    raw.cancelledReason,
+  );
+  const cancellationTime = firstTimestamp(raw.cancelTimestamp, raw.cancelTime, raw.canceledTime, raw.cancelledTime);
+  const completionTime = firstTimestamp(
+    raw.completeTimestamp,
+    raw.completedTimestamp,
+    raw.completionTime,
+    raw.orderCompletionTime,
+    raw.updatedTimestamp,
+  );
+  const paymentInformation = firstString(raw.paymentInfo, raw.paymentInformation, raw.receiverAccount, raw.payAccount);
+  const payerName = firstString(raw.payerName, raw.buyerName, raw.takerName, raw.realName);
+  const receiptUrl = firstString(raw.receiptUrl, raw.paymentProofUrl, raw.proofFileUrl, raw.receipt);
+  const completionRateImpact =
+    typeof completionRateImpactRaw === "boolean"
+      ? completionRateImpactRaw
+      : status.includes("cancel") && side === "buy";
+
+  return {
+    id: order.orderId,
+    order_id: order.orderId,
+    side,
+    status,
+    payment_status: String(order.paymentStatus || "").toLowerCase(),
+    crypto_currency: String(order.cryptoCurrency || "").toUpperCase(),
+    fiat_currency: String(order.fiatCurrency || "").toUpperCase(),
+    amount_crypto: Number(order.cryptoAmount || 0),
+    amount_fiat: Number(order.fiatAmount || 0),
+    unit_price: Number(order.unitPrice || 0),
+    counterparty_nickname: order.counterpartyDetail?.nickName || null,
+    counterparty_user_id: order.counterpartyDetail?.userId || null,
+    payment_method_name: order.paymentMethodName || null,
+    account_name: order.accountName || null,
+    account_number: maskAccountNumber(order.accountNumber),
+    bank_name: order.bankName || null,
+    order_time: createdAt?.toISOString() ?? null,
+    payment_time: paymentAt?.toISOString() ?? null,
+    completion_time: completionTime,
+    cancellation_time: cancellationTime,
+    cancellation_reason: cancellationReason,
+    payment_information: paymentInformation,
+    payer_name: payerName,
+    receipt_url: receiptUrl,
+    completion_rate_impact: completionRateImpact,
+    raw: raw,
   };
 }
 
@@ -179,12 +334,17 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userKey = getUserKey(user);
 
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get("order_id");
+    const view = searchParams.get("view");
+    const counterpartyUserId = searchParams.get("counterparty_user_id");
+    const quoteCurrency = searchParams.get("quote_currency");
     const status = searchParams.get("status");
     const statusGroup = searchParams.get("status_group");
     const statusFilter = (searchParams.get("status_filter") || "all").toLowerCase();
+    const searchKeyword = (searchParams.get("search_keyword") || "").trim();
     const page = Math.max(1, Number(searchParams.get("page") || "1"));
     const pageSize = Math.min(100, Math.max(1, Number(searchParams.get("page_size") || "20")));
     const live = searchParams.get("live") !== "0";
@@ -192,13 +352,151 @@ export async function GET(request: NextRequest) {
     const endDateRaw = searchParams.get("end_date");
     const crypto = (searchParams.get("crypto") || "all").toUpperCase();
     const currency = (searchParams.get("currency") || "all").toUpperCase();
+    const isOrdersListView = !orderId && (statusGroup === "pending" || statusGroup === "completed");
+    let staleReason: string | null = null;
 
-    const pendingStatuses = ["pending", "payment_pending", "matched", "paid", "processing", "reminder_sent"];
-    const completedStatuses = ["completed", "fulfilled", "confirmed", "done", "released"];
-    const inProgressStatuses = ["pending", "payment_pending", "matched", "paid", "processing", "reminder_sent", "in_progress"];
+    if (view === "trading_summary") {
+      const targetUserId = String(counterpartyUserId || "").trim();
+      if (!targetUserId) {
+        return NextResponse.json({ error: "counterparty_user_id is required" }, { status: 400 });
+      }
+
+      const auth = await getOkxExchangeForAuthenticatedUser();
+      if (auth.ok && !isLiveCooldownActive(userKey)) {
+        try {
+          const summary = await auth.okxExchange.getTradingSummaryWithUser({
+            userId: targetUserId,
+            quoteCurrency: quoteCurrency || undefined,
+          });
+          return NextResponse.json({ summary, source: "okx_live" }, { status: 200 });
+        } catch (error) {
+          if (isSystemError(error)) markLiveCooldown(userKey);
+          return NextResponse.json(
+            { error: error instanceof Error ? error.message : "Failed to get trading summary" },
+            { status: 502 },
+          );
+        }
+      }
+
+      return NextResponse.json(
+        { error: "Live OKX trading summary unavailable due to cooldown. Try again shortly." },
+        { status: 503 },
+      );
+    }
+
+    if (orderId && view === "detail") {
+      const auth = await getOkxExchangeForAuthenticatedUser();
+      if (auth.ok && !isLiveCooldownActive(userKey)) {
+        try {
+          const liveOrder = await auth.okxExchange.getOrder(orderId);
+          if (liveOrder?.orderId) {
+            const detail = mapLiveOrderDetailToApi(liveOrder);
+            await prisma.order.upsert({
+              where: { id: detail.id },
+              create: {
+                id: detail.id,
+                side: detail.side,
+                status: detail.status || "pending",
+                paymentStatus: detail.payment_status,
+                amountCrypto: detail.amount_crypto ?? undefined,
+                amountFiat: detail.amount_fiat ?? undefined,
+                cryptoCurrency: detail.crypto_currency,
+                fiatCurrency: detail.fiat_currency,
+                unitPrice: detail.unit_price ?? undefined,
+                counterpartyNickname: detail.counterparty_nickname,
+                externalOrderId: detail.order_id,
+                createdAt: detail.order_time ? new Date(detail.order_time) : new Date(),
+              },
+              update: {
+                side: detail.side,
+                status: detail.status || "pending",
+                paymentStatus: detail.payment_status,
+                amountCrypto: detail.amount_crypto ?? undefined,
+                amountFiat: detail.amount_fiat ?? undefined,
+                cryptoCurrency: detail.crypto_currency,
+                fiatCurrency: detail.fiat_currency,
+                unitPrice: detail.unit_price ?? undefined,
+                counterpartyNickname: detail.counterparty_nickname,
+                externalOrderId: detail.order_id,
+                createdAt: detail.order_time ? new Date(detail.order_time) : undefined,
+              },
+            });
+
+            return NextResponse.json({ order: detail, source: "okx_live" }, { status: 200 });
+          }
+        } catch (error) {
+          if (isSystemError(error)) markLiveCooldown(userKey);
+          // fall through to DB fallback
+        }
+      }
+
+      const fallbackOrder = await prisma.order.findFirst({
+        where: {
+          OR: [{ id: orderId }, { externalOrderId: orderId }],
+        },
+      });
+      if (!fallbackOrder) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+      return NextResponse.json(
+        {
+          order: {
+            ...toApiOrder(fallbackOrder),
+            order_id: fallbackOrder.externalOrderId || fallbackOrder.id,
+            order_time: fallbackOrder.createdAt,
+            payment_time: null,
+            payment_method_name: null,
+            account_name: null,
+            account_number: null,
+            bank_name: null,
+            completion_time: null,
+            cancellation_time: null,
+            cancellation_reason: null,
+            payment_information: null,
+            payer_name: fallbackOrder.counterpartyNickname,
+            receipt_url: null,
+            counterparty_user_id: null,
+            completion_rate_impact:
+              fallbackOrder.status.toLowerCase().includes("cancel") &&
+              String(fallbackOrder.side || "").toLowerCase() === "buy",
+            raw: null,
+          },
+          source: "postgres",
+        },
+        { status: 200 },
+      );
+    }
+
+    const pendingStatuses = [
+      "in_progress",
+      "in_dispute",
+      "pending",
+      "new",
+      "open",
+      "matched",
+      "paid",
+      "payment_pending",
+      "processing",
+      "reminder_sent",
+      "dispute",
+      "appeal",
+      "disputed",
+    ];
+    const completedStatuses = ["fulfilled", "canceled", "completed", "confirmed", "done", "released", "cancelled"];
+    const inProgressStatuses = [
+      "in_progress",
+      "pending",
+      "new",
+      "open",
+      "matched",
+      "paid",
+      "payment_pending",
+      "processing",
+      "reminder_sent",
+    ];
     const inDisputeStatuses = ["in_dispute", "dispute", "appeal", "disputed"];
-    const canceledStatuses = ["cancelled", "canceled"];
-    const fulfilledStatuses = ["completed", "fulfilled", "confirmed", "done", "released"];
+    const canceledStatuses = ["canceled", "cancelled"];
+    const fulfilledStatuses = ["fulfilled", "completed", "confirmed", "done", "released"];
     const skip = (page - 1) * pageSize;
     const createdAtFilter: { gte?: Date; lte?: Date } = {};
     if (startDateRaw) {
@@ -209,29 +507,50 @@ export async function GET(request: NextRequest) {
       const d = new Date(`${endDateRaw}T23:59:59.999Z`);
       if (!Number.isNaN(d.getTime())) createdAtFilter.lte = d;
     }
+    const startMs =
+      createdAtFilter.gte && !Number.isNaN(createdAtFilter.gte.getTime())
+        ? String(createdAtFilter.gte.getTime())
+        : undefined;
+    const endMs =
+      createdAtFilter.lte && !Number.isNaN(createdAtFilter.lte.getTime())
+        ? String(createdAtFilter.lte.getTime())
+        : undefined;
 
-    // Prefer live paged orders from OKX for this endpoint, then persist for local fallback.
-    if (
-      live &&
-      !orderId &&
-      statusFilter === "all" &&
-      !startDateRaw &&
-      !endDateRaw &&
-      (statusGroup === "pending" || statusGroup === "completed")
-    ) {
+    // Prefer live OKX response for paged pending/completed tabs to avoid stale local rows.
+    if (isOrdersListView && live && isLiveCooldownActive(userKey)) {
+      staleReason = "Showing cached data, last sync failed (OKX temporarily unavailable).";
+    }
+
+    if (live && !orderId && (statusGroup === "pending" || statusGroup === "completed") && !isLiveCooldownActive(userKey)) {
       const auth = await getOkxExchangeForAuthenticatedUser();
       if (auth.ok) {
         try {
           const liveResult = await auth.okxExchange.getOrders({
             side: "all",
-            // OKX P2P order list pagination is 1-based.
+            // OKX P2P order list pagination is 1-based in this integration.
             pageIndex: String(page),
             pageSize: String(pageSize),
             completionStatus: statusGroup,
             cryptoCurrencies: crypto !== "ALL" ? crypto : undefined,
             fiatCurrencies: currency !== "ALL" ? currency : undefined,
+            start: startMs,
+            end: endMs,
+            searchKeyword: searchKeyword || undefined,
           });
-          const liveOrders = (liveResult.orders || []).map(mapLiveOrderToApi);
+          let liveOrders = (liveResult.orders || []).map((o) => mapLiveOrderToApi(o, statusGroup));
+          if (statusGroup === "pending") {
+            if (statusFilter === "in_progress") {
+              liveOrders = liveOrders.filter((o) => o.status === "in_progress");
+            } else if (statusFilter === "in_dispute") {
+              liveOrders = liveOrders.filter((o) => o.status === "in_dispute");
+            }
+          } else if (statusGroup === "completed") {
+            if (statusFilter === "fulfilled") {
+              liveOrders = liveOrders.filter((o) => o.status === "fulfilled");
+            } else if (statusFilter === "canceled") {
+              liveOrders = liveOrders.filter((o) => o.status === "canceled");
+            }
+          }
 
           // Persist/refresh local snapshot asynchronously for caching and fallback.
           await Promise.all(
@@ -278,6 +597,10 @@ export async function GET(request: NextRequest) {
               ? Number(liveResult.total ?? liveOrders.length)
               : await prisma.order.count({ where: { status: { in: completedStatuses } } });
 
+          if (liveOrders.length === 0) {
+            throw new Error("Empty mapped live orders; falling back to local snapshot");
+          }
+
           return NextResponse.json(
             {
               orders: liveOrders,
@@ -290,22 +613,26 @@ export async function GET(request: NextRequest) {
                 has_more: Boolean(liveResult.hasMore ?? liveOrders.length >= pageSize),
               },
               source: "okx_live",
+              stale: false,
+              stale_reason: null,
             },
             { status: 200 },
           );
-        } catch {
+        } catch (error) {
+          if (isSystemError(error)) {
+            markLiveCooldown(userKey);
+            staleReason = "Showing cached data, last sync failed (OKX system error).";
+          } else {
+            staleReason = "Showing cached data, live sync failed.";
+          }
           // fall through to local DB fallback
         }
+      } else {
+        staleReason = "Showing cached data, unable to authenticate live OKX sync.";
       }
     }
 
-    const where: {
-      id?: string;
-      status?: string | { in: string[] };
-      cryptoCurrency?: string;
-      fiatCurrency?: string;
-      createdAt?: { gte?: Date; lte?: Date };
-    } = {};
+    const where: Prisma.OrderWhereInput = {};
     if (orderId) where.id = orderId;
     if (statusGroup === "pending") {
       if (statusFilter === "in_progress") {
@@ -329,6 +656,13 @@ export async function GET(request: NextRequest) {
     if (crypto !== "ALL") where.cryptoCurrency = crypto;
     if (currency !== "ALL") where.fiatCurrency = currency;
     if (createdAtFilter.gte || createdAtFilter.lte) where.createdAt = createdAtFilter;
+    if (searchKeyword) {
+      where.OR = [
+        { id: { contains: searchKeyword, mode: "insensitive" } },
+        { externalOrderId: { contains: searchKeyword, mode: "insensitive" } },
+        { counterpartyNickname: { contains: searchKeyword, mode: "insensitive" } },
+      ];
+    }
 
     const [orders, total, pendingCount, completedCount] = await Promise.all([
       prisma.order.findMany({
@@ -360,6 +694,8 @@ export async function GET(request: NextRequest) {
           has_more: skip + orders.length < total,
         },
         source: "postgres",
+        stale: isOrdersListView ? true : false,
+        stale_reason: isOrdersListView ? staleReason : null,
       },
       { status: 200 },
     );

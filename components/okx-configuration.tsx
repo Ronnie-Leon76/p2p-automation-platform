@@ -3,7 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getDashboardBootstrapCached } from "@/lib/client/dashboard-bootstrap-cache";
+import {
+  getDashboardBootstrapCached,
+  invalidateDashboardBootstrapCache,
+} from "@/lib/client/dashboard-bootstrap-cache";
 import { AlertCircle, CheckCircle, Eye, EyeOff, Loader2, RefreshCw, Settings, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -146,6 +149,7 @@ export function OKXConfiguration({ onConnectionChange, onCredentialsSaved }: OKX
       setIsConnected(true);
       setIsEditing(false);
       setHasExistingCredentials(true);
+      invalidateDashboardBootstrapCache();
       await checkExistingCredentials();
       onConnectionChange?.(true);
       onCredentialsSaved?.(credentials);
@@ -179,6 +183,7 @@ export function OKXConfiguration({ onConnectionChange, onCredentialsSaved }: OKX
       setIsConnected(false);
       setIsEditing(true);
       setCredentials({ apiKey: "", apiSecret: "", passphrase: "" });
+      invalidateDashboardBootstrapCache();
       setSuccess("Credentials deleted successfully!");
       onConnectionChange?.(false);
     } catch (err) {

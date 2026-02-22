@@ -1,0 +1,141 @@
+{
+  "generated_at": "2026-02-22T18:29:11.923Z",
+  "base_url": "http://localhost:3000",
+  "include_live_okx": true,
+  "pass": 0,
+  "fail": 12,
+  "results": [
+    {
+      "name": "dashboard.bootstrap.minimal",
+      "ok": false,
+      "status": 0,
+      "duration": "1610ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/dashboard/bootstrap?exchange=okx&types=profile&minimal=1"
+    },
+    {
+      "name": "dashboard.bootstrap.orders",
+      "ok": false,
+      "status": 0,
+      "duration": "1519ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/dashboard/bootstrap?exchange=okx&types=orders%2Cprofile%2Cmerchant_profile"
+    },
+    {
+      "name": "onboarding.status",
+      "ok": false,
+      "status": 0,
+      "duration": "1527ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/onboarding/status"
+    },
+    {
+      "name": "user.preferences",
+      "ok": false,
+      "status": 0,
+      "duration": "1521ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/user/preferences"
+    },
+    {
+      "name": "verification.status",
+      "ok": false,
+      "status": 0,
+      "duration": "1518ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/verification/status"
+    },
+    {
+      "name": "orders.pending",
+      "ok": false,
+      "status": 0,
+      "duration": "1516ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/orders/p2p?status_group=pending&page=1&page_size=20&status_filter=all&start_date=2025-11-24&end_date=2026-02-22&crypto=ALL&currency=ALL"
+    },
+    {
+      "name": "orders.completed",
+      "ok": false,
+      "status": 0,
+      "duration": "1530ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/orders/p2p?status_group=completed&page=1&page_size=20&status_filter=all&start_date=2025-11-24&end_date=2026-02-22&crypto=ALL&currency=ALL"
+    },
+    {
+      "name": "orders.pending.in_progress",
+      "ok": false,
+      "status": 0,
+      "duration": "1519ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/orders/p2p?status_group=pending&status_filter=in_progress&page=1&page_size=20&start_date=2025-11-24&end_date=2026-02-22"
+    },
+    {
+      "name": "orders.completed.fulfilled",
+      "ok": false,
+      "status": 0,
+      "duration": "1526ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/orders/p2p?status_group=completed&status_filter=fulfilled&page=1&page_size=20&start_date=2025-11-24&end_date=2026-02-22"
+    },
+    {
+      "name": "okx.cache.bundle",
+      "ok": false,
+      "status": 0,
+      "duration": "1521ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/okx/cache?exchange=okx"
+    },
+    {
+      "name": "okx.data.user-info",
+      "ok": false,
+      "status": 0,
+      "duration": "1564ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/okx/data?action=user-info"
+    },
+    {
+      "name": "okx.data.balances",
+      "ok": false,
+      "status": 0,
+      "duration": "1546ms",
+      "source": "-",
+      "stale": "-",
+      "total": "-",
+      "staleReason": "-",
+      "url": "http://localhost:3000/api/okx/data?action=balances"
+    }
+  ]
+}

@@ -10,11 +10,16 @@ export async function GET() {
     }
 
     const now = new Date();
-    const [credentialsCount, exchangeDataCount, userProfile] = await Promise.all([
+    const [credentialsCount, exchangeDataCount, freshExchangeDataCount, userProfile] = await Promise.all([
       prisma.exchangeCredential.count({
         where: {
           userId: user.id,
           isActive: true,
+        },
+      }),
+      prisma.userExchangeData.count({
+        where: {
+          userId: user.id,
         },
       }),
       prisma.userExchangeData.count({
@@ -34,7 +39,10 @@ export async function GET() {
     return NextResponse.json(
       {
         hasCredentials: credentialsCount > 0,
+        // Mark sync step complete if user has synced at least once.
         hasExchangeData: exchangeDataCount > 0,
+        // Expose freshness to let UI show stale-state hints if needed.
+        hasFreshExchangeData: freshExchangeDataCount > 0,
         profileComplete: Boolean(userProfile?.profileComplete),
         preferredExchange: userProfile?.exchangeProvider ?? "okx",
       },

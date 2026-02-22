@@ -232,6 +232,11 @@ export class TeamExchangeAdapter implements P2PExchange {
     return this.baseExchange.getOrders(params)
   }
 
+  async getTradingSummaryWithUser(params: any): Promise<any> {
+    if (!this.baseExchange) throw new Error("Exchange not initialized")
+    return this.baseExchange.getTradingSummaryWithUser(params)
+  }
+
   async cancelOrder(orderId: string): Promise<any> {
     if (!this.baseExchange) throw new Error("Exchange not initialized")
     if (!(await this.checkPermission("manage_orders"))) {

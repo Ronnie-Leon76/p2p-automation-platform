@@ -645,7 +645,7 @@ export function TraderProfile() {
                         <p className="font-medium text-blue-900">
                           Exchange Data Integration
                         </p>
-                        <p className="text-sm text-blue-700">
+                        <div className="text-sm text-blue-700">
                           Data source:{" "}
                           {profile.trader_info.dataSource === "merchant_profile"
                             ? "Merchant Profile API"
@@ -655,7 +655,7 @@ export function TraderProfile() {
                               Merchant Account
                             </Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">

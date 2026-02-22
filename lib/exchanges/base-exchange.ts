@@ -18,6 +18,7 @@ export interface P2PExchange {
   createOrder(params: CreateOrderParams): Promise<CreateOrderResponse>
   getOrder(orderId: string): Promise<GetOrderResponse>
   getOrders(params: GetOrdersParams): Promise<GetOrdersResponse>
+  getTradingSummaryWithUser(params: GetTradingSummaryWithUserParams): Promise<GetTradingSummaryWithUserResponse>
   cancelOrder(orderId: string): Promise<CancelOrderResponse>
   markOrderAsPaid(orderId: string, params?: MarkAsPaidParams): Promise<MarkAsPaidResponse>
   releaseCrypto(orderId: string, params?: ReleaseCryptoParams): Promise<ReleaseCryptoResponse>
@@ -160,11 +161,17 @@ export interface GetOrderResponse {
   orderStatus: string
   paymentStatus: string
   createdTimestamp: string
+  paymentMethodName?: string
+  accountName?: string
+  accountNumber?: string
+  bankName?: string
+  paymentTimestamp?: string
   counterpartyDetail: {
     userId: string
     nickName: string
     completionRate: string
   }
+  pendingOrderDetails?: Record<string, unknown>
 }
 
 export interface GetOrdersParams {
@@ -173,7 +180,10 @@ export interface GetOrdersParams {
   pageSize: string
   cryptoCurrencies?: string
   fiatCurrencies?: string
+  start?: string
+  end?: string
   completionStatus?: "all" | "pending" | "completed"
+  searchKeyword?: string
 }
 
 export interface GetOrdersResponse {
@@ -182,6 +192,27 @@ export interface GetOrdersResponse {
   pageIndex?: number
   pageSize?: number
   hasMore?: boolean
+}
+
+export interface GetTradingSummaryWithUserParams {
+  userId: string
+  quoteCurrency?: string
+}
+
+export interface GetTradingSummaryWithUserResponse {
+  userId: string
+  tradeCount: number
+  tradeAmount: number
+  side: string | null
+  totalOrders: number
+  completedOrders: number
+  canceledOrders: number
+  disputedOrders: number
+  completionRate: number
+  totalAmount: number
+  avgReleaseMinutes: number | null
+  avgPaymentMinutes: number | null
+  raw?: Record<string, unknown> | null
 }
 
 export interface CancelOrderResponse {

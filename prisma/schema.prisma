@@ -126,6 +126,27 @@ model UserExchangeData {
   @@map("user_exchange_data")
 }
 
+model Order {
+  id                  String    @id
+  side                String?
+  status              String    @default("pending")
+  paymentStatus       String?   @map("payment_status")
+  sellerId            String?   @map("seller_id")
+  buyerId             String?   @map("buyer_id")
+  amountCrypto        Decimal?  @db.Decimal(20, 8) @map("amount_crypto")
+  amountFiat          Decimal?  @db.Decimal(20, 2) @map("amount_fiat")
+  cryptoCurrency      String?   @map("crypto_currency")
+  fiatCurrency        String?   @map("fiat_currency")
+  unitPrice           Decimal?  @db.Decimal(20, 8) @map("unit_price")
+  counterpartyNickname String?  @map("counterparty_nickname")
+  externalOrderId     String?   @map("external_order_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
 model Team {
   id          String       @id @default(cuid())
   name        String

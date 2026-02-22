@@ -68,11 +68,19 @@ function toOrderRow(order: RawOrder): OrderRow {
   const id = String(order.id ?? order.order_id ?? "-");
   const side = String(order.side ?? order.order_type ?? "buy").toLowerCase();
   const cryptoQty = Number(order.amount_crypto ?? order.crypto_amount ?? order.quantity ?? 0);
-  const cryptoCurrency = String(order.crypto_currency ?? order.cryptocurrency ?? "USDT");
+  const cryptoCurrency = String(order.crypto_currency ?? order.cryptocurrency ?? "USDT").toUpperCase();
   const fiatAmount = Number(order.amount_fiat ?? order.fiat_amount ?? order.amount ?? 0);
-  const fiatCurrency = String(order.fiat_currency ?? order.currency ?? "KES");
+  const fiatCurrency = String(order.fiat_currency ?? order.currency ?? "KES").toUpperCase();
   const unitPrice = Number(order.unit_price ?? order.unitPrice ?? order.price ?? 0);
-  const status = String(order.status ?? order.order_status ?? "pending");
+  const statusRaw = String(order.status ?? order.order_status ?? "in_progress").toLowerCase();
+  const status =
+    statusRaw === "in_dispute" || statusRaw.includes("dispute")
+      ? "In dispute"
+      : statusRaw === "fulfilled"
+        ? "Fulfilled"
+        : statusRaw === "canceled" || statusRaw === "cancelled"
+          ? "Canceled"
+          : "In progress";
   const createdAt = String(order.created_at ?? order.createdAt ?? new Date().toISOString());
   const counterparty = String(
     order.counterparty_nickname ??
@@ -95,18 +103,27 @@ function toOrderRow(order: RawOrder): OrderRow {
   };
 }
 
+function statusBadgeClass(status: string): string {
+  const s = status.toLowerCase();
+  if (s.includes("dispute")) return "bg-amber-100 text-amber-800 border border-amber-200";
+  if (s.includes("fulfilled")) return "bg-emerald-100 text-emerald-800 border border-emerald-200";
+  if (s.includes("cancel")) return "bg-rose-100 text-rose-700 border border-rose-200";
+  return "bg-blue-100 text-blue-800 border border-blue-200";
+}
+
 export function OrderManagement() {
   useDashboardBootstrap("okx", ["orders", "profile", "merchant_profile"]);
 
   const [tab, setTab] = useState<"pending" | "completed">("pending");
   const [statusFilter, setStatusFilter] = useState("all");
   const [orderTypeFilter, setOrderTypeFilter] = useState<"all" | "buy" | "sell">("all");
-  const [preset, setPreset] = useState<"today" | "7d" | "30d" | "90d" | "custom">("30d");
-  const [startDate, setStartDate] = useState(daysAgoRange(30).start);
-  const [endDate, setEndDate] = useState(daysAgoRange(30).end);
+  const [preset, setPreset] = useState<"today" | "7d" | "30d" | "90d" | "custom">("90d");
+  const [startDate, setStartDate] = useState(daysAgoRange(90).start);
+  const [endDate, setEndDate] = useState(daysAgoRange(90).end);
   const [crypto, setCrypto] = useState("ALL");
   const [currency, setCurrency] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -116,6 +133,9 @@ export function OrderManagement() {
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [dataSource, setDataSource] = useState<"okx_live" | "postgres">("postgres");
+  const [isStale, setIsStale] = useState(false);
+  const [staleReason, setStaleReason] = useState<string | null>(null);
 
   const statusOptions =
     tab === "pending"
@@ -158,6 +178,9 @@ export function OrderManagement() {
         crypto,
         currency,
       });
+      if (debouncedSearch) {
+        params.set("search_keyword", debouncedSearch);
+      }
       const response = await fetch(`/api/orders/p2p?${params.toString()}`, { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || "Failed to fetch orders");
@@ -168,18 +191,31 @@ export function OrderManagement() {
       setCompletedCount(Number(payload.completed_count ?? 0));
       setTotal(Number(payload?.pagination?.total ?? rows.length));
       setHasMore(Boolean(payload?.pagination?.has_more));
+      setDataSource(payload?.source === "okx_live" ? "okx_live" : "postgres");
+      setIsStale(Boolean(payload?.stale));
+      setStaleReason(typeof payload?.stale_reason === "string" ? payload.stale_reason : null);
     } catch {
       setOrders([]);
       setTotal(0);
       setHasMore(false);
+      setDataSource("postgres");
+      setIsStale(true);
+      setStaleReason("Showing cached data, live sync request failed.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
     void fetchOrders(page);
-  }, [tab, statusFilter, startDate, endDate, crypto, currency, page, pageSize]);
+  }, [tab, statusFilter, startDate, endDate, crypto, currency, debouncedSearch, page, pageSize]);
 
   useEffect(() => {
     setStatusFilter("all");
@@ -188,28 +224,21 @@ export function OrderManagement() {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, startDate, endDate, crypto, currency, orderTypeFilter]);
+  }, [statusFilter, startDate, endDate, crypto, currency, debouncedSearch, orderTypeFilter]);
 
   const filteredOrders = useMemo(() => {
     let rows = orders;
     if (orderTypeFilter !== "all") {
       rows = rows.filter((o) => o.orderType.toLowerCase() === orderTypeFilter);
     }
-    if (!searchTerm.trim()) return rows;
-    const needle = searchTerm.toLowerCase();
-    return rows.filter(
-      (o) =>
-        o.id.toLowerCase().includes(needle) ||
-        o.counterparty.toLowerCase().includes(needle) ||
-        o.orderStatus.toLowerCase().includes(needle),
-    );
-  }, [orders, orderTypeFilter, searchTerm]);
+    return rows;
+  }, [orders, orderTypeFilter]);
 
   const resetFilters = () => {
     setSearchTerm("");
     setOrderTypeFilter("all");
     setStatusFilter("all");
-    applyPreset("30d");
+    applyPreset("90d");
     setCrypto("ALL");
     setCurrency("ALL");
     setPage(1);
@@ -346,6 +375,20 @@ export function OrderManagement() {
           </Button>
         </div>
 
+        {(isStale || dataSource === "okx_live") && (
+          <div
+            className={`rounded-md border px-3 py-2 text-xs ${
+              isStale
+                ? "border-amber-200 bg-amber-50 text-amber-800"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {isStale
+              ? staleReason || "Showing cached data, last sync failed."
+              : "Live OKX data is active for this view."}
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -365,7 +408,15 @@ export function OrderManagement() {
                 filteredOrders.map((order) => (
                   <tr key={order.id} className="border-b">
                     <td className="py-5">
-                      <span className="underline">{order.id}</span>
+                      <a
+                        className="underline text-inherit hover:text-blue-600"
+                        href={`/dashboard/orders/${encodeURIComponent(order.id)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open order details in a new tab"
+                      >
+                        {order.id}
+                      </a>
                     </td>
                     <td className="py-5">
                       <span className={order.orderType === "Buy" ? "text-green-700 font-semibold" : "text-pink-700 font-semibold"}>
@@ -376,7 +427,11 @@ export function OrderManagement() {
                     <td className="py-5">{order.amount}</td>
                     <td className="py-5">{order.unitPrice}</td>
                     <td className="py-5">{order.counterparty}</td>
-                    <td className="py-5">{order.orderStatus}</td>
+                    <td className="py-5">
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusBadgeClass(order.orderStatus)}`}>
+                        {order.orderStatus}
+                      </span>
+                    </td>
                     <td className="py-5">{order.orderDateTime}</td>
                   </tr>
                 ))}

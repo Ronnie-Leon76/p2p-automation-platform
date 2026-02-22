@@ -33,6 +33,7 @@ interface OnboardingStep {
 interface OnboardingStatusResponse {
   hasCredentials: boolean;
   hasExchangeData: boolean;
+  hasFreshExchangeData?: boolean;
   profileComplete: boolean;
   preferredExchange?: string;
 }
@@ -44,7 +45,23 @@ export function UserOnboarding() {
   const router = useRouter();
 
   useEffect(() => {
-    checkOnboardingStatus();
+    void checkOnboardingStatus();
+
+    const onFocus = () => {
+      void checkOnboardingStatus();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void checkOnboardingStatus();
+      }
+    };
+
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   const checkOnboardingStatus = async () => {

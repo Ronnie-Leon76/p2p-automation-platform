@@ -19,6 +19,8 @@
   GetOrderResponse,
   GetOrdersParams,
   GetOrdersResponse,
+  GetTradingSummaryWithUserParams,
+  GetTradingSummaryWithUserResponse,
   MarkAsPaidParams,
   MarkAsPaidResponse,
   MerchantProfileResponse,
@@ -529,7 +531,33 @@ export class OKXExchange implements P2PExchange {
 
   async getOrder(orderId: string): Promise<GetOrderResponse> {
     const response = await this.makeRequest(`/api/v5/p2p/order?orderId=${orderId}`)
-    const data = response.data?.[0]
+    const data = response?.data?.[0] || response?.data || {}
+    const method = data?.takerPaymentMethod || data?.makerPaymentMethod || data?.paymentMethod || {}
+    const paymentMethodName =
+      method?.type ||
+      method?.paymentMethodType ||
+      method?.paymentMethodName ||
+      data?.paymentMethodName ||
+      data?.paymentMethod ||
+      ""
+    const accountName =
+      method?.accountName ||
+      method?.realName ||
+      method?.holderName ||
+      data?.accountName ||
+      ""
+    const accountNumber =
+      method?.accountNo ||
+      method?.accountNumber ||
+      method?.cardNo ||
+      data?.accountNumber ||
+      ""
+    const bankName = method?.bankName || method?.bank || data?.bankName || ""
+    const paymentTimestamp =
+      data?.paymentTimestamp ||
+      data?.paymentTime ||
+      data?.paidTime ||
+      ""
 
     return {
       orderId: data?.orderId || "",
@@ -542,17 +570,63 @@ export class OKXExchange implements P2PExchange {
       orderStatus: data?.orderStatus || "",
       paymentStatus: data?.paymentStatus || "",
       createdTimestamp: data?.createdTimestamp || "",
+      paymentMethodName,
+      accountName,
+      accountNumber,
+      bankName,
+      paymentTimestamp,
       counterpartyDetail: {
         userId: data?.counterpartyDetail?.userId || "",
         nickName: data?.counterpartyDetail?.nickName || "",
         completionRate: data?.counterpartyDetail?.completionRate || "",
       },
+      pendingOrderDetails: data,
     }
   }
 
   async getOrders(params: GetOrdersParams): Promise<GetOrdersResponse> {
-    const queryParams = new URLSearchParams(params as any).toString()
-    const response = await this.makeRequest(`/api/v5/p2p/order/list?${queryParams}`)
+    // Build query strictly per OKX "Get Orders by Filters":
+    // side, pageIndex (required, starts from 1), pageSize (required),
+    // cryptoCurrencies, fiatCurrencies, start, end, completionStatus, searchKeyword.
+    const query = new URLSearchParams()
+    const pageIndexNum = Math.max(1, Number.parseInt(String(params.pageIndex || "1"), 10) || 1)
+    const pageSizeNum = Math.min(100, Math.max(1, Number.parseInt(String(params.pageSize || "20"), 10) || 20))
+    query.set("pageIndex", String(pageIndexNum))
+    query.set("pageSize", String(pageSizeNum))
+
+    const side = String(params.side || "all").toLowerCase()
+    if (side === "buy" || side === "sell" || side === "all") {
+      query.set("side", side)
+    }
+
+    const completionStatus = String(params.completionStatus || "").toLowerCase()
+    if (completionStatus === "all" || completionStatus === "pending" || completionStatus === "completed") {
+      query.set("completionStatus", completionStatus)
+    }
+
+    const cryptoCurrencies = String(params.cryptoCurrencies || "")
+      .split(",")
+      .map((v) => v.trim().toUpperCase())
+      .filter(Boolean)
+      .join(",")
+    if (cryptoCurrencies) query.set("cryptoCurrencies", cryptoCurrencies)
+
+    const fiatCurrencies = String(params.fiatCurrencies || "")
+      .split(",")
+      .map((v) => v.trim().toUpperCase())
+      .filter(Boolean)
+      .join(",")
+    if (fiatCurrencies) query.set("fiatCurrencies", fiatCurrencies)
+
+    const start = String(params.start || "").trim()
+    if (/^\d{10,13}$/.test(start)) query.set("start", start)
+    const end = String(params.end || "").trim()
+    if (/^\d{10,13}$/.test(end)) query.set("end", end)
+
+    const searchKeyword = String(params.searchKeyword || "").trim()
+    if (searchKeyword) query.set("searchKeyword", searchKeyword)
+
+    const response = await this.makeRequest(`/api/v5/p2p/order/list?${query.toString()}`)
     const rawOrders = Array.isArray(response?.data)
       ? response.data
       : Array.isArray(response?.data?.list)
@@ -585,14 +659,53 @@ export class OKXExchange implements P2PExchange {
       response?.data?.totalCount ??
       response?.data?.count
     const total = totalRaw != null ? Number(totalRaw) : undefined
-    const pageIndex = Number(params.pageIndex || 0)
-    const pageSize = Number(params.pageSize || 50)
+    const pageIndex = pageIndexNum
+    const pageSize = pageSizeNum
     const hasMore =
       typeof total === "number"
-        ? (pageIndex + 1) * pageSize < total
+        ? pageIndex * pageSize < total
         : orders.length >= pageSize
 
     return { orders, total, pageIndex, pageSize, hasMore }
+  }
+
+  async getTradingSummaryWithUser(
+    params: GetTradingSummaryWithUserParams,
+  ): Promise<GetTradingSummaryWithUserResponse> {
+    const userId = String(params.userId || "").trim()
+    if (!userId) {
+      throw new Error("userId is required")
+    }
+
+    const endpoint = `/api/v5/p2p/order/trade-info?userId=${encodeURIComponent(userId)}`
+    const response = await this.makeRequest(endpoint)
+    const source = (response?.data?.[0] || response?.data || {}) as Record<string, unknown>
+
+    const num = (v: unknown, fallback = 0): number => {
+      const n = Number(v)
+      return Number.isFinite(n) ? n : fallback
+    }
+
+    const tradeCount = num(source.tradeCount)
+    const tradeAmount = num(source.tradeAmount)
+    const sideRaw = source.side
+    const side = typeof sideRaw === "string" && sideRaw.trim() ? sideRaw.trim().toLowerCase() : null
+
+    return {
+      userId,
+      tradeCount,
+      tradeAmount,
+      side,
+      totalOrders: tradeCount,
+      completedOrders: 0,
+      canceledOrders: 0,
+      disputedOrders: 0,
+      completionRate: 0,
+      totalAmount: tradeAmount,
+      avgReleaseMinutes: null,
+      avgPaymentMinutes: null,
+      raw: source,
+    }
   }
 
   async cancelOrder(orderId: string): Promise<CancelOrderResponse> {
