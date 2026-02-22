@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AddPaymentMethodParams,
   AddPaymentMethodResponse,
   BalanceResponse,
@@ -209,13 +209,13 @@ export class OKXExchange implements P2PExchange {
       let errorMessage = error instanceof Error ? error.message : "Unknown error"
       
       if (errorMessage.includes("404") || errorMessage.includes("Not Found")) {
-        errorMessage = "❌ OKX API endpoint not found. Please verify your API credentials have P2P trading permissions."
+        errorMessage = "âŒ OKX API endpoint not found. Please verify your API credentials have P2P trading permissions."
       } else if (errorMessage.includes("55723")) {
-        errorMessage = "❌ OKX API error 55723: This might indicate insufficient permissions, incorrect endpoint, or rate limiting. Please verify your API keys have P2P trading permissions enabled."
+        errorMessage = "âŒ OKX API error 55723: This might indicate insufficient permissions, incorrect endpoint, or rate limiting. Please verify your API keys have P2P trading permissions enabled."
       } else if (errorMessage.includes("50026")) {
-        errorMessage = "❌ OKX API error 50026: Invalid request format. Please check the parameter structure."
+        errorMessage = "âŒ OKX API error 50026: Invalid request format. Please check the parameter structure."
       } else if (errorMessage.includes("50001")) {
-        errorMessage = "❌ OKX API error 50001: Parameter error. Please check all required parameters are provided correctly."
+        errorMessage = "âŒ OKX API error 50001: Parameter error. Please check all required parameters are provided correctly."
       }
       
       return {
@@ -293,15 +293,15 @@ export class OKXExchange implements P2PExchange {
       throw new Error("Missing required parameters")
     }
     const queryParams = new URLSearchParams(params as any).toString()
-    console.log("🔍 OKX getActiveAds request URL:", `/api/v5/p2p/ad/active-list?${queryParams}`)
+    console.log("ðŸ” OKX getActiveAds request URL:", `/api/v5/p2p/ad/active-list?${queryParams}`)
     
     const response = await this.makeRequest(`/api/v5/p2p/ad/active-list?${queryParams}`)
-    console.log("📦 Raw OKX API response:", response)
-    console.log("📊 Response data type:", typeof response)
-    console.log("📊 Response keys:", Object.keys(response || {}))
-    console.log("📊 Response.data:", response?.data)
-    console.log("📊 Response.data type:", typeof response?.data)
-    console.log("📊 Response.data length:", Array.isArray(response?.data) ? response.data.length : "not array")
+    console.log("ðŸ“¦ Raw OKX API response:", response)
+    console.log("ðŸ“Š Response data type:", typeof response)
+    console.log("ðŸ“Š Response keys:", Object.keys(response || {}))
+    console.log("ðŸ“Š Response.data:", response?.data)
+    console.log("ðŸ“Š Response.data type:", typeof response?.data)
+    console.log("ðŸ“Š Response.data length:", Array.isArray(response?.data) ? response.data.length : "not array")
 
     const ads = (response.data || []).map((ad: any) => ({
       adId: ad.adId,
@@ -324,35 +324,113 @@ export class OKXExchange implements P2PExchange {
       createdTimestamp: ad.createdTimestamp,
     }))
 
-    console.log("📊 Mapped ads:", ads)
-    console.log("📊 Mapped ads length:", ads.length)
+    console.log("ðŸ“Š Mapped ads:", ads)
+    console.log("ðŸ“Š Mapped ads length:", ads.length)
 
     return { ads }
   }
 
+  private normalizePaymentMethodTypes(raw: any): string[] {
+    if (!Array.isArray(raw)) return []
+    return raw
+      .map((item: any) => {
+        if (typeof item === "string") return item
+        return item?.type || item?.paymentMethodType || item?.paymentMethodName || ""
+      })
+      .filter(Boolean)
+  }
+
+  private normalizeAdRecord(ad: any) {
+    const source = ad?.ad || ad?.adInfo || ad?.advertisement || ad
+    const creator = source?.creator || source?.merchant || source?.user || {}
+    const paymentMethods = this.normalizePaymentMethodTypes(
+      source?.paymentMethods || source?.paymentMethodList || source?.payments || [],
+    )
+
+    return {
+      adId:
+        source?.adId ||
+        source?.id ||
+        source?.advertId ||
+        source?.advertisementId ||
+        source?.publicAdId ||
+        "",
+      side: source?.side || source?.tradeSide || source?.type || "",
+      cryptoCurrency:
+        source?.cryptoCurrency ||
+        source?.baseCurrency ||
+        source?.asset ||
+        source?.crypto ||
+        "",
+      fiatCurrency:
+        source?.fiatCurrency ||
+        source?.quoteCurrency ||
+        source?.fiat ||
+        source?.currency ||
+        "",
+      unitPrice: source?.unitPrice || source?.price || source?.quotePrice || "",
+      availableAmount:
+        source?.availableAmount ||
+        source?.availableQty ||
+        source?.remainingAmount ||
+        source?.quantity ||
+        "",
+      minOrderSize:
+        source?.minOrderSize ||
+        source?.minOrderLimit ||
+        source?.minAmount ||
+        "",
+      maxOrderSize:
+        source?.maxOrderSize ||
+        source?.maxOrderLimit ||
+        source?.maxAmount ||
+        "",
+      creator: {
+        userId: creator?.userId || creator?.id || creator?.uid || "",
+        nickName: creator?.nickName || creator?.nickname || creator?.name || "",
+        completionRate: creator?.completionRate || creator?.completion_rate || "",
+        completedOrders: creator?.completedOrders || creator?.totalOrders || "",
+        kycLevel: creator?.kycLevel || creator?.kyc_level || "",
+      },
+      paymentMethods,
+      status: source?.status || source?.adStatus || source?.state || "",
+      createdTimestamp:
+        source?.createdTimestamp ||
+        source?.createdAt ||
+        source?.ctime ||
+        "",
+    }
+  }
+
+  private extractAdsArray(response: any): any[] {
+    if (Array.isArray(response?.data)) return response.data
+    if (Array.isArray(response?.data?.list)) return response.data.list
+    if (Array.isArray(response?.data?.ads)) return response.data.ads
+    if (Array.isArray(response?.data?.adList)) return response.data.adList
+    if (Array.isArray(response?.data?.items)) return response.data.items
+    if (Array.isArray(response?.list)) return response.list
+    if (Array.isArray(response?.ads)) return response.ads
+    return []
+  }
+
   // Get user's own ads (different from marketplace ads)
   async getUserAds(): Promise<GetActiveAdsResponse> {
-    console.log("🔍 Getting user's own ads...")
+    console.log("Getting user's own ads...")
 
     try {
-      // Attempt to retrieve user info first so we can pass required params where needed
       let resolvedUserId: string | null = null
       try {
         const info = await this.getUserInfo()
-        // OKX user info shape may vary
         resolvedUserId = (info as any)?.userId || (info as any)?.id || null
-      } catch (err) {
-        // Non-fatal: continue without userId if we can't get user info
+      } catch {
         resolvedUserId = null
       }
 
-      // Try different possible endpoints for user's own ads. For endpoints that need a userId
-      // we only call them when we have one to avoid 52900 (missing userId) errors.
       const possibleEndpointFns: Array<() => string | null> = [
-        () => '/api/v5/p2p/ad/my-list',     // Common pattern for user's own ads
-        () => '/api/v5/p2p/ad/list',        // Alternative pattern
-        () => resolvedUserId ? `/api/v5/p2p/merchant/ads?userId=${encodeURIComponent(resolvedUserId)}` : null,
-        () => '/api/v5/p2p/ads/own',        // Alternative own ads endpoint
+        () =>
+          resolvedUserId
+            ? `/api/v5/p2p/merchant/ads?userId=${encodeURIComponent(resolvedUserId)}`
+            : null,
       ]
 
       for (const epFn of possibleEndpointFns) {
@@ -360,51 +438,23 @@ export class OKXExchange implements P2PExchange {
         if (!endpoint) continue
 
         try {
-          console.log(`🧪 Trying endpoint: ${endpoint}`)
+          console.log(`Trying endpoint: ${endpoint}`)
           const response = await this.makeRequest(endpoint)
-
-          // Only log lightweight info to avoid huge error blobs in logs
-          if (response && response.data) {
-            const ads = (response.data || []).map((ad: any) => ({
-              adId: ad.adId,
-              side: ad.side,
-              cryptoCurrency: ad.cryptoCurrency,
-              fiatCurrency: ad.fiatCurrency,
-              unitPrice: ad.unitPrice,
-              availableAmount: ad.availableAmount,
-              minOrderSize: ad.minOrderSize,
-              maxOrderSize: ad.maxOrderSize,
-              creator: {
-                userId: ad.creator?.userId || "",
-                nickName: ad.creator?.nickName || "",
-                completionRate: ad.creator?.completionRate || "",
-                completedOrders: ad.creator?.completedOrders || "",
-                kycLevel: ad.creator?.kycLevel || "",
-              },
-              paymentMethods: ad.paymentMethods || [],
-              status: ad.status,
-              createdTimestamp: ad.createdTimestamp,
-            }))
-
-            console.log(`✅ Found ${ads.length} user ads from ${endpoint}`)
-            return { ads }
-          }
+          const rawAds = this.extractAdsArray(response)
+          const ads = rawAds.map((ad: any) => this.normalizeAdRecord(ad))
+          console.log(`Found ${ads.length} user ads from ${endpoint}`)
+          return { ads }
         } catch (error) {
-          // Keep logs concise and continue trying other endpoints. Many accounts/regions
-          // don't expose every historical OKX endpoint and will return 404/400; treat
-          // those as non-fatal and try fallbacks.
           const msg = error instanceof Error ? error.message : String(error)
-          console.log(`❌ Endpoint ${endpoint} failed: ${msg}`)
+          console.log(`Endpoint ${endpoint} failed: ${msg}`)
           continue
         }
       }
 
-      // If no dedicated endpoint works, fall back to empty result
-      console.log("⚠️ No working endpoint found for user's own ads, returning empty result")
+      console.log("No working endpoint found for user ads, returning empty result")
       return { ads: [] }
-
     } catch (error) {
-      console.error("❌ Error getting user ads:", error)
+      console.error("Error getting user ads:", error)
       return { ads: [] }
     }
   }
@@ -503,8 +553,15 @@ export class OKXExchange implements P2PExchange {
   async getOrders(params: GetOrdersParams): Promise<GetOrdersResponse> {
     const queryParams = new URLSearchParams(params as any).toString()
     const response = await this.makeRequest(`/api/v5/p2p/order/list?${queryParams}`)
+    const rawOrders = Array.isArray(response?.data)
+      ? response.data
+      : Array.isArray(response?.data?.list)
+        ? response.data.list
+        : Array.isArray(response?.data?.items)
+          ? response.data.items
+          : []
 
-    const orders = (response.data || []).map((order: any) => ({
+    const orders = rawOrders.map((order: any) => ({
       orderId: order.orderId,
       side: order.side,
       cryptoCurrency: order.cryptoCurrency,
@@ -522,7 +579,20 @@ export class OKXExchange implements P2PExchange {
       },
     }))
 
-    return { orders }
+    const totalRaw =
+      response?.total ??
+      response?.data?.total ??
+      response?.data?.totalCount ??
+      response?.data?.count
+    const total = totalRaw != null ? Number(totalRaw) : undefined
+    const pageIndex = Number(params.pageIndex || 0)
+    const pageSize = Number(params.pageSize || 50)
+    const hasMore =
+      typeof total === "number"
+        ? (pageIndex + 1) * pageSize < total
+        : orders.length >= pageSize
+
+    return { orders, total, pageIndex, pageSize, hasMore }
   }
 
   async cancelOrder(orderId: string): Promise<CancelOrderResponse> {
@@ -625,7 +695,7 @@ export class OKXExchange implements P2PExchange {
     const response = await this.makeRequest("/api/v5/p2p/merchant/profile")
     const data = response.data?.[0]
     
-    console.log("🏪 OKX Merchant Profile Raw Response:", data)
+    console.log("ðŸª OKX Merchant Profile Raw Response:", data)
 
     return {
       userId: data?.merchantId || "",

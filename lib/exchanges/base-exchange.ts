@@ -178,6 +178,10 @@ export interface GetOrdersParams {
 
 export interface GetOrdersResponse {
   orders: GetOrderResponse[]
+  total?: number
+  pageIndex?: number
+  pageSize?: number
+  hasMore?: boolean
 }
 
 export interface CancelOrderResponse {

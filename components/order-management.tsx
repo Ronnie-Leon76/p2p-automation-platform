@@ -6,15 +6,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDashboardBootstrap } from "@/hooks/use-dashboard-bootstrap";
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useDashboardBootstrap } from "@/hooks/use-dashboard-bootstrap";
 
 type RawOrder = Record<string, unknown>;
 
 type OrderRow = {
   id: string;
-  orderType: string;
+  orderType: "Buy" | "Sell";
   quantity: string;
   amount: string;
   unitPrice: string;
@@ -22,6 +22,47 @@ type OrderRow = {
   orderStatus: string;
   orderDateTime: string;
 };
+
+const CRYPTO_OPTIONS = ["ALL", "BTC", "ETH", "USDC", "USDT"];
+const CURRENCY_OPTIONS = [
+  "ALL",
+  "KES",
+  "UGX",
+  "TZS",
+  "RWF",
+  "BIF",
+  "ETB",
+  "SOS",
+  "DJF",
+  "ERN",
+  "SSP",
+  "SDG",
+  "KMF",
+  "SCR",
+  "MUR",
+  "MGA",
+  "ZAR",
+];
+
+function formatDateInput(date: Date): string {
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function todayRange() {
+  const now = new Date();
+  const d = formatDateInput(now);
+  return { start: d, end: d };
+}
+
+function daysAgoRange(days: number) {
+  const end = new Date();
+  const start = new Date();
+  start.setUTCDate(end.getUTCDate() - days);
+  return { start: formatDateInput(start), end: formatDateInput(end) };
+}
 
 function toOrderRow(order: RawOrder): OrderRow {
   const id = String(order.id ?? order.order_id ?? "-");
@@ -33,15 +74,14 @@ function toOrderRow(order: RawOrder): OrderRow {
   const unitPrice = Number(order.unit_price ?? order.unitPrice ?? order.price ?? 0);
   const status = String(order.status ?? order.order_status ?? "pending");
   const createdAt = String(order.created_at ?? order.createdAt ?? new Date().toISOString());
-  const counterparty =
-    String(
-      order.counterparty_nickname ??
-        order.counterparty_name ??
-        order.buyer_nickname ??
-        order.seller_nickname ??
-        order.counterparty ??
-        "Counterparty",
-    );
+  const counterparty = String(
+    order.counterparty_nickname ??
+      order.counterparty_name ??
+      order.buyer_nickname ??
+      order.seller_nickname ??
+      order.counterparty ??
+      "Counterparty",
+  );
 
   return {
     id,
@@ -57,78 +97,242 @@ function toOrderRow(order: RawOrder): OrderRow {
 
 export function OrderManagement() {
   useDashboardBootstrap("okx", ["orders", "profile", "merchant_profile"]);
+
   const [tab, setTab] = useState<"pending" | "completed">("pending");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [orderTypeFilter, setOrderTypeFilter] = useState<"all" | "buy" | "sell">("all");
+  const [preset, setPreset] = useState<"today" | "7d" | "30d" | "90d" | "custom">("30d");
+  const [startDate, setStartDate] = useState(daysAgoRange(30).start);
+  const [endDate, setEndDate] = useState(daysAgoRange(30).end);
+  const [crypto, setCrypto] = useState("ALL");
+  const [currency, setCurrency] = useState("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
 
-  const fetchOrders = async (statusGroup: "pending" | "completed") => {
+  const statusOptions =
+    tab === "pending"
+      ? [
+          { value: "all", label: "All statuses" },
+          { value: "in_progress", label: "In Progress" },
+          { value: "in_dispute", label: "In Dispute" },
+        ]
+      : [
+          { value: "all", label: "All statuses" },
+          { value: "fulfilled", label: "Fulfilled" },
+          { value: "canceled", label: "Canceled" },
+        ];
+
+  const applyPreset = (next: "today" | "7d" | "30d" | "90d" | "custom") => {
+    setPreset(next);
+    if (next === "custom") return;
+    if (next === "today") {
+      const r = todayRange();
+      setStartDate(r.start);
+      setEndDate(r.end);
+      return;
+    }
+    const days = next === "7d" ? 7 : next === "30d" ? 30 : 90;
+    const r = daysAgoRange(days);
+    setStartDate(r.start);
+    setEndDate(r.end);
+  };
+
+  const fetchOrders = async (targetPage: number) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/orders/p2p?status_group=${statusGroup}`, { cache: "no-store" });
+      const params = new URLSearchParams({
+        status_group: tab,
+        page: String(targetPage),
+        page_size: String(pageSize),
+        status_filter: statusFilter,
+        start_date: startDate,
+        end_date: endDate,
+        crypto,
+        currency,
+      });
+      const response = await fetch(`/api/orders/p2p?${params.toString()}`, { cache: "no-store" });
       const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Failed to fetch orders");
-      }
+      if (!response.ok) throw new Error(payload?.error || "Failed to fetch orders");
+
       const rows = Array.isArray(payload.orders) ? payload.orders.map(toOrderRow) : [];
       setOrders(rows);
       setPendingCount(Number(payload.pending_count ?? 0));
       setCompletedCount(Number(payload.completed_count ?? 0));
+      setTotal(Number(payload?.pagination?.total ?? rows.length));
+      setHasMore(Boolean(payload?.pagination?.has_more));
     } catch {
       setOrders([]);
+      setTotal(0);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    void fetchOrders(tab);
+    void fetchOrders(page);
+  }, [tab, statusFilter, startDate, endDate, crypto, currency, page, pageSize]);
+
+  useEffect(() => {
+    setStatusFilter("all");
+    setPage(1);
   }, [tab]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, startDate, endDate, crypto, currency, orderTypeFilter]);
+
   const filteredOrders = useMemo(() => {
-    if (!searchTerm.trim()) return orders;
+    let rows = orders;
+    if (orderTypeFilter !== "all") {
+      rows = rows.filter((o) => o.orderType.toLowerCase() === orderTypeFilter);
+    }
+    if (!searchTerm.trim()) return rows;
     const needle = searchTerm.toLowerCase();
-    return orders.filter(
+    return rows.filter(
       (o) =>
         o.id.toLowerCase().includes(needle) ||
         o.counterparty.toLowerCase().includes(needle) ||
         o.orderStatus.toLowerCase().includes(needle),
     );
-  }, [orders, searchTerm]);
+  }, [orders, orderTypeFilter, searchTerm]);
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setOrderTypeFilter("all");
+    setStatusFilter("all");
+    applyPreset("30d");
+    setCrypto("ALL");
+    setCurrency("ALL");
+    setPage(1);
+  };
 
   return (
     <Card className="border-0 shadow-sm bg-white">
       <CardContent className="p-6 space-y-6">
         <Tabs value={tab} onValueChange={(v) => setTab(v as "pending" | "completed")}>
           <TabsList className="bg-transparent p-0 h-auto gap-6">
-            <TabsTrigger value="pending" className="px-0 pb-2 rounded-none border-b-2 border-transparent data-[state=active]:border-black">
+            <TabsTrigger
+              value="pending"
+              className="px-0 pb-2 rounded-none border-b-2 border-transparent data-[state=active]:border-black"
+            >
               Pending <Badge className="ml-2 bg-red-100 text-red-700">{pendingCount}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="completed" className="px-0 pb-2 rounded-none border-b-2 border-transparent data-[state=active]:border-black">
+            <TabsTrigger
+              value="completed"
+              className="px-0 pb-2 rounded-none border-b-2 border-transparent data-[state=active]:border-black"
+            >
               Completed
             </TabsTrigger>
           </TabsList>
         </Tabs>
 
         <div className="flex flex-wrap gap-3">
-          <Select defaultValue="all">
-            <SelectTrigger className="w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">All statuses</SelectItem></SelectContent>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
-          <Select defaultValue="all-orders">
-            <SelectTrigger className="w-40"><SelectValue placeholder="All orders" /></SelectTrigger>
-            <SelectContent><SelectItem value="all-orders">All orders</SelectItem></SelectContent>
+
+          <Select value={orderTypeFilter} onValueChange={(v) => setOrderTypeFilter(v as "all" | "buy" | "sell")}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All orders" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All orders</SelectItem>
+              <SelectItem value="buy">Buy</SelectItem>
+              <SelectItem value="sell">Sell</SelectItem>
+            </SelectContent>
           </Select>
-          <Select defaultValue="all-labels">
-            <SelectTrigger className="w-48"><SelectValue placeholder="All ad labels" /></SelectTrigger>
-            <SelectContent><SelectItem value="all-labels">All ad labels</SelectItem></SelectContent>
+
+          <Select defaultValue="disabled" disabled>
+            <SelectTrigger className="w-48 opacity-60">
+              <SelectValue placeholder="Ad labels unavailable" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="disabled">Ad labels unavailable</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setPreset("custom");
+                setStartDate(e.target.value);
+              }}
+              className="w-[150px] border-0 p-0 shadow-none focus-visible:ring-0"
+            />
+            <span className="text-gray-500">to</span>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setPreset("custom");
+                setEndDate(e.target.value);
+              }}
+              className="w-[150px] border-0 p-0 shadow-none focus-visible:ring-0"
+            />
+          </div>
+
+          <Select value={preset} onValueChange={(v) => applyPreset(v as "today" | "7d" | "30d" | "90d" | "custom")}>
+            <SelectTrigger className="w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="7d">7d</SelectItem>
+              <SelectItem value="30d">30d</SelectItem>
+              <SelectItem value="90d">90d</SelectItem>
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={crypto} onValueChange={setCrypto}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="All crypto" />
+            </SelectTrigger>
+            <SelectContent>
+              {CRYPTO_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt === "ALL" ? "All crypto" : opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={currency} onValueChange={setCurrency}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All currencies" />
+            </SelectTrigger>
+            <SelectContent>
+              {CURRENCY_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt === "ALL" ? "All currencies" : opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
 
         <div className="flex gap-3">
-          <div className="relative w-64">
+          <div className="relative w-72">
             <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
               value={searchTerm}
@@ -137,7 +341,9 @@ export function OrderManagement() {
               className="pl-9"
             />
           </div>
-          <Button variant="outline" onClick={() => setSearchTerm("")}>Reset</Button>
+          <Button variant="outline" onClick={resetFilters}>
+            Reset
+          </Button>
         </div>
 
         <div className="overflow-x-auto">
@@ -155,26 +361,45 @@ export function OrderManagement() {
               </tr>
             </thead>
             <tbody>
-              {!loading && filteredOrders.map((order) => (
-                <tr key={order.id} className="border-b">
-                  <td className="py-5"><span className="underline">{order.id}</span></td>
-                  <td className="py-5"><span className={order.orderType === "Buy" ? "text-green-700 font-semibold" : "text-blue-700 font-semibold"}>{order.orderType}</span></td>
-                  <td className="py-5">{order.quantity}</td>
-                  <td className="py-5">{order.amount}</td>
-                  <td className="py-5">{order.unitPrice}</td>
-                  <td className="py-5">{order.counterparty}</td>
-                  <td className="py-5">{order.orderStatus}</td>
-                  <td className="py-5">{order.orderDateTime}</td>
-                </tr>
-              ))}
+              {!loading &&
+                filteredOrders.map((order) => (
+                  <tr key={order.id} className="border-b">
+                    <td className="py-5">
+                      <span className="underline">{order.id}</span>
+                    </td>
+                    <td className="py-5">
+                      <span className={order.orderType === "Buy" ? "text-green-700 font-semibold" : "text-pink-700 font-semibold"}>
+                        {order.orderType}
+                      </span>
+                    </td>
+                    <td className="py-5">{order.quantity}</td>
+                    <td className="py-5">{order.amount}</td>
+                    <td className="py-5">{order.unitPrice}</td>
+                    <td className="py-5">{order.counterparty}</td>
+                    <td className="py-5">{order.orderStatus}</td>
+                    <td className="py-5">{order.orderDateTime}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
 
         {loading && <div className="text-sm text-gray-500">Loading orders...</div>}
-        {!loading && filteredOrders.length === 0 && (
-          <div className="text-sm text-gray-500">No {tab} orders found.</div>
-        )}
+        {!loading && filteredOrders.length === 0 && <div className="text-sm text-gray-500">No {tab} orders found.</div>}
+
+        <div className="flex items-center justify-between pt-2">
+          <div className="text-sm text-gray-500">
+            Page {page} • {total.toLocaleString()} total {tab} orders
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" disabled={loading || page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Previous
+            </Button>
+            <Button variant="outline" disabled={loading || !hasMore} onClick={() => setPage((p) => p + 1)}>
+              Next
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
