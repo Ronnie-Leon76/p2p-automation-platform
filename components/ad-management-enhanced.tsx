@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import { useExchangeData } from "@/hooks/use-exchange-data";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { useAuth } from "@/hooks/use-auth";
@@ -35,7 +36,6 @@ import {
   Eye,
   MoreHorizontal,
   Pause,
-  Play,
   Plus,
   Settings,
   TrendingUp,
@@ -78,6 +78,8 @@ export function AdManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const [adTab, setAdTab] = useState<"active" | "inactive">("active");
   const [adView, setAdView] = useState<"table" | "cards">("table");
+  const [localStatusOverrides, setLocalStatusOverrides] = useState<Record<string, "active" | "paused">>({});
+  const [localInactiveAds, setLocalInactiveAds] = useState<Record<string, Ad>>({});
   const [optimalPrice, setOptimalPrice] = useState<{
     currentHighestBuyAdPrice: string;
     currentLowestSellAdPrice: string;
@@ -462,9 +464,7 @@ export function AdManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Toggle ad status (show/hide)
+  };  // Toggle ad status (activate/inactivate)
   const handleToggleAdStatus = async (adId: string, currentStatus: string) => {
     const newStatus = currentStatus === "active" ? "hidden" : "show";
     setIsLoading(true);
@@ -479,21 +479,38 @@ export function AdManagement() {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        console.log("✅ Ad status updated successfully:", result);
-        exchangeData.refreshDataType?.("ads");
-        alert(
-          `Ad ${newStatus === "hidden" ? "hidden" : "activated"} successfully!`
+        const uiStatus: "active" | "paused" = newStatus === "hidden" ? "paused" : "active";
+        setLocalStatusOverrides((prev) => ({ ...prev, [adId]: uiStatus }));
+        setAds((prev) =>
+          prev.map((ad) => (getAdRefId(ad) === adId ? { ...ad, status: uiStatus } : ad)),
         );
+
+        if (uiStatus === "paused") {
+          const sourceAd = ads.find((ad) => getAdRefId(ad) === adId);
+          if (sourceAd) {
+            setLocalInactiveAds((prev) => ({
+              ...prev,
+              [adId]: { ...sourceAd, status: "paused" },
+            }));
+          }
+        } else {
+          setLocalInactiveAds((prev) => {
+            const copy = { ...prev };
+            delete copy[adId];
+            return copy;
+          });
+        }
+
+        exchangeData.refreshDataType?.("ads");
+        alert(`Ad ${uiStatus === "paused" ? "inactivated" : "activated"} successfully!`);
       } else {
-        console.error("❌ Failed to update ad status:", result.error || result);
         alert(`Failed to update ad status: ${result.error || result}`);
       }
     } catch (error) {
-      console.error("🚨 Error updating ad status:", error);
       alert(
         `Error updating ad status: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     } finally {
       setIsLoading(false);
@@ -507,7 +524,49 @@ export function AdManagement() {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        setSelectedAd(result.data);
+        const adData = result.data || {};
+        const rawCompletionRate = Number(adData.creator?.completionRate);
+        const normalizedCompletionRate =
+          Number.isFinite(rawCompletionRate) && rawCompletionRate > 0 && rawCompletionRate <= 1
+            ? rawCompletionRate * 100
+            : Number.isFinite(rawCompletionRate)
+              ? rawCompletionRate
+              : 0;
+        const mappedAd: Ad = {
+          id: adData.adId || adId,
+          type: adData.side === "sell" ? "sell" : "buy",
+          cryptoCurrency: adData.cryptoCurrency || "USDT",
+          fiatCurrency: adData.fiatCurrency || "KES",
+          unitPrice: Number(adData.unitPrice) || 0,
+          cryptoAmount: Number(adData.availableAmount) || 0,
+          availableAmount: Number(adData.availableAmount) || 0,
+          minOrderLimit: Number(adData.minOrderSize) || 0,
+          maxOrderLimit: Number(adData.maxOrderSize) || 0,
+          status:
+            adData.status === "online" || adData.status === "show"
+              ? "active"
+              : adData.status === "offline" || adData.status === "hidden"
+                ? "paused"
+                : "active",
+          paymentMethods: Array.isArray(adData.paymentMethods) ? adData.paymentMethods : [],
+          completionRate: normalizedCompletionRate,
+          totalOrders: Number(adData.creator?.completedOrders) || 0,
+          createdAt: adData.createdTimestamp
+            ? new Date(Number(adData.createdTimestamp)).toISOString()
+            : new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          priceType: "limit",
+          targetGroup: "all",
+          okx_integration: {
+            adId: adData.adId || adId,
+            supported_payment_types: Array.isArray(adData.paymentMethods)
+              ? adData.paymentMethods
+              : [],
+            sasapay_compatible: false,
+            auto_payment_routing: false,
+          },
+        };
+        setSelectedAd(mappedAd);
         setIsViewDialogOpen(true);
       } else {
         console.error("❌ Failed to fetch ad details:", result.error || result);
@@ -562,6 +621,27 @@ export function AdManagement() {
     );
   };
 
+  const getAdRefId = (ad: Ad) => ad.okx_integration?.adId || ad.id;
+
+  const displayAds = useMemo(() => {
+    const withOverrides = ads.map((ad) => {
+      const refId = getAdRefId(ad);
+      const override = localStatusOverrides[refId];
+      return override ? { ...ad, status: override } : ad;
+    });
+
+    const activeRefIds = new Set(withOverrides.map((ad) => getAdRefId(ad)));
+    const retainedInactive = Object.values(localInactiveAds)
+      .filter((ad) => !activeRefIds.has(getAdRefId(ad)))
+      .map((ad) => {
+        const refId = getAdRefId(ad);
+        const override = localStatusOverrides[refId];
+        return override ? { ...ad, status: override } : ad;
+      });
+
+    return [...withOverrides, ...retainedInactive];
+  }, [ads, localInactiveAds, localStatusOverrides]);
+
   const isFiniteNumber = (value: number) => Number.isFinite(value);
   const formatNumberOrDash = (value: number, decimals = 2) =>
     isFiniteNumber(value)
@@ -575,24 +655,24 @@ export function AdManagement() {
   };
 
   const activeAdsList = useMemo(
-    () => ads.filter((ad) => ad.status === "active"),
-    [ads],
+    () => displayAds.filter((ad) => ad.status === "active"),
+    [displayAds],
   );
   const inactiveAdsList = useMemo(
-    () => ads.filter((ad) => ad.status !== "active"),
-    [ads],
+    () => displayAds.filter((ad) => ad.status !== "active"),
+    [displayAds],
   );
   const filteredAds = adTab === "active" ? activeAdsList : inactiveAdsList;
   const validAds = useMemo(
     () =>
-      ads.filter(
+      displayAds.filter(
         (ad) =>
           ad.dataQuality !== "incomplete" &&
           isFiniteNumber(ad.unitPrice) &&
           isFiniteNumber(ad.cryptoAmount) &&
           isFiniteNumber(ad.availableAmount),
       ),
-    [ads],
+    [displayAds],
   );
 
   const totalValue = validAds.reduce((sum, ad) => sum + ad.cryptoAmount * ad.unitPrice, 0);
@@ -603,7 +683,7 @@ export function AdManagement() {
           .filter((ad) => isFiniteNumber(ad.completionRate))
           .reduce((sum, ad) => sum + ad.completionRate, 0) / validAds.length
       : 0;
-  const incompleteCount = ads.filter((ad) => ad.dataQuality === "incomplete").length;
+  const incompleteCount = displayAds.filter((ad) => ad.dataQuality === "incomplete").length;
 
   // Show loading state
   if (!isClient || authLoading || exchangeData.isLoading) {
@@ -751,7 +831,7 @@ export function AdManagement() {
             <Settings className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{ads.length}</div>
+            <div className="text-2xl font-bold">{displayAds.length}</div>
             <p className="text-xs text-muted-foreground">
               {activeAds} active · {validAds.length} valid
             </p>
@@ -1026,15 +1106,21 @@ export function AdManagement() {
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => canOperate && handleToggleAdStatus(adRefId, ad.status)}
-                                title={ad.status === "active" ? "Hide" : "Show"}
-                                disabled={!canOperate}
-                              >
-                                {ad.status === "active" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-600">
+                                  {ad.status === "active" ? "Inactivate ad" : "Activate ad"}
+                                </span>
+                                <Switch
+                                  checked={ad.status === "active"}
+                                  onCheckedChange={() =>
+                                    canOperate && handleToggleAdStatus(adRefId, ad.status)
+                                  }
+                                  disabled={!canOperate}
+                                  aria-label={
+                                    ad.status === "active" ? "Inactivate ad" : "Activate ad"
+                                  }
+                                />
+                              </div>
                             </div>
                           </td>
                         </>
@@ -1107,6 +1193,19 @@ export function AdManagement() {
                               {isFiniteNumber(ad.completionRate) ? `${ad.completionRate}% completion rate` : "-- completion rate"}
                             </p>
                           </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600">
+                              {ad.status === "active" ? "Inactivate ad" : "Activate ad"}
+                            </span>
+                            <Switch
+                              checked={ad.status === "active"}
+                              onCheckedChange={() =>
+                                canOperate && handleToggleAdStatus(adRefId, ad.status)
+                              }
+                              disabled={!canOperate}
+                              aria-label={ad.status === "active" ? "Inactivate ad" : "Activate ad"}
+                            />
+                          </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" className="h-8 w-8 p-0">
@@ -1137,17 +1236,15 @@ export function AdManagement() {
                                 }
                                 disabled={!canOperate}
                               >
-                                {ad.status === "active" ? (
-                                  <>
-                                    <Pause className="mr-2 h-4 w-4" />
-                                    Hide
-                                  </>
-                                ) : (
-                                  <>
-                                    <Play className="mr-2 h-4 w-4" />
-                                    Show
-                                  </>
-                                )}
+                                <span className="mr-2">{ad.status === "active" ? "Inactivate ad" : "Activate ad"}</span>
+                                <Switch
+                                  checked={ad.status === "active"}
+                                  onCheckedChange={() =>
+                                    canOperate && handleToggleAdStatus(adRefId, ad.status)
+                                  }
+                                  disabled={!canOperate}
+                                  aria-label={ad.status === "active" ? "Inactivate ad" : "Activate ad"}
+                                />
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -1224,6 +1321,7 @@ export function AdManagement() {
     </div>
   );
 }
+
 
 
 

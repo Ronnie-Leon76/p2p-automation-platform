@@ -19,6 +19,12 @@ type ViewAdDialogProps = {
 };
 
 export function ViewAdDialog({ open, onOpenChange, selectedAd }: ViewAdDialogProps) {
+  const side = selectedAd?.type === "sell" ? "sell" : "buy";
+  const status = selectedAd?.status || "unknown";
+  const fmt = (value: number) => (Number.isFinite(value) ? value.toLocaleString() : "--");
+  const fmtPercent = (value: number) =>
+    Number.isFinite(value) ? `${value.toFixed(2).replace(/\.00$/, "")}%` : "--";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px]">
@@ -34,27 +40,27 @@ export function ViewAdDialog({ open, onOpenChange, selectedAd }: ViewAdDialogPro
         ) : (
           <div className="grid gap-3 text-sm">
             <div className="flex items-center gap-2">
-              <Badge variant={selectedAd.type === "buy" ? "default" : "secondary"}>
-                {selectedAd.type.toUpperCase()}
+              <Badge variant={side === "buy" ? "default" : "secondary"}>
+                {side.toUpperCase()}
               </Badge>
-              <Badge variant="outline">{selectedAd.status}</Badge>
+              <Badge variant="outline">{status}</Badge>
             </div>
             <div>
               Pair: {selectedAd.cryptoCurrency}/{selectedAd.fiatCurrency}
             </div>
             <div>
-              Price: {selectedAd.unitPrice.toLocaleString()} {selectedAd.fiatCurrency}
+              Price: {fmt(selectedAd.unitPrice)} {selectedAd.fiatCurrency}
             </div>
             <div>
-              Amount: {selectedAd.availableAmount.toLocaleString()} {selectedAd.cryptoCurrency}
+              Amount: {fmt(selectedAd.availableAmount)} {selectedAd.cryptoCurrency}
             </div>
             <div>
-              Limits: {selectedAd.minOrderLimit.toLocaleString()} -{" "}
-              {selectedAd.maxOrderLimit.toLocaleString()} {selectedAd.fiatCurrency}
+              Limits: {fmt(selectedAd.minOrderLimit)} -{" "}
+              {fmt(selectedAd.maxOrderLimit)} {selectedAd.fiatCurrency}
             </div>
             <div>Payment methods: {selectedAd.paymentMethods.join(", ") || "N/A"}</div>
-            <div>Completion rate: {selectedAd.completionRate}%</div>
-            <div>Total orders: {selectedAd.totalOrders}</div>
+            <div>Completion rate: {fmtPercent(selectedAd.completionRate)}</div>
+            <div>Total orders: {Number.isFinite(selectedAd.totalOrders) ? selectedAd.totalOrders : "--"}</div>
           </div>
         )}
 

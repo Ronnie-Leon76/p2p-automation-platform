@@ -75,6 +75,13 @@ function parseNumberStrict(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function normalizeCompletionRate(value: number | null): number | null {
+  if (value === null || !Number.isFinite(value)) return null;
+  // Some OKX payloads return ratio (0.9895), others percentage (98.95).
+  if (value > 0 && value <= 1) return value * 100;
+  return value;
+}
+
 export function convertOKXAdsToAds(
   adsData: any[],
   context?: { source?: "cache" | "api" | "fallback"; isStale?: boolean },
@@ -94,7 +101,7 @@ export function convertOKXAdsToAds(
     const cryptoAmountRaw = parseNumberStrict(ad.cryptoAmount);
     const minOrderLimit = parseNumberStrict(ad.minOrderSize);
     const maxOrderLimit = parseNumberStrict(ad.maxOrderSize);
-    const completionRate = parseNumberStrict(ad.creator?.completionRate);
+    const completionRate = normalizeCompletionRate(parseNumberStrict(ad.creator?.completionRate));
     const totalOrders = parseNumberStrict(ad.creator?.completedOrders);
     const issues: string[] = [];
     if (unitPrice === null || unitPrice <= 0) issues.push("unitPrice");
