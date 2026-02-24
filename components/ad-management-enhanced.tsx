@@ -17,14 +17,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useExchangeData } from "@/hooks/use-exchange-data";
 import { useMockAuth } from "@/hooks/use-mock-auth";
 import { useAuth } from "@/hooks/use-auth";
@@ -32,9 +24,6 @@ import type { Ad, CreateAdFormData } from "@/lib/ads/ad-management-types";
 import {
   OKX_SASAPAY_COMPATIBILITY,
   convertOKXAdsToAds,
-  getRecommendedSasaPayMethod,
-  getSasaPayCompatibility,
-  type OKXPaymentCompatibility,
 } from "@/lib/ads/okx-ad-compatibility";
 import { isMockMode } from "@/lib/config/environment";
 import { formatDistanceToNow } from "date-fns";
@@ -54,7 +43,7 @@ import {
   X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const CreateAdDialog = dynamic(
   () =>
@@ -87,6 +76,8 @@ export function AdManagement() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [adTab, setAdTab] = useState<"active" | "inactive">("active");
+  const [adView, setAdView] = useState<"table" | "cards">("table");
   const [optimalPrice, setOptimalPrice] = useState<{
     currentHighestBuyAdPrice: string;
     currentLowestSellAdPrice: string;
@@ -229,7 +220,10 @@ export function AdManagement() {
             adsArray.length,
             "OKX ads to component format"
           );
-          const liveAds = convertOKXAdsToAds(adsArray);
+          const liveAds = convertOKXAdsToAds(adsArray, {
+            source: exchangeData.ads?.source,
+            isStale: exchangeData.ads?.is_stale,
+          });
           setAds(liveAds);
           console.log("✅ Live ads data loaded:", liveAds.length, "ads");
           console.log("📊 Converted ads:", liveAds);
@@ -604,15 +598,46 @@ export function AdManagement() {
     );
   }
 
-  const totalValue = ads.reduce(
-    (sum, ad) => sum + ad.cryptoAmount * ad.unitPrice,
-    0
+  const isFiniteNumber = (value: number) => Number.isFinite(value);
+  const formatNumberOrDash = (value: number, decimals = 2) =>
+    isFiniteNumber(value) ? value.toLocaleString(undefined, { maximumFractionDigits: decimals }) : "--";
+  const formatDateOrDash = (value: string) => {
+    const date = new Date(value);
+    return Number.isFinite(date.getTime())
+      ? formatDistanceToNow(date, { addSuffix: true })
+      : "--";
+  };
+
+  const activeAdsList = useMemo(
+    () => ads.filter((ad) => ad.status === "active"),
+    [ads],
   );
-  const activeAds = ads.filter((ad) => ad.status === "active").length;
+  const inactiveAdsList = useMemo(
+    () => ads.filter((ad) => ad.status !== "active"),
+    [ads],
+  );
+  const filteredAds = adTab === "active" ? activeAdsList : inactiveAdsList;
+  const validAds = useMemo(
+    () =>
+      ads.filter(
+        (ad) =>
+          ad.dataQuality !== "incomplete" &&
+          isFiniteNumber(ad.unitPrice) &&
+          isFiniteNumber(ad.cryptoAmount) &&
+          isFiniteNumber(ad.availableAmount),
+      ),
+    [ads],
+  );
+
+  const totalValue = validAds.reduce((sum, ad) => sum + ad.cryptoAmount * ad.unitPrice, 0);
+  const activeAds = activeAdsList.length;
   const avgCompletionRate =
-    ads.length > 0
-      ? ads.reduce((sum, ad) => sum + ad.completionRate, 0) / ads.length
+    validAds.length > 0
+      ? validAds
+          .filter((ad) => isFiniteNumber(ad.completionRate))
+          .reduce((sum, ad) => sum + ad.completionRate, 0) / validAds.length
       : 0;
+  const incompleteCount = ads.filter((ad) => ad.dataQuality === "incomplete").length;
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -668,6 +693,20 @@ export function AdManagement() {
                 {new Date(exchangeData.lastRefresh).toLocaleTimeString()}
               </span>
             )}
+            <Badge variant="outline" className="text-xs">
+              Source: {exchangeData.ads?.source || "unknown"}
+            </Badge>
+            <Badge
+              variant={exchangeData.ads?.is_stale ? "secondary" : "outline"}
+              className="text-xs"
+            >
+              {exchangeData.ads?.is_stale ? "Stale cache" : "Fresh cache"}
+            </Badge>
+            {incompleteCount > 0 && (
+              <Badge variant="destructive" className="text-xs">
+                {incompleteCount} incomplete ad{incompleteCount > 1 ? "s" : ""}
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -711,7 +750,9 @@ export function AdManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{ads.length}</div>
-            <p className="text-xs text-muted-foreground">{activeAds} active</p>
+            <p className="text-xs text-muted-foreground">
+              {activeAds} active · {validAds.length} valid
+            </p>
           </CardContent>
         </Card>
 
@@ -741,7 +782,9 @@ export function AdManagement() {
             <div className="text-2xl font-bold">
               {avgCompletionRate.toFixed(1)}%
             </div>
-            <p className="text-xs text-muted-foreground">Average across ads</p>
+            <p className="text-xs text-muted-foreground">
+              Average across valid ads
+            </p>
           </CardContent>
         </Card>
 
@@ -819,16 +862,56 @@ export function AdManagement() {
       {/* Ads List */}
       <Card>
         <CardHeader>
-          <CardTitle>Your Advertisements</CardTitle>
-          <CardDescription>Manage your active P2P trading ads</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Your Advertisements</CardTitle>
+              <CardDescription>Enterprise view for ad lifecycle and quality</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant={adTab === "active" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAdTab("active")}
+              >
+                Active ({activeAdsList.length})
+              </Button>
+              <Button
+                type="button"
+                variant={adTab === "inactive" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAdTab("inactive")}
+              >
+                Inactive ({inactiveAdsList.length})
+              </Button>
+              <Button
+                type="button"
+                variant={adView === "table" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAdView("table")}
+              >
+                Table
+              </Button>
+              <Button
+                type="button"
+                variant={adView === "cards" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAdView("cards")}
+              >
+                Cards
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {ads.length === 0 ? (
+          {filteredAds.length === 0 ? (
             <div className="text-center py-8">
               <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 {exchangeData.ads?.data
-                  ? "No Active Ads Found"
+                  ? adTab === "active"
+                    ? "No Active Ads Found"
+                    : "No Inactive Ads Found"
                   : "No ads created yet"}
               </h3>
               <p className="text-gray-600 mb-4">
@@ -867,183 +950,222 @@ export function AdManagement() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {ads.map((ad) => (
-                <div key={ad.id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-gray-100 rounded-lg">
-                        {getStatusIcon(ad.status)}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">
-                            {ad.type.toUpperCase()} {ad.cryptoCurrency}
-                          </h3>
-                          {getStatusBadge(ad.status)}
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          {ad.fiatCurrency} {ad.unitPrice.toLocaleString()} per{" "}
-                          {ad.cryptoCurrency}
-                        </p>
-                        {/* SasaPay Compatibility Info */}
-                        {ad.okx_integration && (
-                          <div className="flex items-center gap-2 mt-1">
-                            {ad.okx_integration.sasapay_compatible ? (
-                              <>
-                                <Badge
-                                  variant="default"
-                                  className="text-xs bg-green-100 text-green-800"
-                                >
-                                  SasaPay Compatible
-                                </Badge>
-                                {ad.okx_integration.auto_payment_routing && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    Auto-Route
-                                  </Badge>
-                                )}
-                              </>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">
-                                Manual Payment
+            <>
+              {adView === "table" ? (
+                <div className="overflow-x-auto border rounded-md">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40">
+                      <tr className="text-left">
+                        <th className="px-3 py-2">Ad ID</th>
+                        <th className="px-3 py-2">Type</th>
+                        <th className="px-3 py-2">Price</th>
+                        <th className="px-3 py-2">Remaining / Total</th>
+                        <th className="px-3 py-2">Limits</th>
+                        <th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2">Quality</th>
+                        <th className="px-3 py-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAds.map((ad) => (
+                        <tr key={ad.id} className="border-t">
+                          <td className="px-3 py-2 font-mono text-xs">
+                            {ad.okx_integration?.adId || ad.id}
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className={ad.type === "buy" ? "text-green-700 font-semibold" : "text-red-700 font-semibold"}>
+                              {ad.type.toUpperCase()} {ad.cryptoCurrency}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            {formatNumberOrDash(ad.unitPrice)} {ad.fiatCurrency}
+                          </td>
+                          <td className="px-3 py-2">
+                            {formatNumberOrDash(ad.availableAmount)} / {formatNumberOrDash(ad.cryptoAmount)} {ad.cryptoCurrency}
+                          </td>
+                          <td className="px-3 py-2">
+                            {formatNumberOrDash(ad.minOrderLimit)} - {formatNumberOrDash(ad.maxOrderLimit)} {ad.fiatCurrency}
+                          </td>
+                          <td className="px-3 py-2">{getStatusBadge(ad.status)}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex flex-wrap gap-1">
+                              <Badge variant={ad.dataQuality === "complete" ? "outline" : "destructive"} className="text-xs">
+                                {ad.dataQuality === "complete" ? "Complete" : "Incomplete"}
                               </Badge>
-                            )}
+                              {ad.stale && (
+                                <Badge variant="secondary" className="text-xs">Stale</Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleViewAd(ad.okx_integration?.adId || ad.id)}
+                                title="View"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedAd(ad);
+                                  setIsEditDialogOpen(true);
+                                }}
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleToggleAdStatus(ad.okx_integration?.adId || ad.id, ad.status)}
+                                title={ad.status === "active" ? "Hide" : "Show"}
+                              >
+                                {ad.status === "active" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredAds.map((ad) => (
+                    <div key={ad.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="p-2 bg-gray-100 rounded-lg">
+                            {getStatusIcon(ad.status)}
                           </div>
-                        )}
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {ad.paymentMethods
-                            .slice(0, 3)
-                            .map((method, index) => {
-                              const compatibility =
-                                OKX_SASAPAY_COMPATIBILITY.find(
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium">
+                                {ad.type.toUpperCase()} {ad.cryptoCurrency}
+                              </h3>
+                              {getStatusBadge(ad.status)}
+                              <Badge variant={ad.dataQuality === "complete" ? "outline" : "destructive"} className="text-xs">
+                                {ad.dataQuality === "complete" ? "Complete" : "Incomplete"}
+                              </Badge>
+                              {ad.stale && <Badge variant="secondary" className="text-xs">Stale</Badge>}
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              {ad.fiatCurrency} {formatNumberOrDash(ad.unitPrice)} per {ad.cryptoCurrency}
+                            </p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {ad.paymentMethods.slice(0, 3).map((method, index) => {
+                                const compatibility = OKX_SASAPAY_COMPATIBILITY.find(
                                   (comp) => comp.okx_type === method
                                 );
-                              return (
-                                <Badge
-                                  key={index}
-                                  variant="outline"
-                                  className={`text-xs ${
-                                    compatibility?.auto_selectable
-                                      ? "border-green-300 text-green-700"
-                                      : "border-gray-300 text-gray-600"
-                                  }`}
-                                >
-                                  {method}
-                                  {compatibility?.auto_selectable && (
-                                    <CheckCircle2 className="h-3 w-3 ml-1" />
-                                  )}
-                                </Badge>
-                              );
-                            })}
-                          {ad.paymentMethods.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{ad.paymentMethods.length - 3} more
-                            </Badge>
-                          )}
+                                return (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className={`text-xs ${
+                                      compatibility?.auto_selectable
+                                        ? "border-green-300 text-green-700"
+                                        : "border-gray-300 text-gray-600"
+                                    }`}
+                                  >
+                                    {method}
+                                    {compatibility?.auto_selectable && (
+                                      <CheckCircle2 className="h-3 w-3 ml-1" />
+                                    )}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="font-medium">
+                              {formatNumberOrDash(ad.availableAmount)} / {formatNumberOrDash(ad.cryptoAmount)} {ad.cryptoCurrency}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {isFiniteNumber(ad.completionRate) ? `${ad.completionRate}% completion rate` : "-- completion rate"}
+                            </p>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => handleViewAd(ad.okx_integration?.adId || ad.id)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedAd(ad);
+                                  setIsEditDialogOpen(true);
+                                }}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleToggleAdStatus(ad.okx_integration?.adId || ad.id, ad.status)
+                                }
+                              >
+                                {ad.status === "active" ? (
+                                  <>
+                                    <Pause className="mr-2 h-4 w-4" />
+                                    Hide
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="mr-2 h-4 w-4" />
+                                    Show
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteAd(ad.okx_integration?.adId || ad.id)}
+                                className="text-red-600"
+                              >
+                                <X className="mr-2 h-4 w-4" />
+                                Cancel
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 md:grid-cols-3">
+                        <div>
+                          <p className="text-xs text-gray-500">Order Range</p>
+                          <p className="text-sm font-medium">
+                            {formatNumberOrDash(ad.minOrderLimit)} - {formatNumberOrDash(ad.maxOrderLimit)} {ad.fiatCurrency}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Payment Methods</p>
+                          <p className="text-sm font-medium">
+                            {ad.paymentMethods.join(", ") || "--"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Last Updated</p>
+                          <p className="text-sm font-medium">{formatDateOrDash(ad.updatedAt)}</p>
                         </div>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="font-medium">
-                          {ad.availableAmount.toLocaleString()} /{" "}
-                          {ad.cryptoAmount.toLocaleString()} {ad.cryptoCurrency}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {ad.completionRate}% completion rate
-                        </p>
-                      </div>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleViewAd(ad.okx_integration?.adId || ad.id)
-                            }
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedAd(ad);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleToggleAdStatus(
-                                ad.okx_integration?.adId || ad.id,
-                                ad.status
-                              )
-                            }
-                          >
-                            {ad.status === "active" ? (
-                              <>
-                                <Pause className="mr-2 h-4 w-4" />
-                                Hide
-                              </>
-                            ) : (
-                              <>
-                                <Play className="mr-2 h-4 w-4" />
-                                Show
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleDeleteAd(ad.okx_integration?.adId || ad.id)
-                            }
-                            className="text-red-600"
-                          >
-                            <X className="mr-2 h-4 w-4" />
-                            Cancel
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-4 md:grid-cols-3">
-                    <div>
-                      <p className="text-xs text-gray-500">Order Range</p>
-                      <p className="text-sm font-medium">
-                        {ad.minOrderLimit.toLocaleString()} -{" "}
-                        {ad.maxOrderLimit.toLocaleString()} {ad.fiatCurrency}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Payment Methods</p>
-                      <p className="text-sm font-medium">
-                        {ad.paymentMethods.join(", ")}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Last Updated</p>
-                      <p className="text-sm font-medium">
-                        {formatDistanceToNow(new Date(ad.updatedAt), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

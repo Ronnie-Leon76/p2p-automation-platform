@@ -28,6 +28,10 @@ export interface Ad {
     sasapay_compatible: boolean;
     auto_payment_routing: boolean;
   };
+  dataQuality?: "complete" | "incomplete";
+  dataIssues?: string[];
+  dataSource?: "cache" | "api" | "fallback" | "unknown";
+  stale?: boolean;
 }
 
 export interface CreateAdFormData {

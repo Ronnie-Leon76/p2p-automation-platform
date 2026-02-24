@@ -50,7 +50,16 @@ export const OKX_SASAPAY_COMPATIBILITY: OKXPaymentCompatibility[] = [
   },
 ];
 
-export function convertOKXAdsToAds(adsData: any[]) {
+function parseNumberStrict(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function convertOKXAdsToAds(
+  adsData: any[],
+  context?: { source?: "cache" | "api" | "fallback"; isStale?: boolean },
+) {
   return adsData.map((ad: any) => {
     const supportedPaymentTypes = ad.paymentMethods || [];
     const sasapayCompatible = supportedPaymentTypes.some((method: string) =>
@@ -59,30 +68,55 @@ export function convertOKXAdsToAds(adsData: any[]) {
       ),
     );
 
+    const unitPrice = parseNumberStrict(ad.unitPrice);
+    const availableAmount = parseNumberStrict(ad.availableAmount);
+    const cryptoAmountRaw = parseNumberStrict(ad.cryptoAmount);
+    const minOrderLimit = parseNumberStrict(ad.minOrderSize);
+    const maxOrderLimit = parseNumberStrict(ad.maxOrderSize);
+    const completionRate = parseNumberStrict(ad.creator?.completionRate);
+    const totalOrders = parseNumberStrict(ad.creator?.completedOrders);
+    const issues: string[] = [];
+    if (unitPrice === null || unitPrice <= 0) issues.push("unitPrice");
+    if (availableAmount === null || availableAmount <= 0) issues.push("availableAmount");
+    if (minOrderLimit === null) issues.push("minOrderLimit");
+    if (maxOrderLimit === null) issues.push("maxOrderLimit");
+
     return {
       id: ad.adId || ad.id || Math.random().toString(),
-      type: (ad.side === "buy" ? "sell" : "buy") as "buy" | "sell",
+      // Keep side as-is from OKX. Flipping it creates incorrect ad semantics in UI.
+      type: (ad.side === "sell" ? "sell" : "buy") as "buy" | "sell",
       cryptoCurrency: ad.cryptoCurrency || "USDT",
       fiatCurrency: ad.fiatCurrency || "KES",
-      unitPrice: parseFloat(ad.unitPrice) || 0,
-      cryptoAmount: parseFloat(ad.availableAmount) || 0,
-      availableAmount: parseFloat(ad.availableAmount) || 0,
-      minOrderLimit: parseFloat(ad.minOrderSize) || 0,
-      maxOrderLimit: parseFloat(ad.maxOrderSize) || 0,
-      status: (ad.status === "online" ? "active" : ad.status === "offline" ? "paused" : "active") as
+      unitPrice: unitPrice ?? Number.NaN,
+      // Prefer explicit total amount if present; otherwise fallback to available.
+      cryptoAmount: cryptoAmountRaw ?? availableAmount ?? Number.NaN,
+      availableAmount: availableAmount ?? Number.NaN,
+      minOrderLimit: minOrderLimit ?? Number.NaN,
+      maxOrderLimit: maxOrderLimit ?? Number.NaN,
+      status: (
+        ad.status === "online" || ad.status === "show"
+          ? "active"
+          : ad.status === "offline" || ad.status === "hidden"
+            ? "paused"
+            : "active"
+      ) as
         | "active"
         | "paused"
         | "completed"
         | "cancelled",
       paymentMethods: supportedPaymentTypes,
-      completionRate: parseFloat(ad.creator?.completionRate) || 0,
-      totalOrders: parseInt(ad.creator?.completedOrders) || 0,
+      completionRate: completionRate ?? Number.NaN,
+      totalOrders: totalOrders ?? 0,
       createdAt: ad.createdTimestamp
         ? new Date(parseInt(ad.createdTimestamp)).toISOString()
         : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       priceType: "limit" as "limit" | "floating_market",
       targetGroup: "all" as "all" | "common" | "certified" | "diamond",
+      dataQuality: (issues.length === 0 ? "complete" : "incomplete") as "complete" | "incomplete",
+      dataIssues: issues,
+      dataSource: (context?.source || "unknown") as "cache" | "api" | "fallback" | "unknown",
+      stale: Boolean(context?.isStale),
       okx_integration: {
         adId: ad.adId || ad.id,
         supported_payment_types: supportedPaymentTypes,
