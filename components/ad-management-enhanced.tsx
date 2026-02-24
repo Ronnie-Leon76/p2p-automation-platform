@@ -87,6 +87,10 @@ export function AdManagement() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [optimalPrice, setOptimalPrice] = useState<{
+    currentHighestBuyAdPrice: string;
+    currentLowestSellAdPrice: string;
+  } | null>(null);
 
   // Form data for creating/editing ads
   const [createFormData, setCreateFormData] = useState<CreateAdFormData>({
@@ -363,6 +367,73 @@ export function AdManagement() {
     }
   };
 
+  const fetchOptimalPrice = async (cryptoCurrency: string, fiatCurrency: string) => {
+    try {
+      const response = await fetch(
+        `/api/okx/ads/optimal-price?cryptoCurrency=${encodeURIComponent(
+          cryptoCurrency,
+        )}&fiatCurrency=${encodeURIComponent(fiatCurrency)}`,
+      );
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setOptimalPrice(result.data);
+      } else {
+        setOptimalPrice(null);
+      }
+    } catch {
+      setOptimalPrice(null);
+    }
+  };
+
+  const handleUpdateAd = async (data: CreateAdFormData) => {
+    const adId = selectedAd?.okx_integration?.adId || selectedAd?.id;
+    if (!adId) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/okx/ads/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adId,
+          side: data.side,
+          cryptoCurrency: data.cryptoCurrency,
+          fiatCurrency: data.fiatCurrency,
+          type: data.type,
+          unitPrice: data.unitPrice,
+          priceMargin: data.priceMargin,
+          cryptoAmount: data.cryptoAmount,
+          minOrderLimit: data.minOrderLimit,
+          maxOrderLimit: data.maxOrderLimit,
+          paymentMethods: data.paymentMethods,
+          targetGroup: data.targetGroup,
+          minKycLevel: data.minKycLevel,
+          minCompletedOrders: data.minCompletedOrders,
+          minCompletionRate: data.minCompletionRate,
+          remark: data.remark,
+          automatedMessage: data.automatedMessage,
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        exchangeData.refreshDataType?.("ads");
+        setIsEditDialogOpen(false);
+        alert("Ad updated successfully.");
+      } else {
+        alert(result?.error || "Failed to update ad.");
+      }
+    } catch (error) {
+      alert(
+        `Error updating ad: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Delete/cancel an ad
   const handleDeleteAd = async (adId: string) => {
     if (!confirm("Are you sure you want to cancel this ad?")) {
@@ -463,6 +534,11 @@ export function AdManagement() {
     setAds(buildEnhancedMockAds() as Ad[]);
   };
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void fetchOptimalPrice(createFormData.cryptoCurrency, createFormData.fiatCurrency);
+  }, [isAuthenticated, createFormData.cryptoCurrency, createFormData.fiatCurrency]);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "active":
@@ -546,6 +622,12 @@ export function AdManagement() {
           <p className="text-gray-600 mt-1">
             Create and manage your P2P trading advertisements
           </p>
+          {optimalPrice && (
+            <p className="text-xs text-gray-500 mt-1">
+              Optimal price: Buy {optimalPrice.currentHighestBuyAdPrice} / Sell{" "}
+              {optimalPrice.currentLowestSellAdPrice}
+            </p>
+          )}
           {/* Live Data Status Indicators */}
           <div className="flex items-center gap-4 mt-3">
             <div className="flex items-center gap-2">
@@ -982,6 +1064,11 @@ export function AdManagement() {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         selectedAd={selectedAd}
+        isLoading={isLoading}
+        availablePaymentMethods={availablePaymentMethods}
+        availableCryptoCurrencies={availableCryptoCurrencies}
+        availableFiatCurrencies={availableFiatCurrencies}
+        onSave={handleUpdateAd}
       />
 
       <ViewAdDialog

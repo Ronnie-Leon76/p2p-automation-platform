@@ -231,11 +231,12 @@ export class OKXExchange implements P2PExchange {
   async updateAd(adId: string, params: UpdateAdParams): Promise<UpdateAdResponse> {
     try {
       const response = await this.makeRequest("/api/v5/p2p/ad/update", "POST", { adId, ...params })
+      const success = String(response?.code) === "0"
       return {
         oldAdId: response.data?.oldAdId,
         newAdId: response.data?.newAdId,
-        success: response.code === 0,
-        error: response.code !== 0 ? response.msg : undefined,
+        success,
+        error: !success ? response.msg : undefined,
       }
     } catch (error) {
       return {
@@ -248,10 +249,11 @@ export class OKXExchange implements P2PExchange {
   async cancelAd(adId: string): Promise<CancelAdResponse> {
     try {
       const response = await this.makeRequest("/api/v5/p2p/ad/cancel", "POST", { adId })
+      const success = String(response?.code) === "0"
       return {
         adId: response.data?.adId || adId,
-        success: response.code === 0,
-        error: response.code !== 0 ? response.msg : undefined,
+        success,
+        error: !success ? response.msg : undefined,
       }
     } catch (error) {
       return {
@@ -496,10 +498,11 @@ export class OKXExchange implements P2PExchange {
   async updateAdStatus(adId: string, status: "hidden" | "show"): Promise<UpdateAdStatusResponse> {
     try {
       const response = await this.makeRequest("/api/v5/p2p/ad/update-active-status", "POST", { adId, status })
+      const success = String(response?.code) === "0"
       return {
         adId: response.data?.adId || adId,
-        success: response.code === 0,
-        error: response.code !== 0 ? response.msg : undefined,
+        success,
+        error: !success ? response.msg : undefined,
       }
     } catch (error) {
       return {
