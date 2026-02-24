@@ -406,14 +406,76 @@ export class OKXExchange implements P2PExchange {
     }
   }
 
+  private looksLikeAdRecord(item: any): boolean {
+    if (!item || typeof item !== "object") return false
+    return Boolean(
+      item.adId ||
+        item.id ||
+        item.publicAdId ||
+        item.advertisementId ||
+        item.side ||
+        item.tradeSide ||
+        item.cryptoCurrency ||
+        item.baseCurrency ||
+        item.fiatCurrency ||
+        item.quoteCurrency ||
+        item.unitPrice ||
+        item.minOrderSize ||
+        item.maxOrderSize,
+    )
+  }
+
+  private collectAdsFromContainer(container: any, depth = 0): any[] {
+    if (depth > 4 || !container) return []
+
+    if (Array.isArray(container)) {
+      const flattened: any[] = []
+      for (const item of container) {
+        if (this.looksLikeAdRecord(item)) {
+          flattened.push(item)
+          continue
+        }
+        flattened.push(...this.collectAdsFromContainer(item, depth + 1))
+      }
+      return flattened
+    }
+
+    if (typeof container !== "object") return []
+
+    const candidates: any[] = []
+    const listKeys = [
+      "ads",
+      "adList",
+      "list",
+      "items",
+      "buyAds",
+      "sellAds",
+      "records",
+      "resultList",
+      "activeAds",
+      "inactiveAds",
+    ]
+
+    for (const key of listKeys) {
+      if (Array.isArray((container as any)[key])) {
+        candidates.push(...this.collectAdsFromContainer((container as any)[key], depth + 1))
+      }
+    }
+
+    // Some payloads nest ad payload under these object keys
+    const objectKeys = ["data", "result", "payload", "ad", "adInfo", "advertisement"]
+    for (const key of objectKeys) {
+      if ((container as any)[key] && typeof (container as any)[key] === "object") {
+        candidates.push(...this.collectAdsFromContainer((container as any)[key], depth + 1))
+      }
+    }
+
+    return candidates
+  }
+
   private extractAdsArray(response: any): any[] {
-    if (Array.isArray(response?.data)) return response.data
-    if (Array.isArray(response?.data?.list)) return response.data.list
-    if (Array.isArray(response?.data?.ads)) return response.data.ads
-    if (Array.isArray(response?.data?.adList)) return response.data.adList
-    if (Array.isArray(response?.data?.items)) return response.data.items
-    if (Array.isArray(response?.list)) return response.list
-    if (Array.isArray(response?.ads)) return response.ads
+    const collected = this.collectAdsFromContainer(response)
+    if (collected.length > 0) return collected
     return []
   }
 
@@ -435,6 +497,10 @@ export class OKXExchange implements P2PExchange {
           resolvedUserId
             ? `/api/v5/p2p/merchant/ads?userId=${encodeURIComponent(resolvedUserId)}`
             : null,
+        () =>
+          resolvedUserId
+            ? `/api/v5/p2p/merchant/ads?userId=${encodeURIComponent(resolvedUserId)}&page=1&pageSize=100`
+            : null,
       ]
 
       for (const epFn of possibleEndpointFns) {
@@ -445,9 +511,23 @@ export class OKXExchange implements P2PExchange {
           console.log(`Trying endpoint: ${endpoint}`)
           const response = await this.makeRequest(endpoint)
           const rawAds = this.extractAdsArray(response)
-          const ads = rawAds.map((ad: any) => this.normalizeAdRecord(ad))
-          console.log(`Found ${ads.length} user ads from ${endpoint}`)
-          return { ads }
+          const normalized = rawAds.map((ad: any) => this.normalizeAdRecord(ad))
+          // Keep only ads with an identifier and basic market fields.
+          const ads = normalized.filter(
+            (ad: any) => ad.adId && ad.cryptoCurrency && ad.fiatCurrency && ad.side,
+          )
+          const deduped = Object.values(
+            ads.reduce((acc: Record<string, any>, ad: any) => {
+              acc[ad.adId] = ad
+              return acc
+            }, {}),
+          )
+          console.log(
+            `Found ${deduped.length} user ads from ${endpoint} (raw=${rawAds.length}, normalized=${normalized.length})`,
+          )
+          if (deduped.length > 0) {
+            return { ads: deduped as any[] }
+          }
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error)
           console.log(`Endpoint ${endpoint} failed: ${msg}`)

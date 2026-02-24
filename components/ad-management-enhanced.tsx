@@ -562,45 +562,11 @@ export function AdManagement() {
     );
   };
 
-  // Show loading state
-  if (!isClient || authLoading || exchangeData.isLoading) {
-    return (
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-          <div className="grid gap-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show login prompt if no user is authenticated
-  if (!isAuthenticated && !isLoading) {
-    return (
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <Card className="w-full max-w-md mx-auto">
-          <CardContent className="p-6 text-center">
-            <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Authentication Required
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Please sign in to manage your ads.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   const isFiniteNumber = (value: number) => Number.isFinite(value);
   const formatNumberOrDash = (value: number, decimals = 2) =>
-    isFiniteNumber(value) ? value.toLocaleString(undefined, { maximumFractionDigits: decimals }) : "--";
+    isFiniteNumber(value)
+      ? value.toLocaleString(undefined, { maximumFractionDigits: decimals })
+      : "--";
   const formatDateOrDash = (value: string) => {
     const date = new Date(value);
     return Number.isFinite(date.getTime())
@@ -638,6 +604,42 @@ export function AdManagement() {
           .reduce((sum, ad) => sum + ad.completionRate, 0) / validAds.length
       : 0;
   const incompleteCount = ads.filter((ad) => ad.dataQuality === "incomplete").length;
+
+  // Show loading state
+  if (!isClient || authLoading || exchangeData.isLoading) {
+    return (
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+          <div className="grid gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login prompt if no user is authenticated
+  if (!isAuthenticated && !isLoading) {
+    return (
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="p-6 text-center">
+            <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Authentication Required
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Please sign in to manage your ads.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -969,8 +971,13 @@ export function AdManagement() {
                     <tbody>
                       {filteredAds.map((ad) => (
                         <tr key={ad.id} className="border-t">
+                          {(() => {
+                            const adRefId = ad.okx_integration?.adId || "";
+                            const canOperate = Boolean(adRefId);
+                            return (
+                              <>
                           <td className="px-3 py-2 font-mono text-xs">
-                            {ad.okx_integration?.adId || ad.id}
+                            {adRefId || "N/A"}
                           </td>
                           <td className="px-3 py-2">
                             <span className={ad.type === "buy" ? "text-green-700 font-semibold" : "text-red-700 font-semibold"}>
@@ -1002,8 +1009,9 @@ export function AdManagement() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleViewAd(ad.okx_integration?.adId || ad.id)}
+                                onClick={() => canOperate && handleViewAd(adRefId)}
                                 title="View"
+                                disabled={!canOperate}
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -1021,13 +1029,17 @@ export function AdManagement() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleToggleAdStatus(ad.okx_integration?.adId || ad.id, ad.status)}
+                                onClick={() => canOperate && handleToggleAdStatus(adRefId, ad.status)}
                                 title={ad.status === "active" ? "Hide" : "Show"}
+                                disabled={!canOperate}
                               >
                                 {ad.status === "active" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                               </Button>
                             </div>
                           </td>
+                        </>
+                            );
+                          })()}
                         </tr>
                       ))}
                     </tbody>
@@ -1037,6 +1049,11 @@ export function AdManagement() {
                 <div className="space-y-4">
                   {filteredAds.map((ad) => (
                     <div key={ad.id} className="border rounded-lg p-4">
+                      {(() => {
+                        const adRefId = ad.okx_integration?.adId || "";
+                        const canOperate = Boolean(adRefId);
+                        return (
+                          <>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="p-2 bg-gray-100 rounded-lg">
@@ -1099,7 +1116,8 @@ export function AdManagement() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuItem
-                                onClick={() => handleViewAd(ad.okx_integration?.adId || ad.id)}
+                                onClick={() => canOperate && handleViewAd(adRefId)}
+                                disabled={!canOperate}
                               >
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
@@ -1115,8 +1133,9 @@ export function AdManagement() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() =>
-                                  handleToggleAdStatus(ad.okx_integration?.adId || ad.id, ad.status)
+                                  canOperate && handleToggleAdStatus(adRefId, ad.status)
                                 }
+                                disabled={!canOperate}
                               >
                                 {ad.status === "active" ? (
                                   <>
@@ -1132,8 +1151,9 @@ export function AdManagement() {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => handleDeleteAd(ad.okx_integration?.adId || ad.id)}
+                                onClick={() => canOperate && handleDeleteAd(adRefId)}
                                 className="text-red-600"
+                                disabled={!canOperate}
                               >
                                 <X className="mr-2 h-4 w-4" />
                                 Cancel
@@ -1161,6 +1181,9 @@ export function AdManagement() {
                           <p className="text-sm font-medium">{formatDateOrDash(ad.updatedAt)}</p>
                         </div>
                       </div>
+                      </>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
