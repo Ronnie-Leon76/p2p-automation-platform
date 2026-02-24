@@ -339,17 +339,78 @@ export class OKXExchange implements P2PExchange {
     return raw
       .map((item: any) => {
         if (typeof item === "string") return item
-        return item?.type || item?.paymentMethodType || item?.paymentMethodName || ""
+        return (
+          item?.type ||
+          item?.paymentMethodType ||
+          item?.paymentMethodName ||
+          item?.methodType ||
+          item?.method ||
+          item?.name ||
+          item?.channelType ||
+          ""
+        )
       })
       .filter(Boolean)
   }
 
   private normalizeAdRecord(ad: any) {
     const source = ad?.ad || ad?.adInfo || ad?.advertisement || ad
-    const creator = source?.creator || source?.merchant || source?.user || {}
+    const creator =
+      source?.creator ||
+      source?.merchant ||
+      source?.user ||
+      source?.userInfo ||
+      source?.profile ||
+      {}
     const paymentMethods = this.normalizePaymentMethodTypes(
-      source?.paymentMethods || source?.paymentMethodList || source?.payments || [],
+      source?.paymentMethods ||
+        source?.paymentMethodList ||
+        source?.payments ||
+        source?.paymentInfoList ||
+        source?.paymentInfos ||
+        source?.paymentMethodInfos ||
+        [],
     )
+
+    const availableAmount =
+      source?.availableAmount ||
+      source?.availableQty ||
+      source?.remainingAmount ||
+      source?.quantity ||
+      ""
+
+    const minOrderSize =
+      source?.minOrderSize ||
+      source?.minOrderLimit ||
+      source?.minAmount ||
+      source?.singleTransMinAmount ||
+      source?.minQuoteAmount ||
+      ""
+
+    const maxOrderSize =
+      source?.maxOrderSize ||
+      source?.maxOrderLimit ||
+      source?.maxAmount ||
+      source?.singleTransMaxAmount ||
+      source?.maxQuoteAmount ||
+      ""
+
+    const rawUnitPrice =
+      source?.unitPrice ||
+      source?.price ||
+      source?.quotePrice ||
+      source?.priceValue ||
+      source?.fixedPrice ||
+      source?.floatPrice ||
+      source?.quotePriceValue ||
+      ""
+
+    const numericAvailable = Number(availableAmount)
+    const numericMax = Number(maxOrderSize)
+    const inferredUnitPrice =
+      !rawUnitPrice && Number.isFinite(numericAvailable) && numericAvailable > 0 && Number.isFinite(numericMax)
+        ? (numericMax / numericAvailable).toFixed(2)
+        : ""
 
     return {
       adId:
@@ -372,23 +433,10 @@ export class OKXExchange implements P2PExchange {
         source?.fiat ||
         source?.currency ||
         "",
-      unitPrice: source?.unitPrice || source?.price || source?.quotePrice || "",
-      availableAmount:
-        source?.availableAmount ||
-        source?.availableQty ||
-        source?.remainingAmount ||
-        source?.quantity ||
-        "",
-      minOrderSize:
-        source?.minOrderSize ||
-        source?.minOrderLimit ||
-        source?.minAmount ||
-        "",
-      maxOrderSize:
-        source?.maxOrderSize ||
-        source?.maxOrderLimit ||
-        source?.maxAmount ||
-        "",
+      unitPrice: rawUnitPrice || inferredUnitPrice || "",
+      availableAmount,
+      minOrderSize,
+      maxOrderSize,
       creator: {
         userId: creator?.userId || creator?.id || creator?.uid || "",
         nickName: creator?.nickName || creator?.nickname || creator?.name || "",

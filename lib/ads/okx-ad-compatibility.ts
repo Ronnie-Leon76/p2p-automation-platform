@@ -50,6 +50,25 @@ export const OKX_SASAPAY_COMPATIBILITY: OKXPaymentCompatibility[] = [
   },
 ];
 
+function normalizePaymentMethodNames(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item: any) => {
+      if (typeof item === "string") return item;
+      return (
+        item?.type ||
+        item?.paymentMethodType ||
+        item?.paymentMethodName ||
+        item?.methodType ||
+        item?.method ||
+        item?.name ||
+        item?.channelType ||
+        ""
+      );
+    })
+    .filter(Boolean);
+}
+
 function parseNumberStrict(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
@@ -61,7 +80,9 @@ export function convertOKXAdsToAds(
   context?: { source?: "cache" | "api" | "fallback"; isStale?: boolean },
 ) {
   return adsData.map((ad: any) => {
-    const supportedPaymentTypes = ad.paymentMethods || [];
+    const supportedPaymentTypes = normalizePaymentMethodNames(
+      ad.paymentMethods || ad.paymentInfos || ad.paymentInfoList || [],
+    );
     const sasapayCompatible = supportedPaymentTypes.some((method: string) =>
       OKX_SASAPAY_COMPATIBILITY.some(
         (comp) => comp.okx_type === method && comp.auto_selectable,
