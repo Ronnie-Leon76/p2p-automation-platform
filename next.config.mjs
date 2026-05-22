@@ -19,4 +19,4 @@ const nextConfig = {
   allowedDevOrigins,
 };
 
-export default nextConfig
+export default nextConfig;
