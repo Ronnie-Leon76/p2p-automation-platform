@@ -78,6 +78,7 @@ export function AdManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const [adTab, setAdTab] = useState<"active" | "inactive">("active");
   const [adView, setAdView] = useState<"table" | "cards">("table");
+  const [knownAdIds, setKnownAdIds] = useState<string[]>([]);
   const [localStatusOverrides, setLocalStatusOverrides] = useState<Record<string, "active" | "paused">>({});
   const [localInactiveAds, setLocalInactiveAds] = useState<Record<string, Ad>>({});
   const [optimalPrice, setOptimalPrice] = useState<{
@@ -129,6 +130,12 @@ export function AdManagement() {
     isAuthenticated,
     isLoading: authLoading,
   } = isMockMode() ? mockAuth : supabaseAuth;
+  const knownAdsStorageKey = useMemo(
+    () => (user?.id ? `okx_known_ads_${user.id}` : null),
+    [user?.id],
+  );
+  const normalizeKnownIds = (ids: string[]) =>
+    Array.from(new Set(ids.filter(Boolean))).sort();
 
   // Add debugging effect to track auth state
   useEffect(() => {
@@ -140,7 +147,7 @@ export function AdManagement() {
       timestamp: new Date().toISOString(),
     };
     setDebugInfo(debugData);
-    console.log("🔍 Auth Debug Info:", debugData);
+    console.log("?? Auth Debug Info:", debugData);
   }, [user, isAuthenticated, authLoading]);
 
   // Use the new exchange data hook (fetch ads, balances and payment methods)
@@ -160,9 +167,97 @@ export function AdManagement() {
     // populated by higher-level flows or manual actions elsewhere.
   }, [isAuthenticated, user?.id]);
 
+  useEffect(() => {
+    if (!isClient || !knownAdsStorageKey) return;
+    try {
+      const raw = localStorage.getItem(knownAdsStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setKnownAdIds(normalizeKnownIds(parsed.filter((id) => typeof id === "string")));
+      }
+    } catch {
+      // no-op
+    }
+  }, [isClient, knownAdsStorageKey]);
+
+  const mapAdDetailToAd = (adData: any, fallbackAdId: string): Ad => {
+    const rawCompletionRate = Number(adData?.creator?.completionRate);
+    const normalizedCompletionRate =
+      Number.isFinite(rawCompletionRate) && rawCompletionRate > 0 && rawCompletionRate <= 1
+        ? rawCompletionRate * 100
+        : Number.isFinite(rawCompletionRate)
+          ? rawCompletionRate
+          : 0;
+    const isHidden = adData?.isHidden === true || String(adData?.hiddenCategory || "") === "1";
+    const paymentMethods = Array.isArray(adData?.paymentMethods)
+      ? adData.paymentMethods
+      : Array.isArray(adData?.paymentInfos)
+        ? adData.paymentInfos
+            .map((pm: any) => pm?.type || pm?.paymentMethod || pm?.name || pm?.methodType)
+            .filter(Boolean)
+        : [];
+
+    return {
+      id: adData?.adId || fallbackAdId,
+      type: adData?.side === "sell" ? "sell" : "buy",
+      cryptoCurrency: adData?.cryptoCurrency || "USDT",
+      fiatCurrency: adData?.fiatCurrency || "KES",
+      unitPrice: Number(adData?.unitPrice) || 0,
+      cryptoAmount: Number(adData?.cryptoAmount || adData?.availableAmount) || 0,
+      availableAmount: Number(adData?.availableAmount) || 0,
+      minOrderLimit: Number(adData?.minOrderSize) || 0,
+      maxOrderLimit: Number(adData?.maxOrderSize) || 0,
+      status: isHidden ? "paused" : "active",
+      paymentMethods,
+      completionRate: normalizedCompletionRate,
+      totalOrders: Number(adData?.creator?.completedOrders) || 0,
+      createdAt: adData?.createdTimestamp
+        ? new Date(Number(adData.createdTimestamp)).toISOString()
+        : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      priceType: "limit",
+      targetGroup: "all",
+      dataQuality: "complete",
+      dataIssues: [],
+      dataSource: "api",
+      stale: false,
+      okx_integration: {
+        adId: adData?.adId || fallbackAdId,
+        supported_payment_types: paymentMethods,
+        sasapay_compatible: false,
+        auto_payment_routing: false,
+      },
+    };
+  };
+
+  const recoverHiddenAdsByIds = async (adIds: string[]) => {
+    if (adIds.length === 0) return;
+    const hiddenMap: Record<string, Ad> = {};
+
+    await Promise.all(
+      adIds.map(async (adId) => {
+        try {
+          const detailsResp = await fetch(`/api/okx/ads/details?adId=${encodeURIComponent(adId)}`);
+          const detailsJson = await detailsResp.json();
+          if (!detailsResp.ok || !detailsJson?.success) return;
+          const mapped = mapAdDetailToAd(detailsJson.data, adId);
+          if (mapped.status !== "paused") return;
+          hiddenMap[adId] = mapped;
+        } catch {
+          // ignore per-ad detail failures
+        }
+      }),
+    );
+
+    if (Object.keys(hiddenMap).length > 0) {
+      setLocalInactiveAds((prev) => ({ ...prev, ...hiddenMap }));
+    }
+  };
+
   // Update ads when live data is available
   useEffect(() => {
-    console.log("🔍 Ad Management Data Check:", {
+    console.log("?? Ad Management Data Check:", {
       isClient,
       isAuthenticated,
       userId: user?.id,
@@ -182,10 +277,10 @@ export function AdManagement() {
 
     if (isClient && isAuthenticated && exchangeData.ads?.data) {
       try {
-        console.log("📦 Raw OKX ads data:", exchangeData.ads.data);
-        console.log("📋 Data type:", typeof exchangeData.ads.data);
-        console.log("📋 Data keys:", Object.keys(exchangeData.ads.data || {}));
-        console.log("📋 Is array?", Array.isArray(exchangeData.ads.data));
+        console.log("?? Raw OKX ads data:", exchangeData.ads.data);
+        console.log("?? Data type:", typeof exchangeData.ads.data);
+        console.log("?? Data keys:", Object.keys(exchangeData.ads.data || {}));
+        console.log("?? Is array?", Array.isArray(exchangeData.ads.data));
 
         // Try different possible data structures
         let adsArray = null;
@@ -194,31 +289,31 @@ export function AdManagement() {
           Array.isArray(exchangeData.ads.data.ads)
         ) {
           adsArray = exchangeData.ads.data.ads;
-          console.log("📊 Found ads in data.ads:", adsArray.length);
+          console.log("?? Found ads in data.ads:", adsArray.length);
         } else if (
           exchangeData.ads.data.data &&
           Array.isArray(exchangeData.ads.data.data)
         ) {
           adsArray = exchangeData.ads.data.data;
-          console.log("📊 Found ads in data.data:", adsArray.length);
+          console.log("?? Found ads in data.data:", adsArray.length);
         } else if (Array.isArray(exchangeData.ads.data)) {
           adsArray = exchangeData.ads.data;
-          console.log("📊 Found ads in root data:", adsArray.length);
+          console.log("?? Found ads in root data:", adsArray.length);
         } else {
-          console.warn("⚠️ No valid ads array found in data structure");
+          console.warn("?? No valid ads array found in data structure");
           console.log(
-            "📋 Data structure keys:",
+            "?? Data structure keys:",
             Object.keys(exchangeData.ads.data || {})
           );
           console.log(
-            "📋 Full data structure:",
+            "?? Full data structure:",
             JSON.stringify(exchangeData.ads.data, null, 2)
           );
         }
 
         if (adsArray && adsArray.length > 0) {
           console.log(
-            "🔄 Converting",
+            "?? Converting",
             adsArray.length,
             "OKX ads to component format"
           );
@@ -226,24 +321,79 @@ export function AdManagement() {
             source: exchangeData.ads?.source,
             isStale: exchangeData.ads?.is_stale,
           });
+          const liveIds = normalizeKnownIds(
+            liveAds.map((ad) => ad.okx_integration?.adId || ad.id).filter(Boolean) as string[],
+          );
+          const persistedIds =
+            isClient && knownAdsStorageKey
+              ? (() => {
+                  try {
+                    const raw = localStorage.getItem(knownAdsStorageKey);
+                    if (!raw) return [];
+                    const parsed = JSON.parse(raw);
+                    return Array.isArray(parsed)
+                      ? normalizeKnownIds(parsed.filter((id) => typeof id === "string"))
+                      : [];
+                  } catch {
+                    return [];
+                  }
+                })()
+              : [];
+          const mergedKnownIds = normalizeKnownIds([...knownAdIds, ...persistedIds, ...liveIds]);
+          if (mergedKnownIds.join("|") !== normalizeKnownIds(knownAdIds).join("|")) {
+            setKnownAdIds(mergedKnownIds);
+          }
+          if (isClient && knownAdsStorageKey) {
+            localStorage.setItem(knownAdsStorageKey, JSON.stringify(mergedKnownIds));
+          }
           setAds(liveAds);
-          console.log("✅ Live ads data loaded:", liveAds.length, "ads");
-          console.log("📊 Converted ads:", liveAds);
+          const liveIdSet = new Set(liveIds);
+          const missingKnownIds = mergedKnownIds.filter((id) => !liveIdSet.has(id));
+          void recoverHiddenAdsByIds(missingKnownIds);
+          console.log("? Live ads data loaded:", liveAds.length, "ads");
+          console.log("?? Converted ads:", liveAds);
         } else {
           console.warn(
-            "⚠️ No ads found in OKX data. This is normal if you haven't created any P2P ads yet."
+            "?? No ads found in OKX data. This is normal if you haven't created any P2P ads yet."
           );
-          console.log("📦 Raw data that had no ads:", exchangeData.ads.data);
+          console.log("?? Raw data that had no ads:", exchangeData.ads.data);
 
-          // Show a message instead of generating mock data
-          setAds([]);
-          console.log(
-            "📋 Set ads to empty array - user needs to create first ad"
-          );
+          const persistedIds =
+            isClient && knownAdsStorageKey
+              ? (() => {
+                  try {
+                    const raw = localStorage.getItem(knownAdsStorageKey);
+                    if (!raw) return [];
+                    const parsed = JSON.parse(raw);
+                    return Array.isArray(parsed)
+                      ? normalizeKnownIds(parsed.filter((id) => typeof id === "string"))
+                      : [];
+                  } catch {
+                    return [];
+                  }
+                })()
+              : [];
+          const mergedKnownIds = normalizeKnownIds([...knownAdIds, ...persistedIds]);
+          if (mergedKnownIds.length > 0) {
+            if (mergedKnownIds.join("|") !== normalizeKnownIds(knownAdIds).join("|")) {
+              setKnownAdIds(mergedKnownIds);
+            }
+            if (isClient && knownAdsStorageKey) {
+              localStorage.setItem(knownAdsStorageKey, JSON.stringify(mergedKnownIds));
+            }
+            setAds([]);
+            void recoverHiddenAdsByIds(mergedKnownIds);
+          } else {
+            // Show a message instead of generating mock data
+            setAds([]);
+            console.log(
+              "?? Set ads to empty array - user needs to create first ad"
+            );
+          }
         }
       } catch (error) {
-        console.error("❌ Failed to convert ads data:", error);
-        console.error("📦 Raw data that failed:", exchangeData.ads.data);
+        console.error("? Failed to convert ads data:", error);
+        console.error("?? Raw data that failed:", exchangeData.ads.data);
         if (isMockMode()) {
           void generateMockAds();
         } else {
@@ -251,7 +401,7 @@ export function AdManagement() {
         }
       }
     } else if (isClient && isAuthenticated && !exchangeData.isLoading) {
-      console.log("📋 No live ads data available, using mock data. Reason:", {
+      console.log("?? No live ads data available, using mock data. Reason:", {
         hasAdsData: !!exchangeData.ads?.data,
         adsError: exchangeData.ads?.error,
         isLoading: exchangeData.isLoading,
@@ -266,6 +416,8 @@ export function AdManagement() {
   }, [
     isClient,
     isAuthenticated,
+    knownAdIds,
+    knownAdsStorageKey,
     exchangeData.ads?.data,
     exchangeData.isLoading,
     exchangeData.lastRefresh,
@@ -273,7 +425,7 @@ export function AdManagement() {
 
   const testOKXConnection = async () => {
     try {
-      console.log("🧪 Testing OKX connection...");
+      console.log("?? Testing OKX connection...");
       // Trigger a refresh for ads/payment methods/balances and report status
       await exchangeData.refreshDataType?.("ads");
       await exchangeData.refreshDataType?.("payment_methods");
@@ -298,9 +450,9 @@ export function AdManagement() {
         }\n• Balances: ${balancesAvailable ? "Available" : "Not available"}`
       );
     } catch (error) {
-      console.error("🚨 OKX Test Error:", error);
+      console.error("?? OKX Test Error:", error);
       alert(
-        `🚨 OKX Connection Test Failed\n\nNetwork or server error occurred.\n\nError: ${
+        `?? OKX Connection Test Failed\n\nNetwork or server error occurred.\n\nError: ${
           error instanceof Error ? error.message : "Unknown error"
         }\n\nPlease check your internet connection and try again.`
       );
@@ -321,7 +473,17 @@ export function AdManagement() {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        console.log("✅ Ad created successfully:", result);
+        console.log("? Ad created successfully:", result);
+        const createdAdId = String(result?.data?.adId || result?.adId || "");
+        if (createdAdId) {
+          setKnownAdIds((prev) => {
+            const merged = normalizeKnownIds([...prev, createdAdId]);
+            if (isClient && knownAdsStorageKey) {
+              localStorage.setItem(knownAdsStorageKey, JSON.stringify(merged));
+            }
+            return merged;
+          });
+        }
         // Refresh ads data to show the new ad
         exchangeData.refreshDataType?.("ads");
         setIsCreateDialogOpen(false);
@@ -344,17 +506,17 @@ export function AdManagement() {
           remark: "",
           automatedMessage: "",
         });
-        alert(`✅ Ad created successfully! Ad ID: ${result.data?.adId}`);
+        alert(`? Ad created successfully! Ad ID: ${result.data?.adId}`);
       } else {
-        console.error("❌ Failed to create ad:", result);
+        console.error("? Failed to create ad:", result);
         const userMessage =
           result?.error || result?.details || "Failed to create ad";
         alert(userMessage);
       }
     } catch (error) {
-      console.error("🚨 Error creating ad:", error);
+      console.error("?? Error creating ad:", error);
       alert(
-        `🚨 Network Error\n\nFailed to communicate with the server. Please check your internet connection and try again.\n\nError: ${
+        `?? Network Error\n\nFailed to communicate with the server. Please check your internet connection and try again.\n\nError: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
@@ -447,15 +609,27 @@ export function AdManagement() {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        console.log("✅ Ad cancelled successfully:", result);
+        console.log("? Ad cancelled successfully:", result);
+        setKnownAdIds((prev) => {
+          const filtered = prev.filter((id) => id !== adId);
+          if (isClient && knownAdsStorageKey) {
+            localStorage.setItem(knownAdsStorageKey, JSON.stringify(filtered));
+          }
+          return filtered;
+        });
+        setLocalInactiveAds((prev) => {
+          const copy = { ...prev };
+          delete copy[adId];
+          return copy;
+        });
         exchangeData.refreshDataType?.("ads");
         alert("Ad cancelled successfully!");
       } else {
-        console.error("❌ Failed to cancel ad:", result.error || result);
+        console.error("? Failed to cancel ad:", result.error || result);
         alert(`Failed to cancel ad: ${result.error || result}`);
       }
     } catch (error) {
-      console.error("🚨 Error cancelling ad:", error);
+      console.error("?? Error cancelling ad:", error);
       alert(
         `Error cancelling ad: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -480,6 +654,13 @@ export function AdManagement() {
 
       if (response.ok && result.success) {
         const uiStatus: "active" | "paused" = newStatus === "hidden" ? "paused" : "active";
+        setKnownAdIds((prev) => {
+          const merged = normalizeKnownIds([...prev, adId]);
+          if (isClient && knownAdsStorageKey) {
+            localStorage.setItem(knownAdsStorageKey, JSON.stringify(merged));
+          }
+          return merged;
+        });
         setLocalStatusOverrides((prev) => ({ ...prev, [adId]: uiStatus }));
         setAds((prev) =>
           prev.map((ad) => (getAdRefId(ad) === adId ? { ...ad, status: uiStatus } : ad)),
@@ -525,55 +706,22 @@ export function AdManagement() {
 
       if (response.ok && result.success) {
         const adData = result.data || {};
-        const rawCompletionRate = Number(adData.creator?.completionRate);
-        const normalizedCompletionRate =
-          Number.isFinite(rawCompletionRate) && rawCompletionRate > 0 && rawCompletionRate <= 1
-            ? rawCompletionRate * 100
-            : Number.isFinite(rawCompletionRate)
-              ? rawCompletionRate
-              : 0;
-        const mappedAd: Ad = {
-          id: adData.adId || adId,
-          type: adData.side === "sell" ? "sell" : "buy",
-          cryptoCurrency: adData.cryptoCurrency || "USDT",
-          fiatCurrency: adData.fiatCurrency || "KES",
-          unitPrice: Number(adData.unitPrice) || 0,
-          cryptoAmount: Number(adData.availableAmount) || 0,
-          availableAmount: Number(adData.availableAmount) || 0,
-          minOrderLimit: Number(adData.minOrderSize) || 0,
-          maxOrderLimit: Number(adData.maxOrderSize) || 0,
-          status:
-            adData.status === "online" || adData.status === "show"
-              ? "active"
-              : adData.status === "offline" || adData.status === "hidden"
-                ? "paused"
-                : "active",
-          paymentMethods: Array.isArray(adData.paymentMethods) ? adData.paymentMethods : [],
-          completionRate: normalizedCompletionRate,
-          totalOrders: Number(adData.creator?.completedOrders) || 0,
-          createdAt: adData.createdTimestamp
-            ? new Date(Number(adData.createdTimestamp)).toISOString()
-            : new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          priceType: "limit",
-          targetGroup: "all",
-          okx_integration: {
-            adId: adData.adId || adId,
-            supported_payment_types: Array.isArray(adData.paymentMethods)
-              ? adData.paymentMethods
-              : [],
-            sasapay_compatible: false,
-            auto_payment_routing: false,
-          },
-        };
+        const mappedAd: Ad = mapAdDetailToAd(adData, adId);
+        setKnownAdIds((prev) => {
+          const merged = normalizeKnownIds([...prev, adId]);
+          if (isClient && knownAdsStorageKey) {
+            localStorage.setItem(knownAdsStorageKey, JSON.stringify(merged));
+          }
+          return merged;
+        });
         setSelectedAd(mappedAd);
         setIsViewDialogOpen(true);
       } else {
-        console.error("❌ Failed to fetch ad details:", result.error || result);
+        console.error("? Failed to fetch ad details:", result.error || result);
         alert(`Failed to fetch ad details: ${result.error || result}`);
       }
     } catch (error) {
-      console.error("🚨 Error fetching ad details:", error);
+      console.error("?? Error fetching ad details:", error);
       alert(
         `Error fetching ad details: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -803,7 +951,7 @@ export function AdManagement() {
           <Button
             variant="outline"
             onClick={() => {
-              console.log("🔄 Manual refresh triggered");
+              console.log("?? Manual refresh triggered");
               exchangeData.refreshData?.();
             }}
             disabled={exchangeData.isRefreshing}
@@ -1007,7 +1155,7 @@ export function AdManagement() {
                     <CheckCircle2 className="h-5 w-5 text-blue-600 mt-0.5" />
                     <div className="text-sm">
                       <h4 className="font-medium text-blue-900 mb-1">
-                        ✅ API Connection Successful
+                        ? API Connection Successful
                       </h4>
                       <p className="text-blue-700 mb-2">
                         Your OKX API is working correctly, but no ads were
@@ -1321,6 +1469,7 @@ export function AdManagement() {
     </div>
   );
 }
+
 
 
 

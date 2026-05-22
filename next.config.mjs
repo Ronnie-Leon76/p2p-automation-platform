@@ -1,4 +1,11 @@
 /** @type {import('next').NextConfig} */
+const allowedDevOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://192.168.0.105:3000",
+  process.env.NGROK_URL,
+].filter(Boolean);
+
 const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
@@ -9,11 +16,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  allowedDevOrigins: [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://working-ghoul-holy.ngrok-free.app"
-  ]
-}
+  allowedDevOrigins,
+};
 
 export default nextConfig

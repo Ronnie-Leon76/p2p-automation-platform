@@ -103,8 +103,12 @@ export function convertOKXAdsToAds(
     const maxOrderLimit = parseNumberStrict(ad.maxOrderSize);
     const completionRate = normalizeCompletionRate(parseNumberStrict(ad.creator?.completionRate));
     const totalOrders = parseNumberStrict(ad.creator?.completedOrders);
+    const isHidden = ad?.isHidden === true;
     const issues: string[] = [];
-    if (unitPrice === null || unitPrice <= 0) issues.push("unitPrice");
+    // Summary/list payloads can omit unitPrice; don't mark as incomplete for that alone.
+    if (!ad.adId && !ad.id) issues.push("adId");
+    if (!ad.cryptoCurrency) issues.push("cryptoCurrency");
+    if (!ad.fiatCurrency) issues.push("fiatCurrency");
     if (availableAmount === null || availableAmount <= 0) issues.push("availableAmount");
     if (minOrderLimit === null) issues.push("minOrderLimit");
     if (maxOrderLimit === null) issues.push("maxOrderLimit");
@@ -122,10 +126,10 @@ export function convertOKXAdsToAds(
       minOrderLimit: minOrderLimit ?? Number.NaN,
       maxOrderLimit: maxOrderLimit ?? Number.NaN,
       status: (
-        ad.status === "online" || ad.status === "show"
-          ? "active"
-          : ad.status === "offline" || ad.status === "hidden"
-            ? "paused"
+        isHidden
+          ? "paused"
+          : ad.status === "show" || ad.status === "online" || ad.status === "active"
+            ? "active"
             : "active"
       ) as
         | "active"

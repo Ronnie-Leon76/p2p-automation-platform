@@ -411,6 +411,7 @@ export class OKXExchange implements P2PExchange {
       !rawUnitPrice && Number.isFinite(numericAvailable) && numericAvailable > 0 && Number.isFinite(numericMax)
         ? (numericMax / numericAvailable).toFixed(2)
         : ""
+    const isHidden = source?.isHidden === true
 
     return {
       adId:
@@ -445,7 +446,8 @@ export class OKXExchange implements P2PExchange {
         kycLevel: creator?.kycLevel || creator?.kyc_level || "",
       },
       paymentMethods,
-      status: source?.status || source?.adStatus || source?.state || "",
+      isHidden,
+      status: isHidden ? "hidden" : source?.status || source?.adStatus || source?.state || "online",
       createdTimestamp:
         source?.createdTimestamp ||
         source?.createdAt ||
